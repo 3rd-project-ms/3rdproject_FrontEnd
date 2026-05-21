@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-voice/voice": "^3.2.4",
+    "axios": "^1.16.1",
+    "expo-av": "^16.0.8",
+    "expo-secure-store": "~55.0.14",
+    "react-native-dotenv": "^3.4.11",
+    "react-native-gesture-handler": "^2.31.2",
+    "react-native-reanimated": "^4.3.1",
+    "zustand": "^5.0.13"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  }
+}
