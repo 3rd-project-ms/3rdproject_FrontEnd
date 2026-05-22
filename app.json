@@ -1,5 +1,15 @@
 {
-  "plugins": [
-    "expo-secure-store"
-  ]
+  "expo": {
+    "name": "3rdproject_FrontEnd",
+    "slug": "3rdproject-frontend",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "thirdprojectfrontend",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font"
+    ]
+  }
 }
