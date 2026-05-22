@@ -47,7 +47,6 @@ export default function PronunciationScreen() {
         <PrimaryButton
           label="더 자세히 보기"
           onPress={() => router.push('/report/pronunciation-detail')}
-          variant="outline"
         />
       </ScrollView>
     </View>

@@ -22,7 +22,7 @@ export default function ChartPlaceholder({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#E0E0E0',
-    borderRadius: 12,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

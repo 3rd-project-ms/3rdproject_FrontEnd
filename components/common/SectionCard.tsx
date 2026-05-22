@@ -21,7 +21,7 @@ export default function SectionCard({ title, subtitle, children, style }: Sectio
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#F0F0F0',
-    borderRadius: 12,
+    borderRadius: 0,
     padding: 16,
     gap: 6,
   },

@@ -135,12 +135,7 @@ export default function ReviewScreen() {
             onPress={() => setActiveFilter(filter)}
             activeOpacity={0.7}
           >
-            <Text
-              style={[
-                styles.filterLabel,
-                activeFilter === filter && styles.filterLabelActive,
-              ]}
-            >
+            <Text style={styles.filterLabel}>
               {filter}
             </Text>
           </TouchableOpacity>
@@ -219,7 +214,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     backgroundColor: '#F5F5F5',
-    borderRadius: 10,
+    borderRadius: 0,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 14,
@@ -234,19 +229,18 @@ const styles = StyleSheet.create({
   filterTab: {
     paddingHorizontal: 18,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F0F0F0',
+    borderRadius: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#1A1A1A',
   },
   filterTabActive: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#F0F0F0',
   },
   filterLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#888888',
-  },
-  filterLabelActive: {
-    color: '#FFFFFF',
+    color: '#1A1A1A',
   },
   listContent: {
     paddingHorizontal: 20,
@@ -265,7 +259,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+    borderRadius: 0,
     padding: 16,
     gap: 12,
   },

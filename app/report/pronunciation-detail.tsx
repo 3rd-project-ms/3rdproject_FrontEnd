@@ -3,46 +3,27 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { useRouter } from 'expo-router';
 
 import SectionCard from '@/components/common/SectionCard';
-import PronunciationTable, { PronunciationRow } from '@/components/common/PronunciationTable';
+import ChartPlaceholder from '@/components/common/ChartPlaceholder';
 import PrimaryButton from '@/components/common/PrimaryButton';
 import NavArrow from '@/components/common/NavArrow';
 
 interface SentenceItem {
   original: string;
   translation: string;
-  rows: PronunciationRow[];
 }
 
 const MOCK_SENTENCES: SentenceItem[] = [
   {
     original: '"Hello, I want to learn surfing today."',
     translation: '정식 해석: "안녕하세요, 저 오늘 서핑 배우고 싶어요."',
-    rows: [
-      { label: '종합 점수', value: '72점 / 100점' },
-      { label: '정확도', subLabel: 'Accuracy', value: '보통 (75%)' },
-      { label: '유창성', subLabel: 'Fluency', value: '양호 (80%)' },
-      { label: '억양', subLabel: 'Intonation', value: '노력 필요 (60%)' },
-    ],
   },
   {
     original: '"Can I get a coffee, please?"',
     translation: '정식 해석: "커피 한 잔 주실 수 있나요?"',
-    rows: [
-      { label: '종합 점수', value: '85점 / 100점' },
-      { label: '정확도', subLabel: 'Accuracy', value: '양호 (88%)' },
-      { label: '유창성', subLabel: 'Fluency', value: '우수 (90%)' },
-      { label: '억양', subLabel: 'Intonation', value: '양호 (82%)' },
-    ],
   },
   {
     original: '"That sounds really interesting!"',
     translation: '정식 해석: "그거 정말 흥미롭게 들리네요!"',
-    rows: [
-      { label: '종합 점수', value: '78점 / 100점' },
-      { label: '정확도', subLabel: 'Accuracy', value: '양호 (80%)' },
-      { label: '유창성', subLabel: 'Fluency', value: '보통 (75%)' },
-      { label: '억양', subLabel: 'Intonation', value: '양호 (82%)' },
-    ],
   },
 ];
 
@@ -71,22 +52,22 @@ export default function PronunciationDetailScreen() {
         {/* 원문 + 해석 카드 */}
         <SectionCard title={current.original} subtitle={current.translation} />
 
-        {/* 발음 분석 표 */}
-        <PronunciationTable rows={current.rows} />
+        {/* 발음 표 placeholder */}
+        <ChartPlaceholder label="발음 표 제시" height={180} />
 
         {/* 내 발음 듣기 / 원어민 발음 가이드 */}
         <View style={styles.audioRow}>
           <PrimaryButton
             label="내 발음 듣기"
             onPress={() => {}}
-            variant="outline"
+
             style={styles.audioButton}
           />
           <View style={styles.audioGap} />
           <PrimaryButton
             label="원어민 발음 가이드"
             onPress={() => {}}
-            variant="outline"
+
             style={styles.audioButton}
           />
         </View>
@@ -96,15 +77,17 @@ export default function PronunciationDetailScreen() {
           label="다시 녹음해서 도전하기"
           onPress={() => router.push('/(main)/chat-voice')}
         />
+      </ScrollView>
 
-        {/* 이전 / 다음 네비게이션 */}
+      {/* 이전 / 다음 네비게이션 - 화면 하단 고정 */}
+      <View style={styles.navWrap}>
         <NavArrow
           onPrev={() => setCurrentIndex((i) => i - 1)}
           onNext={() => setCurrentIndex((i) => i + 1)}
           prevDisabled={isFirst}
           nextDisabled={isLast}
         />
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -148,5 +131,9 @@ const styles = StyleSheet.create({
   },
   audioGap: {
     width: 12,
+  },
+  navWrap: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
 });

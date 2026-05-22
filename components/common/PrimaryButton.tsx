@@ -1,55 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
 
 interface PrimaryButtonProps {
   label: string;
   onPress: () => void;
-  variant?: 'filled' | 'outline';
   style?: ViewStyle;
 }
 
-export default function PrimaryButton({
-  label,
-  onPress,
-  variant = 'filled',
-  style,
-}: PrimaryButtonProps) {
+export default function PrimaryButton({ label, onPress, style }: PrimaryButtonProps) {
+  const [pressed, setPressed] = useState(false);
+
   return (
     <TouchableOpacity
-      style={[styles.base, variant === 'outline' ? styles.outline : styles.filled, style]}
+      style={[styles.base, pressed && styles.pressed, style]}
       onPress={onPress}
-      activeOpacity={0.8}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      activeOpacity={1}
     >
-      <Text style={[styles.label, variant === 'outline' ? styles.labelOutline : styles.labelFilled]}>
-        {label}
-      </Text>
+      <Text style={styles.label}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 12,
+    borderRadius: 0,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  filled: {
-    backgroundColor: '#1A1A1A',
-  },
-  outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#1A1A1A',
   },
+  pressed: {
+    backgroundColor: '#F0F0F0',
+  },
   label: {
     fontSize: 15,
     fontWeight: '600',
-  },
-  labelFilled: {
-    color: '#FFFFFF',
-  },
-  labelOutline: {
     color: '#1A1A1A',
   },
 });

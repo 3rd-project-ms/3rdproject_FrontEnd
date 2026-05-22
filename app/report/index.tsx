@@ -36,6 +36,7 @@ export default function ReportScreen() {
           activeOpacity={0.7}
         >
           <ScoreCard label="평균 발음 점수" value={82} unit="점" />
+          <Text style={styles.scoreArrow}>›</Text>
         </TouchableOpacity>
         <View style={styles.scoreGap} />
         <View style={styles.scoreCardWrap}>
@@ -71,7 +72,6 @@ export default function ReportScreen() {
         <PrimaryButton
           label="메인으로 돌아가기"
           onPress={() => router.push('/')}
-          variant="outline"
         />
       </View>
     </ScrollView>
@@ -106,6 +106,13 @@ const styles = StyleSheet.create({
   },
   scoreCardWrap: {
     flex: 1,
+  },
+  scoreArrow: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    fontSize: 18,
+    color: '#888888',
   },
   scoreGap: {
     width: 12,

@@ -16,7 +16,7 @@ export default function ProgressBar({ label, progress, change }: ProgressBarProp
         <Text style={styles.label}>{label}</Text>
         {change !== undefined && (
           <Text style={[styles.change, change >= 0 ? styles.positive : styles.negative]}>
-            {change >= 0 ? `+${change}%` : `${change}%`} 성장
+            {change >= 0 ? `+${change}%` : `${change}%`} 상승
           </Text>
         )}
       </View>
@@ -54,12 +54,12 @@ const styles = StyleSheet.create({
   track: {
     height: 8,
     backgroundColor: '#E0E0E0',
-    borderRadius: 4,
+    borderRadius: 0,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
     backgroundColor: '#4A90E2',
-    borderRadius: 4,
+    borderRadius: 0,
   },
 });
