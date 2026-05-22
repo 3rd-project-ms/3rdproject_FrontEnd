@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx expo *)",
+      "Bash(npx tsc *)",
+      "Bash(adb devices *)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" devices 2>&1)",
+      "PowerShell(cd \"C:\\\\Users\\\\USER\\\\3rdproject_FrontEnd\"; $env:CI = \"1\"; Start-Process -NoNewWindow -FilePath \"npx\" -ArgumentList \"expo start --port 8095\" -PassThru)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell am start -a android.intent.action.VIEW -d \"exp://localhost:8095\" host.exp.exponent 2>&1)",
+      "PowerShell(Set-Content *)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell screencap -p /sdcard/screen_report.png; & \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" pull /sdcard/screen_report.png \"C:\\\\Users\\\\USER\\\\3rdproject_FrontEnd\\\\docs\\\\screen_report.png\" 2>&1)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" logcat -d -s ReactNativeJS 2>&1 | Select-Object -Last 40)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" reverse tcp:8095 tcp:8095 2>&1)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell screencap -p /sdcard/screen1.png; & \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" pull /sdcard/screen1.png \"C:\\\\Users\\\\USER\\\\3rdproject_FrontEnd\\\\docs\\\\screen1.png\" 2>&1)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell screencap -p /sdcard/screen2.png; & \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" pull /sdcard/screen2.png \"C:\\\\Users\\\\USER\\\\3rdproject_FrontEnd\\\\docs\\\\screen2.png\" 2>&1)"
+    ]
+  }
+}
