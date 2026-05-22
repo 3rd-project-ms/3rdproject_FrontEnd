@@ -77,17 +77,15 @@ export default function PronunciationDetailScreen() {
           label="다시 녹음해서 도전하기"
           onPress={() => router.push('/(main)/chat-voice')}
         />
-      </ScrollView>
 
-      {/* 이전 / 다음 네비게이션 - 화면 하단 고정 */}
-      <View style={styles.navWrap}>
+        {/* 이전 / 다음 네비게이션 */}
         <NavArrow
           onPrev={() => setCurrentIndex((i) => i - 1)}
           onNext={() => setCurrentIndex((i) => i + 1)}
           prevDisabled={isFirst}
           nextDisabled={isLast}
         />
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -131,9 +129,5 @@ const styles = StyleSheet.create({
   },
   audioGap: {
     width: 12,
-  },
-  navWrap: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
   },
 });

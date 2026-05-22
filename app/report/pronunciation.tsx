@@ -3,12 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { useRouter } from 'expo-router';
 
 import ChartPlaceholder from '@/components/common/ChartPlaceholder';
-import SectionCard from '@/components/common/SectionCard';
 import PrimaryButton from '@/components/common/PrimaryButton';
-
-const MOCK_ANALYSIS =
-  '오늘 대화에서 /θ/ 발음이 반복적으로 약하게 발음되었어요. ' +
-  '"the"와 "that" 발음 시 혀를 윗니 뒤에 가볍게 대는 연습이 필요합니다.';
 
 export default function PronunciationScreen() {
   const router = useRouter();
@@ -39,9 +34,7 @@ export default function PronunciationScreen() {
         <ChartPlaceholder label="그래프 제시" height={220} />
 
         {/* 발음 분석 내용 */}
-        <SectionCard title="발음 분석 내용">
-          <Text style={styles.analysisText}>{MOCK_ANALYSIS}</Text>
-        </SectionCard>
+        <ChartPlaceholder label="발음 분석 내용" height={120} />
 
         {/* 더 자세히 보기 */}
         <PrimaryButton
@@ -100,10 +93,5 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '400',
     color: '#1A1A1A',
-  },
-  analysisText: {
-    fontSize: 13,
-    color: '#555555',
-    lineHeight: 20,
   },
 });

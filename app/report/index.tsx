@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 32,
+    paddingTop: 56,
     paddingBottom: 40,
     gap: 20,
   },
@@ -119,6 +119,8 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 12,
+    backgroundColor: '#F5F5F5',
+    padding: 16,
   },
   sectionTitle: {
     fontSize: 15,
