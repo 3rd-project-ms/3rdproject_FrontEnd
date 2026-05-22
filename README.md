@@ -51,6 +51,8 @@ AZURE_AI_KEY=your_azure_ai_service_key_here
 
 이 프로젝트는 **Expo SDK 55**를 사용합니다. 스토어의 최신 Expo Go는 SDK 버전이 맞지 않을 수 있으므로, 아래 방법으로 설치해 주세요.
 
+> ⚠️ **현재 Android만 지원합니다.**
+
 ### Android
 아래 링크에서 Expo Go APK를 직접 다운로드하여 설치합니다.
 
@@ -58,14 +60,7 @@ AZURE_AI_KEY=your_azure_ai_service_key_here
 https://expo.dev/go?sdkVersion=55&platform=android&device=true
 ```
 
-> ⚠️ 설치 전 기기에서 **"알 수 없는 앱 설치 허용"** 을 활성화해야 합니다.
-
-### iOS
-App Store에서 Expo Go를 설치합니다. SDK 55를 지원하는 버전이 자동으로 설치됩니다.
-
-```
-https://apps.apple.com/app/expo-go/id982107779
-```
+> 설치 전 기기에서 **"알 수 없는 앱 설치 허용"** 을 활성화해야 합니다.
 
 ---
 
