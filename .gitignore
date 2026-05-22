@@ -4,3 +4,4 @@ node_modules/
 *.log
 App.tsx
 .claude/
+CLAUDE.md
