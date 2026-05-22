@@ -1,4 +1,8 @@
 {
+  "name": "3rdproject_FrontEnd",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {},
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@react-native-voice/voice": "^3.2.4",
@@ -20,8 +24,5 @@
   "devDependencies": {
     "@types/react": "~19.2.10",
     "typescript": "~5.9.2"
-  },
-  "name": "3rdproject_FrontEnd",
-  "version": "1.0.0",
-  "scripts": {}
+  }
 }
