@@ -3,6 +3,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -13,11 +14,49 @@ import {
 import AuthHeader from '../../components/common/AuthHeader';
 import Button from '../../components/common/Button';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { useAuthStore } from '../../store/useAuthStore';
+
+const mockAccounts = [
+  { id: 'team4', password: 'team4123!' },
+  { id: 'user1', password: 'user1234!' },
+];
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const [loginId, setLoginId] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  const canLogin =
+    loginId.trim().length > 0 && loginPassword.trim().length > 0;
+
+  const handleChangeLoginId = (value: string) => {
+    setLoginId(value);
+    setLoginError('');
+  };
+
+  const handleChangeLoginPassword = (value: string) => {
+    setLoginPassword(value);
+    setLoginError('');
+  };
+
+  const handleLogin = () => {
+    const normalizedId = loginId.trim().toLowerCase();
+    const matched = mockAccounts.find(
+      (account) =>
+        account.id === normalizedId && account.password === loginPassword
+    );
+
+    if (matched) {
+      setLoginError('');
+      setAuth({ isLoggedIn: true, email: matched.id });
+      router.replace('/(main)/home');
+      return;
+    }
+
+    setLoginError('*아이디 또는 비밀번호가 일치하지 않습니다.');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -25,8 +64,8 @@ export default function LoginScreen() {
       <View style={styles.content}>
         <View style={styles.formSection}>
           <TextInput
-            value={email}
-            onChangeText={setEmail}
+            value={loginId}
+            onChangeText={handleChangeLoginId}
             placeholder="이메일(아이디)"
             placeholderTextColor={COLORS.gray1}
             autoCapitalize="none"
@@ -34,16 +73,22 @@ export default function LoginScreen() {
             style={styles.input}
           />
           <TextInput
-            value={password}
-            onChangeText={setPassword}
+            value={loginPassword}
+            onChangeText={handleChangeLoginPassword}
             placeholder="비밀번호"
             placeholderTextColor={COLORS.gray1}
             secureTextEntry
             style={[styles.input, styles.passwordInput]}
           />
+          <View style={styles.errorArea}>
+            {loginError ? (
+              <Text style={styles.errorText}>{loginError}</Text>
+            ) : null}
+          </View>
           <Button
             title="로그인"
-            onPress={() => router.replace('/(main)/home')}
+            disabled={!canLogin}
+            onPress={handleLogin}
             style={styles.submitButton}
           />
         </View>
@@ -57,6 +102,15 @@ export default function LoginScreen() {
               계정이 없으신가요? <Text style={styles.underlineText}>회원가입</Text>
             </Text>
           </Pressable>
+          <View style={styles.findLinks}>
+            <Pressable onPress={() => Alert.alert('추후 구현 예정')}>
+              <Text style={styles.findLinkText}>아이디 찾기</Text>
+            </Pressable>
+            <Text style={styles.dividerText}>|</Text>
+            <Pressable onPress={() => Alert.alert('추후 구현 예정')}>
+              <Text style={styles.findLinkText}>비밀번호 재설정</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -90,8 +144,16 @@ const styles = StyleSheet.create({
   passwordInput: {
     marginTop: 18,
   },
+  errorArea: {
+    minHeight: 20,
+    justifyContent: 'center',
+  },
+  errorText: {
+    ...TYPOGRAPHY.regular10,
+    color: COLORS.error,
+  },
   submitButton: {
-    marginTop: 32,
+    marginTop: 20,
   },
   bottomSection: {
     alignItems: 'center',
@@ -106,5 +168,20 @@ const styles = StyleSheet.create({
   },
   underlineText: {
     textDecorationLine: 'underline',
+  },
+  findLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  findLinkText: {
+    ...TYPOGRAPHY.regular14,
+    color: COLORS.gray0,
+    textDecorationLine: 'underline',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    ...TYPOGRAPHY.regular14,
+    color: COLORS.gray0,
   },
 });
