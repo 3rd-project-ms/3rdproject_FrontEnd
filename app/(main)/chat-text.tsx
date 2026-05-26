@@ -1,439 +1,438 @@
-// app/(main)/chat-text.tsx
-// 카카오톡 / 인스타 DM 스타일 텍스트 채팅 화면
-import React, { useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
   StyleSheet,
-  FlatList,
-  SafeAreaView,
-  StatusBar,
+  Text,
+  View,
+  TextInput,
   TouchableOpacity,
-  Modal,
-  ScrollView,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import ChatBubble, { ChatMessage } from '../../components/chat/ChatBubble';
-import InputBar from '../../components/chat/InputBar';
-import ReadSsipEffect from '../../components/chat/ReadSsipEffect';
-import { useChatStore, CHARACTERS } from '../../store/useChatStore';
-import { chatService } from '../../services/chatService';
-import { colors, fonts, spacing, radius, shadow } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons'; //
+import { useRouter } from 'expo-router'; // 👈 [추가] Expo Router 네비게이션 훅 import
 
-// 현재 시각 → "HH:MM" 형식
-function nowTime() {
-  const d = new Date();
-  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+interface Message {
+  id: string;
+  text: string;
+  sender: 'ai' | 'user';
+  time: string;
 }
 
-let msgCounter = 0;
-const makeId = () => `msg_${++msgCounter}_${Date.now()}`;
+export default function ChatScreen() {
+  const router = useRouter(); // 👈 [추가] router 인스턴스 생성
+  
+  const [inputText, setInputText] = useState('');
+  const [affinity, setAffinity] = useState(70); 
+  const [currentHearts, setCurrentHearts] = useState(3); 
+  const maxHearts = 5;
+  const hintText = '추천 표현: "I highly recommend our signature ice blend!"';
 
-export default function ChatTextScreen() {
-  const router = useRouter();
-  const flatRef = useRef<FlatList>(null);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      text: `Hello there! Welcome to our cafe. Lovely day to grab a coffee, isn't it? What can I get started for you today, cheers?`,
+      sender: 'ai',
+      time: '오후 2:14',
+    },
+    {
+      id: '2',
+      text: `Hi! Honestly, I'm feeling a bit tired today. Do you have anything strong that can wake me up?`,
+      sender: 'user',
+      time: '오후 2:14',
+    },
+    {
+      id: '3',
+      text: `Oh, you look absolutely shattered! In that case, I'd highly recommend our signature ice blend. It's quite strong and will sort you right out.`,
+      sender: 'ai',
+      time: '오후 2:15',
+    },
+    {
+      id: '4',
+      text: `That sounds perfect. By the way, what kind of coffee beans do you use for that blend?`,
+      sender: 'user',
+      time: '오후 2:15',
+    },
+    {
+      id: '5',
+      text: `Well, darling, we use a beautiful mixture of Ethiopian and Colombian beans, roasted right here in-house. It has a remarkably rich flavor.`,
+      sender: 'ai',
+      time: '오후 2:16',
+    },
+  ]);
 
-  const {
-    characterId,
-    characterGender,
-    messages,
-    affection,
-    isReadSsip,
-    correctionPopup,
-    isLoading,
-    addMessage,
-    addAITyping,
-    removeAITyping,
-    updateAffection,
-    setReadSsip,
-    showCorrectionPopup,
-    hideCorrectionPopup,
-    setLoading,
-  } = useChatStore();
+  const handleSend = () => {
+    if (inputText.trim() === '') return;
+    if (currentHearts <= 0) return;
 
-  const character = CHARACTERS[characterId];
+    const currentTime = new Date().toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
-  // ── 스크롤 하단 이동 ──
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      flatRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text: inputText,
+      sender: 'user',
+      time: currentTime,
+    };
+
+    setMessages((prev) => [...prev, newMessage]);
+    setInputText('');
+    setCurrentHearts((prev) => Math.max(0, prev - 1));
+    setAffinity((prev) => Math.min(100, prev + 2));
   };
 
-  // ── 메시지 전송 로직 ──
-  const sendMessage = useCallback(
-    async (text: string, mode: 'normal' | 'provoke' | 'mumble' = 'normal') => {
-      if (isLoading) return;
+  const renderMessageItem = ({ item }: { item: Message }) => {
+    const isAi = item.sender === 'ai';
 
-      // 1. 내 메시지 추가
-      const userMsg: ChatMessage = {
-        id: makeId(),
-        role: 'user',
-        text,
-        timestamp: nowTime(),
-      };
-      addMessage(userMsg);
-      scrollToBottom();
-
-      // 2. 로딩 + 타이핑 버블
-      setLoading(true);
-      addAITyping();
-      setReadSsip(false);
-      scrollToBottom();
-
-      try {
-        // 3. API 호출
-        const res = await chatService.sendText({
-          character_id: characterId,
-          gender: characterGender,
-          user_message: text,
-          mode,
-        });
-
-        removeAITyping();
-
-        // 4. AI 메시지 추가
-        const aiMsg: ChatMessage = {
-          id: makeId(),
-          role: 'ai',
-          text: res.character_reply,
-          timestamp: nowTime(),
-          showAvatar: true,
-          correction: res.correction || undefined,
-        };
-        addMessage(aiMsg);
-
-        // 5. 호감도 업데이트
-        if (res.affection_change !== 0) {
-          updateAffection(res.affection_change);
-        }
-
-        // 6. 읽씹 처리
-        if (res.is_read_ssip) {
-          setReadSsip(true);
-        }
-
-        // 7. 교정 팝업 (correction 있을 때)
-        if (res.correction) {
-          showCorrectionPopup({
-            correction: res.correction,
-            betterExpression: res.better_expression,
-            learningPoint: res.learning_point,
-          });
-        }
-
-        scrollToBottom();
-      } catch (e) {
-        removeAITyping();
-        const errMsg: ChatMessage = {
-          id: makeId(),
-          role: 'ai',
-          text: '연결이 끊겼어요. 다시 시도해볼게요! 😅',
-          timestamp: nowTime(),
-          showAvatar: true,
-        };
-        addMessage(errMsg);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [isLoading, characterId, characterGender]
-  );
-
-  // ── 도발하기 / 웅얼거리기 ──
-  const handleProvoke = () => sendMessage('(도발하기)', 'provoke');
-  const handleMumble = () => sendMessage('(웅얼거리기)', 'mumble');
-
-  // ── 렌더 아이템 ──
-  const renderItem = ({ item }: { item: ChatMessage }) => (
-    <ChatBubble
-      message={item}
-      // TODO: 실제 캐릭터 이미지로 교체
-      // characterAvatar={require(`../../assets/characters/${characterId}_${characterGender}.png`)}
-    />
-  );
+    return (
+      <View style={[styles.messageWrapper, isAi ? styles.aiWrapper : styles.userWrapper]}>
+        <View style={[styles.bubbleRow, isAi ? styles.aiRowDirection : styles.userRowDirection]}>
+          <View style={[styles.bubble, isAi ? styles.aiBubble : styles.userBubble]}>
+            <Text style={[styles.messageText, isAi ? styles.aiText : styles.userText]}>
+              {item.text}
+            </Text>
+          </View>
+          <Text style={styles.timeText}>{item.time}</Text>
+        </View>
+      </View>
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg_dark} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={true} />
 
-      {/* ── 헤더 ── */}
+      {/* [1] 상단 헤더 영역 */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.back_btn}>
-          <Text style={styles.back_icon}>‹</Text>
+        {/* 👈 [수정] onPress 이벤트를 추가하여 아이콘을 누르면 home으로 라우팅되도록 설정 */}
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/home')}>
+          <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
         </TouchableOpacity>
 
-        {/* 캐릭터 아바타 자리 */}
-        <View style={styles.header_avatar}>
-          <Text style={styles.header_avatar_emoji}>{character.emoji}</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>젊은 카페 사장님</Text>
+          <Text style={styles.headerSubtitle}>런던 억센트 • 난이도 최상</Text>
         </View>
 
-        <View style={styles.header_info}>
-          <Text style={styles.header_name}>
-            {character.name} · {characterGender === 'F' ? '여' : '남'}
-          </Text>
-          <Text style={styles.header_status}>
-            {isLoading ? '입력 중...' : `♥ 호감도 ${affection}`}
-          </Text>
-        </View>
-
-        {/* 통화 모드 전환 */}
-        <TouchableOpacity
-          style={styles.voice_btn}
-          onPress={() => router.replace('/(main)/chat-voice')}
-        >
-          <Text style={styles.voice_icon}>📞</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── 호감도 바 (얇게) ── */}
-      <View style={styles.affection_track}>
-        <View
-          style={[styles.affection_fill, { width: `${affection}%` }]}
-        />
-      </View>
-
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-      >
-        {/* ── 메시지 목록 ── */}
-        <FlatList
-          ref={flatRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          style={styles.list}
-          contentContainerStyle={styles.list_content}
-          onContentSizeChange={scrollToBottom}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.empty_emoji}>{character.emoji}</Text>
-              <Text style={styles.empty_text}>
-                {character.name}에게{'\n'}영어로 말을 걸어보세요!
-              </Text>
-            </View>
-          }
-          ListFooterComponent={
-            // 읽씹 애니메이션
-            isReadSsip ? (
-              <ReadSsipEffect
-                visible={isReadSsip}
-                characterName={character.name}
+        {/* 알약 형태 생명 표시 바 */}
+        <View style={styles.lifeHeartContainer}>
+          <View style={styles.capsuleRow}>
+            {Array.from({ length: maxHearts }).map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.lifeCapsule,
+                  index < currentHearts ? styles.lifeCapsuleActive : styles.lifeCapsuleInactive,
+                ]}
               />
-            ) : null
-          }
-        />
+            ))}
+          </View>
+          <Text style={styles.lifeRatioText}>{`${currentHearts}/${maxHearts}`}</Text>
+        </View>
+      </View>
 
-        {/* ── 입력창 ── */}
-        <InputBar
-          onSend={(text) => sendMessage(text, 'normal')}
-          onProvoke={handleProvoke}
-          onMumble={handleMumble}
-          onVoiceMode={() => router.replace('/(main)/chat-voice')}
-          disabled={isLoading}
-        />
-      </KeyboardAvoidingView>
+      {/* [2] 호감도 프로그레스 바 영역 */}
+      <View style={styles.affinityContainer}>
+        <Text style={styles.affinityLabel}>호감도</Text>
+        
+        <View style={styles.progressSection}>
+          <View style={styles.progressBarWrapper}>
+            <View style={[styles.percentBadge, { left: `${affinity - 6}%` }]}>
+              <Text style={styles.percentBadgeText}>{affinity}%</Text>
+            </View>
+            
+            <View style={styles.progressBarTrack}>
+              <View style={[styles.progressBarFill, { width: `${affinity}%` }]} />
+            </View>
+          </View>
+          
+          <Ionicons name="arrow-forward-outline" size={16} color="#8E8E93" style={styles.arrowIcon} />
+        </View>
 
-      {/* ── 교정 팝업 모달 ── */}
-      <Modal
-        visible={correctionPopup.visible}
-        transparent
-        animationType="slide"
-        onRequestClose={hideCorrectionPopup}
+        <View style={styles.rewardContainer}>
+          <Ionicons name="gift" size={20} color="#1C1C1E" />
+          <Text style={styles.rewardText}>보상</Text>
+        </View>
+      </View>
+
+      {/* [3] 채팅 메시지 스크롤 영역 */}
+      <FlatList
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={renderMessageItem}
+        contentContainerStyle={styles.chatListContent}
+        showsVerticalScrollIndicator={false}
+      />
+
+      {/* [4] 하단 고정 영역 (힌트칸 + 타원 인풋바) */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <TouchableOpacity
-          style={styles.modal_overlay}
-          activeOpacity={1}
-          onPress={hideCorrectionPopup}
-        >
-          <View style={styles.correction_modal}>
-            <View style={styles.modal_handle} />
+        <View style={styles.hintContainer}>
+          <Text style={styles.hintText}>
+            💡 {hintText}
+          </Text>
+        </View>
 
-            <Text style={styles.modal_title}>📝 문법 교정</Text>
-
-            <View style={styles.correction_section}>
-              <Text style={styles.correction_label}>교정된 문장</Text>
-              <Text style={styles.correction_value}>{correctionPopup.correction}</Text>
-            </View>
-
-            <View style={styles.correction_section}>
-              <Text style={styles.correction_label}>더 자연스러운 표현</Text>
-              <Text style={styles.correction_value}>{correctionPopup.betterExpression}</Text>
-            </View>
-
-            <View style={[styles.correction_section, styles.learning_section]}>
-              <Text style={styles.learning_label}>💡 오늘의 학습 포인트</Text>
-              <Text style={styles.learning_value}>{correctionPopup.learningPoint}</Text>
-            </View>
-
-            <TouchableOpacity style={styles.close_btn} onPress={hideCorrectionPopup}>
-              <Text style={styles.close_btn_text}>확인했어요</Text>
+        <View style={styles.inputContainer}>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="영어 문장으로 답변을 구성해보세요."
+              placeholderTextColor="#A9A9A9"
+              value={inputText}
+              onChangeText={setInputText}
+            />
+            <TouchableOpacity style={styles.micButton}>
+              <Ionicons name="mic" size={18} color="#1C1C1E" />
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </Modal>
+          
+          <TouchableOpacity
+            style={[styles.sendButton, inputText.trim() === '' ? styles.btnDisabled : styles.btnActive]}
+            onPress={handleSend}
+            disabled={inputText.trim() === ''}
+          >
+            <Ionicons name="send" size={14} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
+/* [StyleSheet 스타일 시트 분리] */
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg_dark },
-  flex: { flex: 1 },
-
-  // ── 헤더 ──
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'ios' ? 12 : 36, 
+  },
   header: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  backButton: {
+    paddingVertical: 4,
+    paddingRight: 8,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    letterSpacing: -0.3,
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    color: '#8E8E93',
+    marginTop: 1,
+  },
+  lifeHeartContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  capsuleRow: {
+    flexDirection: 'row',
+    marginBottom: 2,
+  },
+  lifeCapsule: {
+    width: 5,
+    height: 16,
+    borderRadius: 2.5,
+    marginLeft: 3,
+  },
+  lifeCapsuleActive: {
+    backgroundColor: '#1C1C1E',
+  },
+  lifeCapsuleInactive: {
+    backgroundColor: '#E5E5EA',
+  },
+  lifeRatioText: {
+    fontSize: 10,
+    color: '#8E8E93',
+    fontWeight: '600',
+  },
+  affinityContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+    position: 'relative',
+  },
+  affinityLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginBottom: 16,
+  },
+  progressSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '82%',
+  },
+  progressBarWrapper: {
+    flex: 1,
+    position: 'relative',
+    justifyContent: 'center',
+    height: 24,
+  },
+  progressBarTrack: {
+    width: '100%',
+    height: 4, 
+    backgroundColor: '#E5E5EA',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#007AFF', 
+    borderRadius: 2,
+  },
+  percentBadge: {
+    position: 'absolute',
+    top: -10,
+    backgroundColor: '#007AFF', 
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  percentBadgeText: {
+    fontSize: 9,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  arrowIcon: {
+    marginLeft: 6,
+  },
+  rewardContainer: {
+    position: 'absolute',
+    right: 20,
+    bottom: 10,
+    alignItems: 'center',
+  },
+  rewardText: {
+    fontSize: 9,
+    color: '#8E8E93',
+    marginTop: 2,
+  },
+  chatListContent: {
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: colors.bg_card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
-  back_btn: { padding: 6, marginRight: 2 },
-  back_icon: {
-    fontSize: 28,
-    color: colors.text_primary,
-    lineHeight: 30,
+  messageWrapper: {
+    width: '100%',
+    marginBottom: 12,
   },
-  header_avatar: {
+  aiWrapper: {
+    alignItems: 'flex-start',
+  },
+  userWrapper: {
+    alignItems: 'flex-end',
+  },
+  bubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    maxWidth: '85%',
+  },
+  aiRowDirection: {
+    flexDirection: 'row',
+  },
+  userRowDirection: {
+    flexDirection: 'row-reverse',
+  },
+  bubble: {
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  aiBubble: {
+    backgroundColor: '#E5E5EA',
+  },
+  userBubble: {
+    backgroundColor: '#000000',
+  },
+  messageText: {
+    fontSize: 14,
+    lineHeight: 19,
+    letterSpacing: -0.2,
+  },
+  aiText: {
+    color: '#000000',
+  },
+  userText: {
+    color: '#FFFFFF',
+  },
+  timeText: {
+    fontSize: 10,
+    color: '#AEAEB2',
+    marginHorizontal: 6,
+    marginBottom: 1,
+  },
+  hintContainer: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 10,
+    marginHorizontal: 16,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  hintText: {
+    fontSize: 13,
+    color: '#1C1C1E',
+    letterSpacing: -0.1,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  inputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#1C1C1E',
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    height: 40,
+  },
+  input: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1C1C1E',
+    paddingVertical: 0,
+  },
+  micButton: {
+    padding: 2,
+  },
+  sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.bg_input,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.sm,
-  },
-  header_avatar_emoji: { fontSize: 20 },
-  header_info: { flex: 1 },
-  header_name: {
-    fontSize: fonts.size.md,
-    fontWeight: fonts.weight.semibold,
-    color: colors.text_primary,
-  },
-  header_status: {
-    fontSize: fonts.size.xs,
-    color: colors.text_secondary,
-    marginTop: 2,
-  },
-  voice_btn: { padding: 8 },
-  voice_icon: { fontSize: 22 },
-
-  // ── 호감도 바 ──
-  affection_track: {
-    height: 3,
-    backgroundColor: colors.bg_input,
-  },
-  affection_fill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-  },
-
-  // ── 메시지 목록 ──
-  list: { flex: 1 },
-  list_content: {
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-
-  // ── 빈 상태 ──
-  empty: {
-    flex: 1,
+    marginLeft: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 80,
-    gap: 12,
   },
-  empty_emoji: { fontSize: 48 },
-  empty_text: {
-    fontSize: fonts.size.md,
-    color: colors.text_muted,
-    textAlign: 'center',
-    lineHeight: 24,
+  btnActive: {
+    backgroundColor: '#000000',
   },
-
-  // ── 교정 팝업 ──
-  modal_overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: colors.bg_overlay,
-  },
-  correction_modal: {
-    backgroundColor: colors.bg_card,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    padding: spacing.lg,
-    paddingBottom: 36,
-    borderTopWidth: 1,
-    borderColor: colors.border_pink,
-  },
-  modal_handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: spacing.md,
-  },
-  modal_title: {
-    fontSize: fonts.size.lg,
-    fontWeight: fonts.weight.bold,
-    color: colors.text_primary,
-    marginBottom: spacing.md,
-  },
-  correction_section: {
-    backgroundColor: colors.bg_input,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  correction_label: {
-    fontSize: fonts.size.xs,
-    color: colors.text_muted,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  correction_value: {
-    fontSize: fonts.size.md,
-    color: colors.text_primary,
-    lineHeight: 22,
-  },
-  learning_section: {
-    backgroundColor: 'rgba(255,107,157,0.08)',
-    borderWidth: 1,
-    borderColor: colors.border_pink,
-  },
-  learning_label: {
-    fontSize: fonts.size.sm,
-    color: colors.primary,
-    fontWeight: fonts.weight.semibold,
-    marginBottom: 4,
-  },
-  learning_value: {
-    fontSize: fonts.size.md,
-    color: colors.text_primary,
-    lineHeight: 22,
-  },
-  close_btn: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    ...shadow.card,
-  },
-  close_btn_text: {
-    fontSize: fonts.size.md,
-    fontWeight: fonts.weight.bold,
-    color: '#FFFFFF',
+  btnDisabled: {
+    backgroundColor: '#AEAEB2',
   },
 });

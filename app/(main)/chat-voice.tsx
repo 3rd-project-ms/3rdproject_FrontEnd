@@ -1,501 +1,380 @@
-// app/(main)/chat-voice.tsx
-// 음성 통화 화면 — 마이크 누르고 말하기 → STT → TTS 재생 → 발음 점수 표시
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
   StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
   SafeAreaView,
   StatusBar,
-  TouchableOpacity,
-  Animated,
-  ScrollView,
+  Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Audio } from 'expo-av';
-import MicButton from '../../components/chat/MicButton';
-import { useChatStore, CHARACTERS } from '../../store/useChatStore';
-import { chatService } from '../../services/chatService';
-import { colors, fonts, spacing, radius, shadow } from '../../constants/theme';
-
-type VoicePhase =
-  | 'idle'           // 대기
-  | 'recording'      // 녹음 중
-  | 'processing'     // 서버 처리 중
-  | 'playing'        // TTS 재생 중
-  | 'result';        // 결과 표시
-
-interface VoiceResult {
-  sttText: string;
-  score: number;
-  reply: string;
-  correction: string;
-}
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'; //
+import { useRouter } from 'expo-router'; //
 
 export default function ChatVoiceScreen() {
-  const router = useRouter();
-  const { characterId, characterGender, affection, updateAffection } = useChatStore();
-  const character = CHARACTERS[characterId];
-
-  const [phase, setPhase] = useState<VoicePhase>('idle');
-  const [result, setResult] = useState<VoiceResult | null>(null);
-  const [statusText, setStatusText] = useState('누르고 말하기');
-  const [error, setError] = useState<string | null>(null);
-
-  // expo-av 녹음 객체
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-
-  // 물결 애니메이션 (녹음 중)
-  const wave1 = useRef(new Animated.Value(1)).current;
-  const wave2 = useRef(new Animated.Value(1)).current;
-  const waveAnim = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    return () => {
-      // 화면 이탈 시 리소스 정리
-      recordingRef.current?.stopAndUnloadAsync();
-      soundRef.current?.unloadAsync();
-    };
-  }, []);
-
-  // ── 물결 애니메이션 시작/중지 ──
-  const startWave = () => {
-    waveAnim.current = Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(wave1, { toValue: 1.4, duration: 700, useNativeDriver: true }),
-          Animated.timing(wave1, { toValue: 1, duration: 700, useNativeDriver: true }),
-        ]),
-        Animated.sequence([
-          Animated.delay(350),
-          Animated.timing(wave2, { toValue: 1.6, duration: 700, useNativeDriver: true }),
-          Animated.timing(wave2, { toValue: 1, duration: 700, useNativeDriver: true }),
-        ]),
-      ])
-    );
-    waveAnim.current.start();
-  };
-
-  const stopWave = () => {
-    waveAnim.current?.stop();
-    wave1.setValue(1);
-    wave2.setValue(1);
-  };
-
-  // ── 녹음 시작 ──
-  const handleRecordStart = async () => {
-    try {
-      setError(null);
-      setResult(null);
-
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        setError('마이크 권한이 필요해요.');
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recordingRef.current = recording;
-      setPhase('recording');
-      setStatusText('말하는 중... 놓으면 전송');
-      startWave();
-    } catch (e) {
-      setError('녹음을 시작할 수 없어요.');
-    }
-  };
-
-  // ── 녹음 종료 + 전송 ──
-  const handleRecordStop = async () => {
-    if (!recordingRef.current) return;
-
-    stopWave();
-    setPhase('processing');
-    setStatusText('분석하는 중...');
-
-    try {
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
-
-      if (!uri) throw new Error('녹음 파일 없음');
-
-      // API 전송
-      const res = await chatService.sendVoice(uri, characterId, characterGender);
-
-      // 호감도 업데이트
-      if (res.affection_change !== 0) {
-        updateAffection(res.affection_change);
-      }
-
-      setResult({
-        sttText: res.stt_result,
-        score: res.pronunciation_score,
-        reply: res.character_reply,
-        correction: res.correction,
-      });
-
-      // TTS 재생
-      if (res.tts_audio_url) {
-        setPhase('playing');
-        setStatusText('재생 중...');
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: res.tts_audio_url },
-          { shouldPlay: true }
-        );
-        soundRef.current = sound;
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            sound.unloadAsync();
-            setPhase('result');
-            setStatusText('누르고 말하기');
-          }
-        });
-      } else {
-        setPhase('result');
-        setStatusText('누르고 말하기');
-      }
-    } catch (e) {
-      setError('서버 연결에 실패했어요. 다시 시도해주세요.');
-      setPhase('idle');
-      setStatusText('누르고 말하기');
-    }
-  };
-
-  // 발음 점수 색상
-  const scoreColor = (score: number) => {
-    if (score >= 80) return colors.score_high;
-    if (score >= 60) return colors.score_mid;
-    return colors.score_low;
-  };
-
-  const micState =
-    phase === 'recording' ? 'recording' :
-    phase === 'processing' || phase === 'playing' ? 'disabled' :
-    'idle';
+  const router = useRouter(); //
+  
+  // 상태 관리 (호감도, 생명, 캡션 등)
+  const [affinity, setAffinity] = useState(70);
+  const [currentHearts, setCurrentHearts] = useState(3);
+  const [captionText, setCaptionText] = useState(`Hello there! Welcome to our cafe. Lovely day to grab a coffee, isn't it? What can I get started for you today, cheers?`);
+  const [isRecording, setIsRecording] = useState(false);
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg_dark} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={true} />
 
-      {/* ── 헤더 ── */}
+      {/* [1] 상단 헤더: 카메라 렌즈 간섭 완벽 회피 구조 */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.back_btn}>
-          <Text style={styles.back_icon}>‹</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
         </TouchableOpacity>
-        <View style={styles.header_info}>
-          <Text style={styles.header_name}>
-            {character.name} {characterGender === 'F' ? '👩' : '👨'}
-          </Text>
-          <Text style={styles.header_status}>
-            {phase === 'recording' ? '🔴 녹음 중' :
-             phase === 'processing' ? '⏳ 분석 중' :
-             phase === 'playing' ? '🔊 재생 중' :
-             `♥ 호감도 ${affection}`}
-          </Text>
+
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>젊은 카페 사장님</Text>
+          <Text style={styles.headerSubtitle}>런던 억센트 • 난이도 최상</Text>
         </View>
-        {/* 텍스트 모드 전환 */}
-        <TouchableOpacity
-          style={styles.text_mode_btn}
-          onPress={() => router.replace('/(main)/chat-text')}
-        >
-          <Text style={styles.text_mode_icon}>💬</Text>
-        </TouchableOpacity>
+
+        <View style={styles.lifeHeartContainer}>
+          <View style={styles.capsuleRow}>
+            {[...Array(5)].map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.lifeCapsule,
+                  i < currentHearts ? styles.lifeCapsuleActive : styles.lifeCapsuleInactive,
+                ]}
+              />
+            ))}
+          </View>
+          <Text style={styles.lifeRatioText}>{`${currentHearts}/5`}</Text>
+        </View>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── 캐릭터 영역 ── */}
-        <View style={styles.character_area}>
-          {/* 물결 애니메이션 뒤에 배치 */}
-          <Animated.View
-            style={[styles.wave_outer, { transform: [{ scale: wave2 }] }]}
-          />
-          <Animated.View
-            style={[styles.wave_inner, { transform: [{ scale: wave1 }] }]}
-          />
-
-          {/* 캐릭터 아바타 */}
-          <View style={styles.character_avatar}>
-            <Text style={styles.character_emoji}>{character.emoji}</Text>
-          </View>
-        </View>
-
-        {/* ── STT 결과 / 상태 텍스트 ── */}
-        <View style={styles.stt_area}>
-          {result ? (
-            <Text style={styles.stt_text}>"{result.sttText}"</Text>
-          ) : (
-            <Text style={styles.status_text}>{statusText}</Text>
-          )}
-        </View>
-
-        {/* ── 발음 점수 카드 ── */}
-        {result && (
-          <View style={styles.result_card}>
-            {/* 점수 원형 */}
-            <View style={styles.score_section}>
-              <View
-                style={[
-                  styles.score_circle,
-                  { borderColor: scoreColor(result.score) },
-                ]}
-              >
-                <Text
-                  style={[styles.score_number, { color: scoreColor(result.score) }]}
-                >
-                  {result.score}
-                </Text>
-                <Text style={styles.score_label}>점</Text>
-              </View>
-              <Text style={styles.score_title}>발음 점수</Text>
+      {/* [2] 호감도 프로그레스 바 영역: [수정] 채팅창과 똑같이 우측에 보상 선물 상자 추가 */}
+      <View style={styles.affinityContainer}>
+        <Text style={styles.affinityLabel}>호감도</Text>
+        
+        <View style={styles.progressSection}>
+          <View style={styles.progressBarWrapper}>
+            {/* 블루 퍼센트 뱃지 */}
+            <View style={[styles.percentBadge, { left: `${affinity - 6}%` }]}>
+              <Text style={styles.percentBadgeText}>{affinity}%</Text>
             </View>
-
-            {/* 캐릭터 답변 */}
-            <View style={styles.reply_section}>
-              <Text style={styles.reply_label}>{character.emoji} 답변</Text>
-              <Text style={styles.reply_text}>{result.reply}</Text>
+            
+            {/* 초슬림 게이지 바 트랙 */}
+            <View style={styles.progressBarTrack}>
+              <View style={[styles.progressBarFill, { width: `${affinity}%` }]} />
             </View>
-
-            {/* 교정 */}
-            {result.correction ? (
-              <View style={styles.correction_section}>
-                <Text style={styles.correction_label}>✏️ 교정</Text>
-                <Text style={styles.correction_text}>{result.correction}</Text>
-              </View>
-            ) : null}
           </View>
-        )}
-
-        {/* ── 에러 ── */}
-        {error && (
-          <View style={styles.error_banner}>
-            <Text style={styles.error_text}>⚠️ {error}</Text>
-          </View>
-        )}
-
-        {/* ── 마이크 버튼 ── */}
-        <View style={styles.mic_area}>
-          <MicButton
-            state={micState}
-            onPressIn={handleRecordStart}
-            onPressOut={handleRecordStop}
-            size={96}
-          />
+          
+          <Ionicons name="arrow-forward-outline" size={16} color="#8E8E93" style={styles.arrowIcon} />
         </View>
 
-        {/* ── 하단 힌트 ── */}
-        <Text style={styles.bottom_hint}>
-          누르고 있는 동안 녹음됩니다
-        </Text>
-      </ScrollView>
+        {/* 👈 채팅방 UI와 완벽 동일하게 구현된 우측 보상 컴포넌트 */}
+        <View style={styles.rewardContainer}>
+          <Ionicons name="gift" size={20} color="#1C1C1E" />
+          <Text style={styles.rewardText}>보상</Text>
+        </View>
+      </View>
+
+      {/* [3] 중앙 영역: [수정] 부담스러운 인물 사진 대신 깔끔한 미니멀 빈 박스로 변경 */}
+      <View style={styles.characterContainer}>
+        <View style={styles.emptyBoxWrapper}>
+          <MaterialCommunityIcons name="account-voice" size={64} color="#AEAEB2" />
+          <Text style={styles.emptyBoxText}>젊은 카페 사장님과 통화 중...</Text>
+          
+          {/* 우측 상단 잔여 라이브 느낌의 미니멀 뱃지 유지 */}
+          <View style={styles.liveOverlay}>
+            <View style={styles.liveBadge}>
+              <Text style={styles.liveText}>LIVE</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* [4] 하단 컨트롤 패널 (힌트박스, 캡션, 버튼 레이아웃) */}
+      <View style={styles.bottomPanel}>
+        {/* 힌트 버튼 (우측 정렬 와이어프레임 구조) */}
+        <View style={styles.hintRow}>
+          <TouchableOpacity style={styles.hintButton}>
+            <Ionicons name="bulb-outline" size={14} color="#1C1C1E" />
+            <Text style={styles.hintButtonText}>힌트 보기</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 캡션(자막) 영역: 깔끔하고 가독성 좋은 라운드 스퀘어 박스 */}
+        <View style={styles.captionBox}>
+          <Text style={styles.captionText}>{captionText}</Text>
+        </View>
+
+        {/* 하단 제어 핵심 액션 3종 버튼 스택 */}
+        <View style={styles.buttonRow}>
+          <View style={styles.controlItem}>
+            <TouchableOpacity style={styles.circleButton} onPress={() => setIsRecording(!isRecording)}>
+              <Ionicons 
+                name={isRecording ? "stop" : "mic"} 
+                size={24} 
+                color={isRecording ? "#FF3B30" : "#1C1C1E"} 
+              />
+            </TouchableOpacity>
+            <Text style={styles.buttonLabel}>녹음</Text>
+          </View>
+
+          <View style={styles.controlItem}>
+            <TouchableOpacity 
+              style={[styles.circleButton, styles.endCallButton]} 
+              onPress={() => router.back()}
+            >
+              <MaterialCommunityIcons name="phone-hangup" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.buttonLabel}>통화종료</Text>
+          </View>
+
+          <View style={styles.controlItem}>
+            <TouchableOpacity style={styles.circleButton}>
+              <Ionicons name="play-outline" size={24} color="#1C1C1E" />
+            </TouchableOpacity>
+            <Text style={styles.buttonLabel}>들어보기</Text>
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
 
+/* [컨벤션 가이드라인 스타일 시트 완전 분리] */
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg_dark },
-  scroll: { flex: 1 },
-  content: { alignItems: 'center', paddingBottom: 48 },
-
-  // ── 헤더 ──
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'ios' ? 12 : 36, 
+  },
   header: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    backgroundColor: colors.bg_card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
   },
-  back_btn: { padding: 6, marginRight: 4 },
-  back_icon: { fontSize: 28, color: colors.text_primary, lineHeight: 30 },
-  header_info: { flex: 1 },
-  header_name: {
-    fontSize: fonts.size.md,
-    fontWeight: fonts.weight.semibold,
-    color: colors.text_primary,
+  backButton: {
+    padding: 4,
   },
-  header_status: {
-    fontSize: fonts.size.xs,
-    color: colors.text_secondary,
+  headerTitleContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    letterSpacing: -0.3,
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    color: '#8E8E93',
+    marginTop: 1,
+  },
+  lifeHeartContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  capsuleRow: {
+    flexDirection: 'row',
+    marginBottom: 2,
+  },
+  lifeCapsule: {
+    width: 5,
+    height: 16,
+    borderRadius: 2.5,
+    marginLeft: 3,
+  },
+  lifeCapsuleActive: {
+    backgroundColor: '#1C1C1E',
+  },
+  lifeCapsuleInactive: {
+    backgroundColor: '#E5E5EA',
+  },
+  lifeRatioText: {
+    fontSize: 10,
+    color: '#8E8E93',
+    fontWeight: '600',
+  },
+  // 호감도 컴포넌트 (채팅과 구조 일치화)
+  affinityContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+    position: 'relative',
+  },
+  affinityLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginBottom: 16,
+  },
+  progressSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '82%',
+  },
+  progressBarWrapper: {
+    flex: 1,
+    position: 'relative',
+    justifyContent: 'center',
+    height: 24,
+  },
+  progressBarTrack: {
+    width: '100%',
+    height: 4,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#007AFF', // 요청 주셨던 Blue 테마 유지
+    borderRadius: 2,
+  },
+  percentBadge: {
+    position: 'absolute',
+    top: -10,
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  percentBadgeText: {
+    fontSize: 9,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  arrowIcon: {
+    marginLeft: 6,
+  },
+  rewardContainer: {
+    position: 'absolute',
+    right: 20,
+    bottom: 10,
+    alignItems: 'center',
+  },
+  rewardText: {
+    fontSize: 9,
+    color: '#8E8E93',
     marginTop: 2,
   },
-  text_mode_btn: { padding: 8 },
-  text_mode_icon: { fontSize: 22 },
-
-  // ── 캐릭터 영역 ──
-  character_area: {
-    width: 200,
-    height: 200,
-    alignItems: 'center',
+  // 중앙 비어있는 박스(Placeholder) 영역 커스텀
+  characterContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
     justifyContent: 'center',
-    marginTop: spacing.xl,
+    alignItems: 'center',
   },
-  wave_outer: {
+  emptyBoxWrapper: {
+    width: '100%',
+    height: '92%',
+    borderRadius: 24,
+    backgroundColor: '#F2F2F7', // 부담 없는 라이트 그레이 빈 박스 배경
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  emptyBoxText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginTop: 12,
+    fontWeight: '500',
+  },
+  liveOverlay: {
     position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,107,157,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,157,0.15)',
+    top: 16,
+    left: 16,
   },
-  wave_inner: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255,107,157,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,157,0.2)',
+  liveBadge: {
+    backgroundColor: 'rgba(255, 59, 48, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
-  character_avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.bg_card,
-    borderWidth: 2.5,
-    borderColor: colors.primary,
+  liveText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  // 하단 컨트롤 패널 영역
+  bottomPanel: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  hintRow: {
+    alignItems: 'flex-end',
+    marginBottom: 8,
+  },
+  hintButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  hintButtonText: {
+    fontSize: 12,
+    color: '#1C1C1E',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  captionBox: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 20,
+    padding: 20,
+    minHeight: 100,
+    marginBottom: 24,
     justifyContent: 'center',
-    alignItems: 'center',
-    ...shadow.pink_glow,
   },
-  character_emoji: { fontSize: 46 },
-
-  // ── STT / 상태 텍스트 ──
-  stt_area: {
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    minHeight: 50,
-  },
-  stt_text: {
-    fontSize: fonts.size.lg,
-    color: colors.text_primary,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    lineHeight: 26,
-  },
-  status_text: {
-    fontSize: fonts.size.md,
-    color: colors.text_secondary,
-    textAlign: 'center',
-  },
-
-  // ── 결과 카드 ──
-  result_card: {
-    width: '90%',
-    backgroundColor: colors.bg_card,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.sm,
-  },
-
-  // 점수
-  score_section: {
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  score_circle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.bg_input,
-  },
-  score_number: {
-    fontSize: fonts.size.xxl,
-    fontWeight: fonts.weight.bold,
-    lineHeight: 32,
-  },
-  score_label: {
-    fontSize: fonts.size.xs,
-    color: colors.text_muted,
-  },
-  score_title: {
-    fontSize: fonts.size.sm,
-    color: colors.text_secondary,
-    marginTop: 4,
-  },
-
-  // 답변
-  reply_section: {
-    backgroundColor: colors.bg_input,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-  },
-  reply_label: {
-    fontSize: fonts.size.xs,
-    color: colors.text_muted,
-    marginBottom: 4,
-  },
-  reply_text: {
-    fontSize: fonts.size.md,
-    color: colors.text_primary,
+  captionText: {
+    fontSize: 15,
+    color: '#1C1C1E',
     lineHeight: 22,
-  },
-
-  // 교정
-  correction_section: {
-    backgroundColor: 'rgba(255,107,157,0.06)',
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border_pink,
-  },
-  correction_label: {
-    fontSize: fonts.size.xs,
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  correction_text: {
-    fontSize: fonts.size.md,
-    color: colors.text_primary,
-  },
-
-  // ── 에러 ──
-  error_banner: {
-    backgroundColor: 'rgba(255,107,107,0.1)',
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,107,0.3)',
-    width: '90%',
-  },
-  error_text: {
-    fontSize: fonts.size.sm,
-    color: colors.error,
     textAlign: 'center',
+    letterSpacing: -0.2,
   },
-
-  // ── 마이크 버튼 ──
-  mic_area: {
-    marginTop: spacing.xl,
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
   },
-
-  // ── 하단 힌트 ──
-  bottom_hint: {
-    marginTop: spacing.lg,
-    fontSize: fonts.size.xs,
-    color: colors.text_muted,
-    letterSpacing: 0.3,
+  controlItem: {
+    alignItems: 'center',
+  },
+  circleButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    // 은은한 모던 그림자 효과
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  endCallButton: {
+    backgroundColor: '#FF3B30', 
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+  },
+  buttonLabel: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontWeight: '600',
   },
 });

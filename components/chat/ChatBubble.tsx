@@ -1,244 +1,101 @@
-// components/chat/ChatBubble.tsx
 import React from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  ViewStyle,
-} from 'react-native';
-import { colors, fonts, spacing, radius } from '../../constants/theme';
-
-export type BubbleRole = 'user' | 'ai';
-
-export interface ChatMessage {
-  id: string;
-  role: BubbleRole;
-  text: string;
-  timestamp: string;
-  showAvatar?: boolean;      // AI 말풍선 아바타 표시 여부 (연속 메시지 마지막에만)
-  correction?: string;       // 교정된 문장 (있으면 말풍선 아래 노출)
-  isTyping?: boolean;        // AI 타이핑 중 상태
-}
+import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons'; //
 
 interface ChatBubbleProps {
-  message: ChatMessage;
-  characterAvatar?: any;     // require('../assets/characters/A_f.png') 형태
-  style?: ViewStyle;
+  text: string;
+  sender: 'ai' | 'user';
+  time: string;
 }
 
-export default function ChatBubble({
-  message,
-  characterAvatar,
-  style,
-}: ChatBubbleProps) {
-  const isUser = message.role === 'user';
-
-  // 타이핑 중 버블 (AI 전용)
-  if (message.isTyping) {
-    return (
-      <View style={[styles.row, styles.row_ai]}>
-        {/* 아바타 자리 (항상 공간 차지) */}
-        <View style={styles.avatar_placeholder}>
-          {message.showAvatar && characterAvatar && (
-            <Image source={characterAvatar} style={styles.avatar} />
-          )}
-        </View>
-
-        <View style={[styles.bubble, styles.bubble_ai]}>
-          <View style={styles.typing_dots}>
-            <TypingDot delay={0} />
-            <TypingDot delay={150} />
-            <TypingDot delay={300} />
-          </View>
-        </View>
-      </View>
-    );
-  }
+export default function ChatBubble({ text, sender, time }: ChatBubbleProps) {
+  const isAi = sender === 'ai';
 
   return (
-    <View style={[styles.row, isUser ? styles.row_user : styles.row_ai, style]}>
-      {/* AI — 아바타 영역 */}
-      {!isUser && (
-        <View style={styles.avatar_placeholder}>
-          {message.showAvatar && characterAvatar ? (
-            <Image source={characterAvatar} style={styles.avatar} />
-          ) : null}
+    <View style={[styles.bubbleWrapper, isAi ? styles.aiWrapper : styles.userWrapper]}>
+      {/* AI인 경우에만 왼쪽에 깔끔한 프로필 아이콘 노출 */}
+      {isAi && (
+        <View style={styles.profileImagePlaceholder}>
+          <Ionicons name="cafe" size={16} color="#FFFFFF" />
         </View>
       )}
 
-      <View style={styles.bubble_wrapper}>
-        {/* 말풍선 본체 */}
-        <View
-          style={[
-            styles.bubble,
-            isUser ? styles.bubble_user : styles.bubble_ai,
-          ]}
-        >
-          <Text
-            style={[
-              styles.bubble_text,
-              isUser ? styles.text_user : styles.text_ai,
-            ]}
-          >
-            {message.text}
+      {/* 핵심: 말풍선과 시간을 가로(Row)로 배치하여 우측 이미지와 동일하게 구현 */}
+      <View style={[styles.bubbleRow, isAi ? styles.aiRowDirection : styles.userRowDirection]}>
+        <View style={[styles.bubble, isAi ? styles.aiBubble : styles.userBubble]}>
+          <Text style={[styles.messageText, isAi ? styles.aiText : styles.userText]}>
+            {text}
           </Text>
         </View>
-
-        {/* 타임스탬프 */}
-        <Text style={[styles.timestamp, isUser ? styles.ts_user : styles.ts_ai]}>
-          {message.timestamp}
-        </Text>
-
-        {/* 교정 인디케이터 (내 메시지에 correction 있을 때) */}
-        {isUser && message.correction && (
-          <View style={styles.correction_badge}>
-            <Text style={styles.correction_icon}>✏️</Text>
-            <Text style={styles.correction_text} numberOfLines={1}>
-              {message.correction}
-            </Text>
-          </View>
-        )}
+        
+        {/* 시간 표시 */}
+        <Text style={styles.timeText}>{time}</Text>
       </View>
-
-      {/* 유저 — 오른쪽 여백 (아바타 없음) */}
-      {isUser && <View style={styles.user_right_pad} />}
     </View>
   );
 }
 
-// ─── 타이핑 점 (간단 애니메이션) ───────────────────────────
-function TypingDot({ delay }: { delay: number }) {
-  // Reanimated 없이도 동작하도록 기본 View로 구현
-  // 실제 프로젝트에서는 Reanimated withRepeat 로 교체
-  return <View style={styles.typing_dot} />;
-}
-
 const styles = StyleSheet.create({
-  // ── 행 레이아웃 ──
-  row: {
+  bubbleWrapper: {
+    width: '100%',
+    marginBottom: 14,
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  row_ai: {
-    justifyContent: 'flex-start',
-  },
-  row_user: {
-    justifyContent: 'flex-end',
-  },
-
-  // ── 아바타 ──
-  avatar_placeholder: {
-    width: 36,
-    height: 36,
-    marginRight: spacing.sm,
-    marginBottom: 2,
-    justifyContent: 'flex-end',
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.bg_card,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-
-  // ── 버블 래퍼 ──
-  bubble_wrapper: {
-    maxWidth: '72%',
     alignItems: 'flex-start',
   },
-
-  // ── 말풍선 ──
+  aiWrapper: {
+    justifyContent: 'flex-start',
+  },
+  userWrapper: {
+    justifyContent: 'flex-end',
+  },
+  profileImagePlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#A2B1C6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    marginTop: 2,
+  },
+  bubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    maxWidth: '78%',
+  },
+  aiRowDirection: {
+    // AI 메시지는 [말풍선 - 시간] 순서
+  },
+  userRowDirection: {
+    // 내 메시지는 오른쪽 정렬이므로 [시간 - 말풍선] 순서로 뒤집음
+    flexDirection: 'row-reverse',
+  },
   bubble: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    // 우측 이미지처럼 꼬리 없는 완전 둥근 미니멀 디자인
     borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  bubble_ai: {
-    backgroundColor: colors.bubble_ai,
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
+  aiBubble: {
+    backgroundColor: '#F2F2F7', // 부드러운 연그레이
   },
-  bubble_user: {
-    backgroundColor: colors.bubble_user,
-    borderBottomRightRadius: 4,
+  userBubble: {
+    backgroundColor: '#2C2C2E', // 대비감이 좋은 깔끔한 다크 차콜
   },
-
-  // ── 텍스트 ──
-  bubble_text: {
-    fontSize: fonts.size.md,
-    lineHeight: 22,
+  messageText: {
+    fontSize: 14,
+    lineHeight: 19,
   },
-  text_ai: {
-    color: colors.bubble_ai_text,
-    fontWeight: fonts.weight.regular,
+  aiText: {
+    color: '#1C1C1E',
   },
-  text_user: {
-    color: colors.bubble_user_text,
-    fontWeight: fonts.weight.medium,
+  userText: {
+    color: '#FFFFFF',
   },
-
-  // ── 타임스탬프 ──
-  timestamp: {
-    fontSize: fonts.size.xs,
-    color: colors.text_muted,
-    marginTop: 3,
-  },
-  ts_ai: {
-    alignSelf: 'flex-start',
-    marginLeft: 4,
-  },
-  ts_user: {
-    alignSelf: 'flex-end',
-    marginRight: 4,
-  },
-
-  // ── 교정 배지 ──
-  correction_badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,107,157,0.12)',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: colors.border_pink,
-    maxWidth: '100%',
-  },
-  correction_icon: {
-    fontSize: 11,
-    marginRight: 4,
-  },
-  correction_text: {
-    fontSize: fonts.size.xs,
-    color: colors.primary_light,
-    flex: 1,
-  },
-
-  // ── 타이핑 애니메이션 ──
-  typing_dots: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-  },
-  typing_dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: colors.text_secondary,
-  },
-
-  // ── 유저 오른쪽 패딩 ──
-  user_right_pad: {
-    width: 36,
-    marginLeft: spacing.sm,
+  timeText: {
+    fontSize: 10,
+    color: '#AEAEB2',
+    marginHorizontal: 6, // 말풍선과 시간 사이의 여백 확보
+    marginBottom: 2,     // 바닥 정렬 기준 미세 조정
   },
 });
