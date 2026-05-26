@@ -1,7 +1,7 @@
 // 홈 화면 placeholder
 
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { COLORS, FONT } from '../../constants/theme';
+import { COLORS, TYPOGRAPHY } from '../../constants/theme';
 
 export default function HomeScreen() {
   return (
@@ -25,7 +25,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   text: {
-    fontSize: FONT.medium,
-    color: COLORS.text,
+    ...TYPOGRAPHY.semibold16,
   },
 });

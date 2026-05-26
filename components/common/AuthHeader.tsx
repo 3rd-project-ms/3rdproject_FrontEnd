@@ -1,7 +1,7 @@
 // 인증 화면 상단 커스텀 헤더 컴포넌트
 
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS, FONT, SPACING } from '../../constants/theme';
+import { COLORS, TYPOGRAPHY } from '../../constants/theme';
 
 interface AuthHeaderProps {
   title: string;
@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: 24,
     backgroundColor: COLORS.background,
   },
   backButton: {
@@ -35,13 +35,11 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 32,
-    color: COLORS.text,
     lineHeight: 36,
+    color: COLORS.black,
   },
   title: {
     marginLeft: 4,
-    fontSize: FONT.medium,
-    fontWeight: '700',
-    color: COLORS.text,
+    ...TYPOGRAPHY.semibold20,
   },
 });

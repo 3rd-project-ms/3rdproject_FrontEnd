@@ -12,9 +12,13 @@ import {
 } from 'react-native';
 import AuthHeader from '../../components/common/AuthHeader';
 import Button from '../../components/common/Button';
-import { COLORS, FONT, LAYOUT, SPACING } from '../../constants/theme';
+import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
 
 type Gender = 'male' | 'female' | null;
+
+const duplicatedIds = ['team4', 'test', 'admin'];
+const passwordRegex =
+  /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,20}$/;
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -23,6 +27,11 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
   const [selectedGender, setSelectedGender] = useState<Gender>(null);
+
+  const isDuplicatedId = duplicatedIds.includes(email.trim().toLowerCase());
+  const canGoNext =
+    email.trim().length > 0 && !isDuplicatedId && passwordRegex.test(password);
+  const canSubmit = nickname.trim().length > 0 && selectedGender !== null;
 
   const handleBack = () => {
     if (step === 1) {
@@ -38,52 +47,44 @@ export default function SignupScreen() {
       <AuthHeader title="회원가입" onBack={handleBack} />
       <View style={styles.content}>
         {step === 1 ? (
-          <>
-            <View style={styles.stepOneForm}>
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="이메일(아이디)"
-                placeholderTextColor={COLORS.text}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={styles.input}
-              />
-              <Text style={styles.helperText}>
-                *중복되는 아이디 입니다./ 사용가능한 아이디 입니다.
-              </Text>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="비밀번호"
-                placeholderTextColor={COLORS.text}
-                secureTextEntry
-                style={[styles.input, styles.passwordInput]}
-              />
-              <Pressable onPress={() => setStep(2)} style={styles.nextButton}>
-                <Text style={styles.nextButtonText}>›</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.bottomSection}>
-              <Text style={styles.orText}>또는</Text>
-              <Pressable
-                onPress={() => router.push('/(auth)/login')}
-                style={styles.linkWrapper}
-              >
-                <Text style={styles.linkText}>
-                  이미 계정이 있으신가요? <Text style={styles.underlineText}>로그인</Text>
-                </Text>
-              </Pressable>
-            </View>
-          </>
+          <View style={styles.form}>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="이메일(아이디)"
+              placeholderTextColor={COLORS.gray1}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={styles.input}
+            />
+            <Text style={styles.helperText}>
+              *중복되는 아이디 입니다./ 사용가능한 아이디 입니다.
+            </Text>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="비밀번호"
+              placeholderTextColor={COLORS.gray1}
+              secureTextEntry
+              style={[styles.input, styles.passwordInput]}
+            />
+            <Text style={styles.helperText}>
+              *8~20자의 영문, 숫자, 특수문자 조합을 사용해주세요.
+            </Text>
+            <Button
+              title="다음"
+              disabled={!canGoNext}
+              onPress={() => setStep(2)}
+              style={styles.nextButton}
+            />
+          </View>
         ) : (
-          <View style={styles.stepTwoForm}>
+          <View style={styles.form}>
             <TextInput
               value={nickname}
               onChangeText={setNickname}
               placeholder="닉네임"
-              placeholderTextColor={COLORS.text}
+              placeholderTextColor={COLORS.gray1}
               style={styles.input}
             />
             <Text style={styles.genderLabel}>상대 캐릭터 성별</Text>
@@ -95,7 +96,14 @@ export default function SignupScreen() {
                   selectedGender === 'male' && styles.selectedGenderButton,
                 ]}
               >
-                <Text style={styles.genderButtonText}>남자 캐릭터</Text>
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    selectedGender === 'male' && styles.selectedGenderButtonText,
+                  ]}
+                >
+                  남자 캐릭터
+                </Text>
               </Pressable>
               <Pressable
                 onPress={() => setSelectedGender('female')}
@@ -104,11 +112,19 @@ export default function SignupScreen() {
                   selectedGender === 'female' && styles.selectedGenderButton,
                 ]}
               >
-                <Text style={styles.genderButtonText}>여자캐릭터</Text>
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    selectedGender === 'female' && styles.selectedGenderButtonText,
+                  ]}
+                >
+                  여자 캐릭터
+                </Text>
               </Pressable>
             </View>
             <Button
               title="회원가입하기"
+              disabled={!canSubmit}
               onPress={() => router.replace('/(main)/home')}
               style={styles.signupButton}
             />
@@ -129,71 +145,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: LAYOUT.screenPadding,
     backgroundColor: COLORS.background,
   },
-  stepOneForm: {
+  form: {
     flex: 1,
     justifyContent: 'center',
-    paddingTop: 92,
-  },
-  stepTwoForm: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingBottom: 52,
+    paddingBottom: 56,
   },
   input: {
     height: LAYOUT.inputHeight,
     width: '100%',
-    backgroundColor: COLORS.surface,
-    borderRadius: LAYOUT.radius,
-    color: COLORS.text,
-    fontSize: FONT.regular,
-    textAlign: 'center',
-    paddingHorizontal: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray0,
+    color: COLORS.black,
+    ...TYPOGRAPHY.regular14,
+    paddingHorizontal: SPACING.xs,
   },
   helperText: {
     marginTop: 6,
-    fontSize: FONT.small,
-    color: COLORS.textLight,
+    ...TYPOGRAPHY.regular10,
+    color: COLORS.error,
   },
   passwordInput: {
-    marginTop: 10,
+    marginTop: 20,
   },
   nextButton: {
-    width: 58,
-    height: LAYOUT.buttonHeight,
-    marginTop: 32,
-    alignSelf: 'flex-end',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.buttonBg,
-  },
-  nextButtonText: {
-    color: COLORS.text,
-    fontSize: 44,
-    lineHeight: 46,
-  },
-  bottomSection: {
-    alignItems: 'center',
-    paddingBottom: 100,
-  },
-  orText: {
-    fontSize: 13,
-    color: COLORS.textLight,
-  },
-  linkWrapper: {
-    marginTop: 16,
-  },
-  linkText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  underlineText: {
-    textDecorationLine: 'underline',
+    marginTop: 40,
   },
   genderLabel: {
-    marginTop: 10,
-    marginBottom: SPACING.sm,
-    fontSize: 13,
-    color: COLORS.textLight,
+    marginTop: 32,
+    marginBottom: 10,
+    ...TYPOGRAPHY.regular14,
+    color: COLORS.gray1,
   },
   genderRow: {
     flexDirection: 'row',
@@ -204,17 +185,23 @@ const styles = StyleSheet.create({
     height: LAYOUT.buttonHeight,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.buttonBg,
+    borderWidth: 1,
+    borderColor: COLORS.gray2,
+    borderRadius: 10,
+    backgroundColor: COLORS.white,
   },
   selectedGenderButton: {
-    borderWidth: 2,
-    borderColor: COLORS.selectedBorder,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.subColor3Light,
   },
   genderButtonText: {
-    fontSize: FONT.regular,
-    color: COLORS.text,
+    ...TYPOGRAPHY.semibold14,
+    color: COLORS.gray1,
+  },
+  selectedGenderButtonText: {
+    color: COLORS.primary,
   },
   signupButton: {
-    marginTop: 24,
+    marginTop: 32,
   },
 });

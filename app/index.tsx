@@ -3,7 +3,7 @@
 import { useRouter } from 'expo-router';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import Button from '../components/common/Button';
-import { COLORS, FONT, LAYOUT, SPACING } from '../constants/theme';
+import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 export default function StartScreen() {
   const router = useRouter();
@@ -19,9 +19,10 @@ export default function StartScreen() {
         </View>
 
         <View style={styles.bottomSection}>
-          <Button title="시작하기" onPress={() => router.push('/(auth)/signup')} />
+          <Button title="시작하기" onPress={() => router.push('/(auth)/terms')} />
           <Button
             title="로그인"
+            variant="secondary"
             onPress={() => router.push('/(auth)/login')}
             style={styles.loginButton}
           />
@@ -60,18 +61,16 @@ const styles = StyleSheet.create({
     height: 108,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.gray2,
   },
   logoText: {
-    fontSize: FONT.title,
-    fontWeight: '700',
-    color: COLORS.text,
+    ...TYPOGRAPHY.regular14,
+    color: COLORS.black,
   },
   subtitle: {
     marginTop: 12,
-    fontSize: FONT.regular,
+    ...TYPOGRAPHY.regular14,
     textAlign: 'center',
-    color: COLORS.text,
   },
   bottomSection: {
     paddingBottom: 92,
@@ -84,8 +83,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   guestText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
+    ...TYPOGRAPHY.regular14,
+    color: COLORS.gray0,
   },
   underlineText: {
     textDecorationLine: 'underline',

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import AuthHeader from '../../components/common/AuthHeader';
 import Button from '../../components/common/Button';
-import { COLORS, FONT, LAYOUT, SPACING } from '../../constants/theme';
+import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -24,12 +24,11 @@ export default function LoginScreen() {
       <AuthHeader title="로그인" onBack={() => router.back()} />
       <View style={styles.content}>
         <View style={styles.formSection}>
-          <Text style={styles.guideText}>계속하려면 로그인해주세요</Text>
           <TextInput
             value={email}
             onChangeText={setEmail}
             placeholder="이메일(아이디)"
-            placeholderTextColor={COLORS.text}
+            placeholderTextColor={COLORS.gray1}
             autoCapitalize="none"
             keyboardType="email-address"
             style={styles.input}
@@ -38,7 +37,7 @@ export default function LoginScreen() {
             value={password}
             onChangeText={setPassword}
             placeholder="비밀번호"
-            placeholderTextColor={COLORS.text}
+            placeholderTextColor={COLORS.gray1}
             secureTextEntry
             style={[styles.input, styles.passwordInput]}
           />
@@ -50,9 +49,8 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.bottomSection}>
-          <Text style={styles.orText}>또는</Text>
           <Pressable
-            onPress={() => router.push('/(auth)/signup')}
+            onPress={() => router.push('/(auth)/terms')}
             style={styles.linkWrapper}
           >
             <Text style={styles.linkText}>
@@ -78,45 +76,33 @@ const styles = StyleSheet.create({
   formSection: {
     flex: 1,
     justifyContent: 'center',
-    paddingTop: 72,
-  },
-  guideText: {
-    marginBottom: SPACING.md,
-    fontSize: FONT.regular,
-    fontWeight: '600',
-    color: COLORS.text,
-    textAlign: 'center',
+    paddingTop: 56,
   },
   input: {
     height: LAYOUT.inputHeight,
     width: '100%',
-    backgroundColor: COLORS.surface,
-    borderRadius: LAYOUT.radius,
-    color: COLORS.text,
-    fontSize: FONT.regular,
-    textAlign: 'center',
-    paddingHorizontal: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray0,
+    color: COLORS.black,
+    ...TYPOGRAPHY.regular14,
+    paddingHorizontal: SPACING.xs,
   },
   passwordInput: {
-    marginTop: SPACING.sm,
+    marginTop: 18,
   },
   submitButton: {
-    marginTop: 20,
+    marginTop: 32,
   },
   bottomSection: {
     alignItems: 'center',
-    paddingBottom: 100,
-  },
-  orText: {
-    fontSize: 13,
-    color: COLORS.textLight,
+    paddingBottom: 88,
   },
   linkWrapper: {
-    marginTop: 16,
+    padding: SPACING.sm,
   },
   linkText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
+    ...TYPOGRAPHY.regular14,
+    color: COLORS.gray0,
   },
   underlineText: {
     textDecorationLine: 'underline',
