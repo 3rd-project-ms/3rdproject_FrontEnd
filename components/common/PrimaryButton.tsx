@@ -4,41 +4,68 @@ import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
 interface PrimaryButtonProps {
   label: string;
   onPress: () => void;
+  variant?: 'primary' | 'outline';
   style?: ViewStyle;
+  icon?: React.ReactNode;
+  disabled?: boolean;
 }
 
-export default function PrimaryButton({ label, onPress, style }: PrimaryButtonProps) {
+export default function PrimaryButton({ label, onPress, variant = 'primary', style, icon, disabled }: PrimaryButtonProps) {
   const [pressed, setPressed] = useState(false);
+
+  const buttonStyle = variant === 'outline' ? styles.outline : styles.primary;
+  const labelStyle = variant === 'outline' ? styles.outlineLabel : styles.primaryLabel;
+  const pressedStyle = variant === 'outline' ? styles.outlinePressed : styles.primaryPressed;
 
   return (
     <TouchableOpacity
-      style={[styles.base, pressed && styles.pressed, style]}
+      style={[styles.base, buttonStyle, pressed && pressedStyle, disabled && styles.disabled, style]}
       onPress={onPress}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
       activeOpacity={1}
+      disabled={disabled}
     >
-      <Text style={styles.label}>{label}</Text>
+      {icon}
+      <Text style={labelStyle}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 0,
-    paddingVertical: 16,
+    height: 46,
+    borderRadius: 16,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#1A1A1A',
+    gap: 6,
   },
-  pressed: {
-    backgroundColor: '#F0F0F0',
+  primary: {
+    backgroundColor: '#F6A3A6',
   },
-  label: {
-    fontSize: 15,
+  primaryPressed: {
+    backgroundColor: '#F6A3A6',
+  },
+  primaryLabel: {
+    fontSize: 16,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
+  },
+  outline: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  outlinePressed: {
+    backgroundColor: '#E0E0E0',
+  },
+  outlineLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#AAAAAA',
+  },
+  disabled: {
+    opacity: 0.5,
   },
 });

@@ -22,20 +22,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
   original: {
     fontSize: 14,
-    color: '#E24A4A',
+    color: '#854448',
     textDecorationLine: 'line-through',
     flex: 1,
   },
   arrow: {
     fontSize: 14,
-    color: '#888888',
+    color: '#616161',
   },
   corrected: {
     fontSize: 14,
-    color: '#1A1A1A',
+    color: '#0B0B12',
     flex: 2,
   },
 });

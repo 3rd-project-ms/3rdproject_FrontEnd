@@ -20,7 +20,7 @@ export default function SectionCard({ title, subtitle, children, style }: Sectio
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#E0E0E0',
     borderRadius: 0,
     padding: 16,
     gap: 6,
@@ -28,12 +28,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#0B0B12',
     lineHeight: 20,
   },
   subtitle: {
     fontSize: 12,
-    color: '#555555',
+    color: '#616161',
     lineHeight: 18,
   },
 });

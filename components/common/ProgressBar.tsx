@@ -37,29 +37,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: 13,
-    color: '#1A1A1A',
-    fontWeight: '500',
+    fontSize: 12,
+    color: '#0B0B12',
+    fontWeight: '400',
   },
   change: {
     fontSize: 12,
     fontWeight: '600',
+    textAlign: 'right',
   },
   positive: {
-    color: '#4A90E2',
+    color: '#F6A3A6',
   },
   negative: {
-    color: '#E24A4A',
+    color: '#854448',
   },
   track: {
-    height: 8,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 0,
+    height: 10,
+    backgroundColor: 'rgba(246,163,166,0.19)',
+    borderRadius: 26,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    backgroundColor: '#4A90E2',
-    borderRadius: 0,
+    backgroundColor: '#F6A3A6',
+    borderRadius: 26,
   },
 });

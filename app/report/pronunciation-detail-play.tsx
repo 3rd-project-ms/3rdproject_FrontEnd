@@ -1,8 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 
-import PrimaryButton from '@/components/common/PrimaryButton';
 import AudioControlButtons from '@/components/common/AudioControlButtons';
 import SentenceCard from '@/components/common/SentenceCard';
 import WordJudgementCard, { WordItem } from '@/components/common/WordJudgementCard';
@@ -37,16 +36,11 @@ const MOCK_SENTENCES: SentenceItem[] = [
   },
 ];
 
-export default function PronunciationDetailScreen() {
+export default function PronunciationDetailPlayScreen() {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
   const [stopSignal, setStopSignal] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setStopSignal((s) => s + 1);
-    }, [])
-  );
 
   const current = MOCK_SENTENCES[currentIndex];
   const isFirst = currentIndex === 0;
@@ -69,19 +63,27 @@ export default function PronunciationDetailScreen() {
         </View>
 
         {/* 오디오 버튼 */}
-        <AudioControlButtons stopSignal={stopSignal} />
+        <AudioControlButtons isRecording={isRecording} stopSignal={stopSignal} />
       </View>
 
-      {/* 다시 녹음해서 도전하기 — content 밖 고정 */}
+      {/* 녹음 버튼 — content 밖 고정 */}
       <View style={styles.buttonArea}>
-        <PrimaryButton
-          label="↺ 다시 녹음해서 도전하기"
-          variant="primary"
+        <TouchableOpacity
+          style={isRecording ? styles.stopButton : styles.recordButton}
           onPress={() => {
-            setStopSignal((s) => s + 1);
-            router.push('/report/pronunciation-detail-play');
+            if (isRecording) {
+              setIsRecording(false);
+            } else {
+              setIsRecording(true);
+              setStopSignal((s) => s + 1);
+            }
           }}
-        />
+          activeOpacity={0.8}
+        >
+          <Text style={isRecording ? styles.stopButtonLabel : styles.recordButtonLabel}>
+            {isRecording ? '녹음 멈추기' : '녹음하기'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* 문장 네비게이션 — 화면 하단 고정 */}
@@ -142,6 +144,32 @@ const styles = StyleSheet.create({
   buttonArea: {
     paddingHorizontal: 16,
     paddingBottom: 12,
+  },
+  recordButton: {
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#F6A3A6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordButtonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  stopButton: {
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopButtonLabel: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#616161',
   },
   navRow: {
     flexDirection: 'row',

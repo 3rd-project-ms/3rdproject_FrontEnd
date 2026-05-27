@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import ScoreCard from '@/components/common/ScoreCard';
 import ProgressBar from '@/components/common/ProgressBar';
@@ -9,22 +10,73 @@ import PrimaryButton from '@/components/common/PrimaryButton';
 
 const { height } = Dimensions.get('window');
 
+type ChatMode = '채팅' | '통화';
+
 const MOCK_CORRECTIONS = [
   { original: 'I very like it', corrected: 'I really enjoy it' },
   { original: 'I very like it', corrected: 'I really enjoy it' },
   { original: 'I very like it', corrected: 'I really enjoy it' },
 ];
 
-export default function ReportScreen() {
+const TOTAL_DAYS = 5;
+
+export default function ReportScreenV2() {
   const router = useRouter();
+  const [currentDay, setCurrentDay] = useState(1);
+  const [activeMode, setActiveMode] = useState<ChatMode>('채팅');
+
+  const isFirst = currentDay === 1;
+  const isLast = currentDay === TOTAL_DAYS;
 
   return (
     <View style={styles.container}>
+      {/* 상단 Day 네비게이션 */}
+      <View style={styles.dayNav}>
+        <TouchableOpacity
+          onPress={() => setCurrentDay((d) => d - 1)}
+          disabled={isFirst}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+        >
+          <Text style={[styles.navArrow, isFirst && styles.navArrowDisabled]}>{'‹'}</Text>
+        </TouchableOpacity>
+        <Text style={styles.dayLabel}>Day{currentDay}</Text>
+        <TouchableOpacity
+          onPress={() => setCurrentDay((d) => d + 1)}
+          disabled={isLast}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+        >
+          <Text style={[styles.navArrow, isLast && styles.navArrowDisabled]}>{'›'}</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.content}>
         {/* 헤더 */}
-        <View style={styles.header}>
-          <Text style={styles.title}>오늘의 대화 종료!</Text>
-          <Text style={styles.subtitle}>Jamie · 카페 사장님 · 3일 연속 완료</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>오늘의 대화 종료!</Text>
+            <Text style={styles.subtitle}>Jamie · 카페 사장님 · 3일 연속 완료</Text>
+          </View>
+          <TouchableOpacity activeOpacity={0.7}>
+            <Ionicons name="menu-outline" size={24} color="#0B0B12" />
+          </TouchableOpacity>
+        </View>
+
+        {/* 채팅 / 통화 탭 */}
+        <View style={styles.tabRow}>
+          {(['채팅', '통화'] as ChatMode[]).map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[styles.tabChip, activeMode === mode && styles.tabChipActive]}
+              onPress={() => setActiveMode(mode)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.tabLabel, activeMode === mode && styles.tabLabelActive]}>
+                {mode}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* 점수 카드 */}
@@ -74,11 +126,6 @@ export default function ReportScreen() {
             variant="primary"
             onPress={() => router.push('/')}
           />
-          <PrimaryButton
-            label="v2 화면 보기"
-            variant="outline"
-            onPress={() => router.push('/report/index-v2')}
-          />
         </View>
       </View>
     </View>
@@ -90,15 +137,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F4FBF8',
   },
+  dayNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 56,
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+  },
+  navArrow: {
+    fontSize: 26,
+    color: '#0B0B12',
+    lineHeight: 26,
+  },
+  navArrowDisabled: {
+    color: '#CCCCCC',
+  },
+  dayLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#AAAAAA',
+  },
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: height * 0.15,
+    paddingTop: height * 0.05,
     paddingBottom: 40,
   },
-  header: {
-    gap: 6,
-    marginBottom: 24,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  headerText: {
+    flex: 1,
+    gap: 4,
   },
   title: {
     fontSize: 20,
@@ -108,6 +182,31 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 12,
     color: '#616161',
+  },
+  tabRow: {
+    flexDirection: 'row',
+    gap: 14,
+    marginBottom: 8,
+  },
+  tabChip: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  tabChipActive: {
+    backgroundColor: '#F6A3A6',
+    borderColor: '#F6A3A6',
+  },
+  tabLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0B0B12',
+  },
+  tabLabelActive: {
+    color: '#FFFFFF',
   },
   scoreRow: {
     flexDirection: 'row',
@@ -143,15 +242,15 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     marginBottom: 8,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0B0B12',
-  },
   progressNote: {
     fontSize: 12,
     color: '#616161',
     textAlign: 'right',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0B0B12',
   },
   correctionList: {
     gap: 0,
