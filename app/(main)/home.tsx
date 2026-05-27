@@ -1,366 +1,329 @@
-// app/(main)/home.tsx
-// 캐릭터 선택 + 난이도/성향 표시 메인 화면
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
-  StatusBar,
+  StyleSheet, Text, View, TouchableOpacity,
+  SafeAreaView, Platform, ScrollView, Image, Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useChatStore, CHARACTERS, CharacterId, CharacterGender } from '../../store/useChatStore';
-import { colors, fonts, spacing, radius, shadow } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+
+const { height: SCREEN_H } = Dimensions.get('window');
+
+const CHARACTER_DATA = [
+  {
+    id: 1, name: '서태양', nameEn: 'Ian', age: '23세', role: '서핑 강사', affinity: 85,
+    tags: ['#유죄인간', '#캘리포니아_바이브', '#인싸_서핑강사', '#은근한_소유욕'],
+    desc: '능글맞은 미국 캘리포니아 찐친형 서핑 강사',
+    stats: [
+      { label: '능글 지수', value: 90 }, { label: '나른함', value: 70 },
+      { label: '에너지', value: 80 },   { label: '체력',   value: 100 },
+    ],
+    image: require('../../assets/characters/ian.png'),
+  },
+  {
+    id: 2, name: '유나', nameEn: 'Chloe', age: '23세', role: '서핑 강사', affinity: 42,
+    tags: ['#왈가닥', '#솔직함', '#자각_후_뚝딱이'],
+    desc: '자각 후 뚝딱거리는 퓨어 갭모에 소꿉친구',
+    stats: [
+      { label: '뚝딱 지수', value: 80 }, { label: '나른함', value: 20 },
+      { label: '에너지',   value: 90 },  { label: '체력',   value: 100 },
+    ],
+    image: null,
+  },
+  {
+    id: 3, name: '이하준', nameEn: 'June', age: '25세', role: '대학원 선배', affinity: 60,
+    tags: ['#25세', '#츤데레', '#겉무속촉', '#호주_로컬', '#석사과정'],
+    desc: '호주 교포 출신 츤데레 대학원 선배',
+    stats: [
+      { label: '츤데레 지수', value: 60 }, { label: '나른함', value: 80 },
+      { label: '에너지',     value: 30 },  { label: '체력',   value: 50 },
+    ],
+    image: null,
+  },
+  {
+    id: 4, name: '한윤서', nameEn: 'Yoon', age: '25세', role: '대학원 선배', affinity: 30,
+    tags: ['#츤데레_걸크러시', '#겉무속촉', '#호주_로컬', '#고학번'],
+    desc: '호주 교포 출신 츤데레 고학번 선배',
+    stats: [
+      { label: '츤데레 지수', value: 60 }, { label: '나른함', value: 80 },
+      { label: '에너지',     value: 30 },  { label: '체력',   value: 50 },
+    ],
+    image: null,
+  },
+  {
+    id: 5, name: '리암', nameEn: 'Liam', age: '29세', role: '카페 사장님', affinity: 75,
+    tags: ['#다정다감', '#배려심_깊음', '#영국식_위트', '#성숙한_어른'],
+    desc: '성숙하고 여유로운 영국 런던 어른 남자 사장님',
+    stats: [
+      { label: '다정 지수', value: 100 }, { label: '나른함', value: 60 },
+      { label: '에너지',   value: 50 },   { label: '체력',   value: 70 },
+    ],
+    image: null,
+  },
+  {
+    id: 6, name: '클로이', nameEn: 'Chloe', age: '29세', role: '카페 사장님', affinity: 50,
+    tags: ['#사랑스러움', '#햇살같은_밝음', '#섬세한_배려', '#눈웃음'],
+    desc: '주변을 밝히는 햇살 같고 다정한 사장님',
+    stats: [
+      { label: '다정 지수', value: 100 }, { label: '나른함', value: 10 },
+      { label: '에너지',   value: 90 },   { label: '체력',   value: 60 },
+    ],
+    image: null,
+  },
+];
+
+function StatBar({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={st.row}>
+      <Text style={st.label}>{label}</Text>
+      <View style={st.track}>
+        <View style={[st.fill, { width: `${value}%` }]} />
+      </View>
+    </View>
+  );
+}
+
+const st = StyleSheet.create({
+  row:   { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  label: { width: 70, fontSize: 12, fontWeight: '600', color: '#616161' },
+  track: { flex: 1, height: 6, backgroundColor: 'rgba(0,0,0,0.08)', borderRadius: 3, overflow: 'hidden' },
+  fill:  { height: '100%', backgroundColor: '#2C3A5F', borderRadius: 3 },
+});
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { setCharacter, affection } = useChatStore();
+  const [idx, setIdx] = useState(0);
+  const char = CHARACTER_DATA[idx];
 
-  const [selectedId, setSelectedId] = useState<CharacterId>('A');
-  const [selectedGender, setSelectedGender] = useState<CharacterGender>('F');
+  const prev = () => setIdx((p) => (p === 0 ? CHARACTER_DATA.length - 1 : p - 1));
+  const next = () => setIdx((p) => (p === CHARACTER_DATA.length - 1 ? 0 : p + 1));
 
-  const selectedChar = CHARACTERS[selectedId];
-
-  const handleStart = (mode: 'text' | 'voice') => {
-    setCharacter(selectedId, selectedGender);
-    router.push(`/(main)/chat-${mode}`);
-  };
+  const goStage = () =>
+    router.push({
+      pathname: '/(main)/stage' as any,
+      params: { name: char.name, role: char.role, affinity: char.affinity },
+    });
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg_dark} />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── 헤더 ── */}
-        <View style={styles.header}>
-          <Text style={styles.logo}>💬 LinguaDate</Text>
-          <Text style={styles.tagline}>캐릭터와 대화하며 영어 실력 UP</Text>
+    <SafeAreaView style={s.container}>
+      <View style={s.fullArea}>
+
+        {/* 캐릭터 이미지 배치 배경 (뒤 실루엣 노출) */}
+        <TouchableOpacity style={s.imageBg} activeOpacity={0.95} onPress={goStage}>
+          {char.image ? (
+            <Image source={char.image} style={s.charImage} resizeMode="cover" />
+          ) : (
+            <View style={s.placeholder}>
+              <Ionicons name="person" size={100} color="#E0E0E0" />
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* 헤더 바 */}
+        <View style={s.header}>
+          <Text style={s.logo}>LOGO</Text>
+          <TouchableOpacity onPress={() => router.push('/(main)/session-result' as any)} style={s.iconPad}>
+            <Ionicons name="settings-outline" size={24} color="#0B0B12" />
+          </TouchableOpacity>
         </View>
 
-        {/* ── 캐릭터 카드 목록 ── */}
-        <Text style={styles.section_title}>캐릭터 선택</Text>
-        <View style={styles.card_row}>
-          {(Object.keys(CHARACTERS) as CharacterId[]).map((id) => {
-            const char = CHARACTERS[id];
-            const isSelected = selectedId === id;
-            return (
-              <TouchableOpacity
-                key={id}
-                style={[styles.char_card, isSelected && styles.char_card_selected]}
-                onPress={() => setSelectedId(id)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.char_emoji}>{char.emoji}</Text>
-                <Text style={styles.char_name}>{char.name}</Text>
-                <Text style={styles.char_desc}>{char.description}</Text>
+        {/* 좌우 화살표 */}
+        <TouchableOpacity style={[s.arrow, s.arrowLeft]} onPress={prev}>
+          <Ionicons name="chevron-back" size={28} color="#0B0B12" />
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.arrow, s.arrowRight]} onPress={next}>
+          <Ionicons name="chevron-forward" size={28} color="#0B0B12" />
+        </TouchableOpacity>
 
-                {/* 난이도 배지 */}
-                <View style={[
-                  styles.difficulty_badge,
-                  id === 'A' && styles.diff_easy,
-                  id === 'B' && styles.diff_hard,
-                  id === 'C' && styles.diff_extreme,
-                ]}>
-                  <Text style={styles.diff_text}>난이도 {char.difficulty}</Text>
+        {/* 하단 투명 오버레이 카드 스택 조립 */}
+        <View style={s.bottomStack}>
+
+          {/* 1. 캐릭터 설명 카드 (불투명도 50% 적용 및 테두리 격파) */}
+          <View style={s.card}>
+            <Text style={s.charName}>
+              {char.name} <Text style={s.charNameEn}>({char.nameEn})</Text>
+            </Text>
+            <Text style={s.charDesc}>{char.desc}</Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.tagsRow}
+            >
+              {char.tags.map((tag) => (
+                <View key={tag} style={s.tagChip}>
+                  <Text style={s.tagTxt}>{tag}</Text>
                 </View>
+              ))}
+            </ScrollView>
 
-                {/* 선택 표시 */}
-                {isSelected && (
-                  <View style={styles.selected_dot} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+            <View style={s.divider} />
 
-        {/* ── 선택된 캐릭터 상세 ── */}
-        <View style={styles.detail_card}>
-          <Text style={styles.detail_emoji}>{selectedChar.emoji}</Text>
-          <View style={styles.detail_info}>
-            <Text style={styles.detail_name}>{selectedChar.name}</Text>
-            <Text style={styles.detail_personality}>{selectedChar.personality}</Text>
+            {char.stats.map((item) => (
+              <StatBar key={item.label} label={item.label} value={item.value} />
+            ))}
           </View>
-        </View>
 
-        {/* ── 성별 선택 ── */}
-        <Text style={styles.section_title}>버전 선택</Text>
-        <View style={styles.gender_row}>
-          <TouchableOpacity
-            style={[styles.gender_btn, selectedGender === 'F' && styles.gender_selected]}
-            onPress={() => setSelectedGender('F')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.gender_icon}>👩</Text>
-            <Text style={[styles.gender_label, selectedGender === 'F' && styles.gender_label_active]}>
-              여성 버전
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.gender_btn, selectedGender === 'M' && styles.gender_selected]}
-            onPress={() => setSelectedGender('M')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.gender_icon}>👨</Text>
-            <Text style={[styles.gender_label, selectedGender === 'M' && styles.gender_label_active]}>
-              남성 버전
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── 호감도 바 ── */}
-        <View style={styles.affection_section}>
-          <View style={styles.affection_header}>
-            <Text style={styles.affection_label}>♥ 호감도</Text>
-            <Text style={styles.affection_value}>{affection}</Text>
+          {/* 2. 나와의 호감도 카드 (설명 창 아래 안착 + 불투명도 50%) */}
+          <View style={s.card}>
+            <View style={s.affinityRow}>
+              <Text style={s.affinityLabel}>나와의 호감도</Text>
+              <Text style={s.affinityPct}>{char.affinity}%</Text>
+            </View>
+            <View style={s.affinityTrack}>
+              <View style={[s.affinityFill, { width: `${char.affinity}%` }]} />
+            </View>
           </View>
-          <View style={styles.affection_track}>
-            <View style={[styles.affection_fill, { width: `${affection}%` }]} />
-          </View>
-        </View>
 
-        {/* ── 시작 버튼 ── */}
-        <Text style={styles.section_title}>대화 방식 선택</Text>
-        <View style={styles.start_buttons}>
-          <TouchableOpacity
-            style={styles.start_btn_text}
-            onPress={() => handleStart('text')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.start_btn_icon}>💬</Text>
-            <Text style={styles.start_btn_label}>텍스트 채팅</Text>
-            <Text style={styles.start_btn_sub}>타이핑으로 대화</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.start_btn_voice}
-            onPress={() => handleStart('voice')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.start_btn_icon}>📞</Text>
-            <Text style={styles.start_btn_label}>음성 통화</Text>
-            <Text style={styles.start_btn_sub}>말하기로 대화</Text>
-          </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg_dark },
-  scroll: { flex: 1 },
-  content: { paddingBottom: 40 },
-
-  // ── 헤더 ──
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+const s = StyleSheet.create({
+  container: { 
+    flex: 1, 
+    backgroundColor: '#FFFFFF' 
   },
-  logo: {
-    fontSize: fonts.size.xxl,
-    fontWeight: fonts.weight.bold,
-    color: colors.text_primary,
+  fullArea: { 
+    flex: 1, 
+    position: 'relative' 
   },
-  tagline: {
-    fontSize: fonts.size.sm,
-    color: colors.text_secondary,
-    marginTop: 4,
-  },
-
-  // ── 섹션 타이틀 ──
-  section_title: {
-    fontSize: fonts.size.sm,
-    fontWeight: fonts.weight.semibold,
-    color: colors.text_muted,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    marginTop: spacing.lg,
-  },
-
-  // ── 캐릭터 카드 ──
-  card_row: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
-  char_card: {
-    flex: 1,
-    backgroundColor: colors.bg_card,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    position: 'relative',
-  },
-  char_card_selected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary_dim,
-    ...shadow.card,
-  },
-  char_emoji: { fontSize: 28, marginBottom: 6 },
-  char_name: {
-    fontSize: fonts.size.sm,
-    fontWeight: fonts.weight.semibold,
-    color: colors.text_primary,
-    textAlign: 'center',
-  },
-  char_desc: {
-    fontSize: fonts.size.xs,
-    color: colors.text_muted,
-    textAlign: 'center',
-    marginTop: 3,
-  },
-  difficulty_badge: {
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-  },
-  diff_easy: { backgroundColor: 'rgba(78,205,164,0.15)' },
-  diff_hard: { backgroundColor: 'rgba(255,179,71,0.15)' },
-  diff_extreme: { backgroundColor: 'rgba(255,107,157,0.15)' },
-  diff_text: { fontSize: fonts.size.xs, color: colors.text_secondary },
-  selected_dot: {
+  imageBg: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
+    top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 0,
+    backgroundColor: '#FFFFFF',
   },
-
-  // ── 상세 카드 ──
-  detail_card: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-    backgroundColor: colors.bg_card,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+  charImage: {
+    width: '100%',
+    height: '100%',
   },
-  detail_emoji: { fontSize: 32 },
-  detail_info: { flex: 1 },
-  detail_name: {
-    fontSize: fonts.size.md,
-    fontWeight: fonts.weight.semibold,
-    color: colors.text_primary,
-  },
-  detail_personality: {
-    fontSize: fonts.size.sm,
-    color: colors.text_secondary,
-    marginTop: 3,
-    lineHeight: 18,
-  },
-
-  // ── 성별 선택 ──
-  gender_row: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-  },
-  gender_btn: {
+  placeholder: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: '#FAF9F6',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.bg_card,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    alignItems: 'center',
   },
-  gender_selected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary_dim,
-  },
-  gender_icon: { fontSize: 22 },
-  gender_label: {
-    fontSize: fonts.size.md,
-    color: colors.text_secondary,
-    fontWeight: fonts.weight.medium,
-  },
-  gender_label_active: { color: colors.primary },
-
-  // ── 호감도 ──
-  affection_section: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-  },
-  affection_header: {
+  header: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 45 : 20,
+    left: 20, right: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
+    zIndex: 20,
   },
-  affection_label: {
-    fontSize: fonts.size.sm,
-    color: colors.text_secondary,
-    fontWeight: fonts.weight.medium,
+  logo: { 
+    fontSize: 22, 
+    fontWeight: '800', 
+    color: '#0B0B12',
+    letterSpacing: -0.5
   },
-  affection_value: {
-    fontSize: fonts.size.sm,
-    color: colors.primary,
-    fontWeight: fonts.weight.bold,
+  iconPad: {
+    padding: 4,
   },
-  affection_track: {
-    height: 6,
-    backgroundColor: colors.bg_card,
-    borderRadius: 3,
-    overflow: 'hidden',
+  arrow: {
+    position: 'absolute',
+    top: '38%',
+    zIndex: 20,
+    padding: 10,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 25,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  affection_fill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 3,
+  arrowLeft:  { left: 12 },
+  arrowRight: { right: 12 },
+  bottomStack: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 30 : 20,
+    left: 16, right: 16,
+    zIndex: 20,
+    gap: 12, // 설명카드와 호감도카드 사이 간격 고정
   },
 
-  // ── 시작 버튼 ──
-  start_buttons: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
+  // 💎 핵심 수정: 불투명도 50% 흰색 밸런싱 + 테두리 뭉개짐 오류 완벽 방어
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 0.5)', // 요청하신 정확한 반투명 50% 구현
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderWidth: 0,          // 안드로이드 외곽선 자글거림 버그 차단
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 0,            // elevation과 투명층이 충돌하므로 순수 shadow 기법으로 안전 마감
   },
-  start_btn_text: {
-    flex: 1,
-    backgroundColor: colors.bg_card,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.border,
+  charName: { 
+    fontSize: 21, 
+    fontWeight: '800', 
+    color: '#0B0B12', 
+    marginBottom: 4 
   },
-  start_btn_voice: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    ...shadow.card,
+  charNameEn: { 
+    fontSize: 14, 
+    fontWeight: '500', 
+    color: '#616161' 
   },
-  start_btn_icon: { fontSize: 28, marginBottom: 6 },
-  start_btn_label: {
-    fontSize: fonts.size.md,
-    fontWeight: fonts.weight.bold,
-    color: colors.text_primary,
+  charDesc: { 
+    fontSize: 13.5, 
+    color: '#616161', 
+    fontWeight: '600', 
+    marginBottom: 12, 
+    lineHeight: 18 
   },
-  start_btn_sub: {
-    fontSize: fonts.size.xs,
-    color: colors.text_secondary,
-    marginTop: 2,
+  tagsRow: { 
+    flexDirection: 'row', 
+    gap: 6, 
+    marginBottom: 14 
+  },
+  tagChip: { 
+    backgroundColor: 'rgba(44, 58, 95, 0.08)', // 딥네이비 소프트 투명칩 처리
+    paddingVertical: 5, 
+    paddingHorizontal: 11, 
+    borderRadius: 20 
+  },
+  tagTxt: { 
+    fontSize: 11, 
+    fontWeight: '700', 
+    color: '#2C3A5F' 
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    marginBottom: 14,
+  },
+  affinityRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 10 
+  },
+  affinityLabel: { 
+    fontSize: 14, 
+    fontWeight: '800', 
+    color: '#0B0B12' 
+  },
+  affinityPct: { 
+    fontSize: 14, 
+    fontWeight: '800', 
+    color: '#2C3A5F' 
+  },
+  affinityTrack: { 
+    height: 8, 
+    backgroundColor: 'rgba(0, 0, 0, 0.06)', 
+    borderRadius: 4, 
+    overflow: 'hidden' 
+  },
+  affinityFill: { 
+    height: '100%', 
+    backgroundColor: '#F6A3A6', 
+    borderRadius: 4 
   },
 });

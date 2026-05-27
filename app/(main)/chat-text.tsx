@@ -1,438 +1,466 @@
 import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StatusBar,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; //
-import { useRouter } from 'expo-router'; // 👈 [추가] Expo Router 네비게이션 훅 import
+import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Modal, SafeAreaView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'ai' | 'user';
-  time: string;
-}
+export default function ChatTextScreen() {
+  const router = useRouter();
 
-export default function ChatScreen() {
-  const router = useRouter(); // 👈 [추가] router 인스턴스 생성
+  // ─── 상태 관리 ───────────────────────────────────────────
+  const [character] = useState({ name: 'Jamie', role: '카페 사장님' });
+  const [affinity, setAffinity] = useState(42);
+  const [lives, setLives] = useState(2);
   
+  const [showHint, setShowHint] = useState(false);
   const [inputText, setInputText] = useState('');
-  const [affinity, setAffinity] = useState(70); 
-  const [currentHearts, setCurrentHearts] = useState(3); 
-  const maxHearts = 5;
-  const hintText = '추천 표현: "I highly recommend our signature ice blend!"';
-
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: `Hello there! Welcome to our cafe. Lovely day to grab a coffee, isn't it? What can I get started for you today, cheers?`,
-      sender: 'ai',
-      time: '오후 2:14',
-    },
-    {
-      id: '2',
-      text: `Hi! Honestly, I'm feeling a bit tired today. Do you have anything strong that can wake me up?`,
-      sender: 'user',
-      time: '오후 2:14',
-    },
-    {
-      id: '3',
-      text: `Oh, you look absolutely shattered! In that case, I'd highly recommend our signature ice blend. It's quite strong and will sort you right out.`,
-      sender: 'ai',
-      time: '오후 2:15',
-    },
-    {
-      id: '4',
-      text: `That sounds perfect. By the way, what kind of coffee beans do you use for that blend?`,
-      sender: 'user',
-      time: '오후 2:15',
-    },
-    {
-      id: '5',
-      text: `Well, darling, we use a beautiful mixture of Ethiopian and Colombian beans, roasted right here in-house. It has a remarkably rich flavor.`,
-      sender: 'ai',
-      time: '오후 2:16',
-    },
+  
+  // 예시 채팅 데이터 (좌: AI 캐릭터, 우: 사용자)
+  const [messages, setMessages] = useState([
+    { id: 1, sender: 'ai', text: "Hello! Welcome to the espresso bar 'Lavazza'. How would you like a drink?" },
+    { id: 2, sender: 'user', text: "I haven't been able to decide yet, so do you happen to have any signature dishes you would recommend?" },
+    { id: 3, sender: 'ai', text: "Our shop's most popular item is the 'Con Panna' topped with smooth cream. If you enjoy sweet and slightly bitter flavors, you won't regret it!" },
   ]);
 
-  const handleSend = () => {
-    if (inputText.trim() === '') return;
-    if (currentHearts <= 0) return;
+  // 팝업(모달) 상태 관리
+  const [popupType, setPopupType] = useState<'duplicate' | 'success' | null>(null);
 
-    const currentTime = new Date().toLocaleTimeString('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText,
-      sender: 'user',
-      time: currentTime,
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
-    setInputText('');
-    setCurrentHearts((prev) => Math.max(0, prev - 1));
-    setAffinity((prev) => Math.min(100, prev + 2));
-  };
-
-  const renderMessageItem = ({ item }: { item: Message }) => {
-    const isAi = item.sender === 'ai';
-
+  // ─── 하트 목숨 렌더링 (chat-voice와 동일) ──────────────────
+  const renderLives = () => {
     return (
-      <View style={[styles.messageWrapper, isAi ? styles.aiWrapper : styles.userWrapper]}>
-        <View style={[styles.bubbleRow, isAi ? styles.aiRowDirection : styles.userRowDirection]}>
-          <View style={[styles.bubble, isAi ? styles.aiBubble : styles.userBubble]}>
-            <Text style={[styles.messageText, isAi ? styles.aiText : styles.userText]}>
-              {item.text}
-            </Text>
-          </View>
-          <Text style={styles.timeText}>{item.time}</Text>
-        </View>
+      <View style={styles.liveContainer}>
+        {[1, 2, 3].map((i) => (
+          <Ionicons
+            key={i}
+            name={i <= lives ? 'heart' : 'heart-outline'}
+            size={22}
+            color={i <= lives ? '#F6A3A6' : '#E0E0E0'}
+            style={{ marginLeft: 3 }}
+          />
+        ))}
       </View>
     );
   };
 
+  const handleSendMessage = () => {
+    if (!inputText.trim()) return;
+
+    const newMsg = { id: Date.now(), sender: 'user', text: inputText };
+    setMessages((prev) => [...prev, newMsg]);
+
+    // 테스트용 비밀 트리거
+    if (inputText.includes('중복')) {
+      setPopupType('duplicate');
+      setLives((prev) => Math.max(0, prev - 1));
+    } else if (inputText.includes('상승')) {
+      setPopupType('success');
+      setAffinity((prev) => Math.min(100, prev + 5));
+    }
+
+    setInputText('');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={true} />
-
-      {/* [1] 상단 헤더 영역 */}
-      <View style={styles.header}>
-        {/* 👈 [수정] onPress 이벤트를 추가하여 아이콘을 누르면 home으로 라우팅되도록 설정 */}
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/home')}>
-          <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
-        </TouchableOpacity>
-
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>젊은 카페 사장님</Text>
-          <Text style={styles.headerSubtitle}>런던 억센트 • 난이도 최상</Text>
-        </View>
-
-        {/* 알약 형태 생명 표시 바 */}
-        <View style={styles.lifeHeartContainer}>
-          <View style={styles.capsuleRow}>
-            {Array.from({ length: maxHearts }).map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.lifeCapsule,
-                  index < currentHearts ? styles.lifeCapsuleActive : styles.lifeCapsuleInactive,
-                ]}
-              />
-            ))}
-          </View>
-          <Text style={styles.lifeRatioText}>{`${currentHearts}/${maxHearts}`}</Text>
-        </View>
-      </View>
-
-      {/* [2] 호감도 프로그레스 바 영역 */}
-      <View style={styles.affinityContainer}>
-        <Text style={styles.affinityLabel}>호감도</Text>
-        
-        <View style={styles.progressSection}>
-          <View style={styles.progressBarWrapper}>
-            <View style={[styles.percentBadge, { left: `${affinity - 6}%` }]}>
-              <Text style={styles.percentBadgeText}>{affinity}%</Text>
-            </View>
-            
-            <View style={styles.progressBarTrack}>
-              <View style={[styles.progressBarFill, { width: `${affinity}%` }]} />
-            </View>
-          </View>
-          
-          <Ionicons name="arrow-forward-outline" size={16} color="#8E8E93" style={styles.arrowIcon} />
-        </View>
-
-        <View style={styles.rewardContainer}>
-          <Ionicons name="gift" size={20} color="#1C1C1E" />
-          <Text style={styles.rewardText}>보상</Text>
-        </View>
-      </View>
-
-      {/* [3] 채팅 메시지 스크롤 영역 */}
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessageItem}
-        contentContainerStyle={styles.chatListContent}
-        showsVerticalScrollIndicator={false}
-      />
-
-      {/* [4] 하단 고정 영역 (힌트칸 + 타원 인풋바) */}
-      <KeyboardAvoidingView
+      {/* KeyboardAvoidingView 내부 속성을 유연하게 조정하여 블랙아웃 현상 완화 */}
+      <KeyboardAvoidingView 
+        style={{ flex: 1, backgroundColor: '#FFFFFF' }} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <View style={styles.hintContainer}>
-          <Text style={styles.hintText}>
-            💡 {hintText}
-          </Text>
+        
+        {/* ─── [상단] 헤더 영역 ─── */}
+        <View style={styles.header}>
+          <View style={styles.headerTitleRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="chevron-back" size={24} color="#0B0B12" />
+            </TouchableOpacity>
+            <Text style={styles.charName}>{character.name}</Text>
+            <Text style={styles.charRole}> · {character.role}</Text>
+          </View>
+          {renderLives()}
         </View>
 
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
+        {/* ─── [상단] 친밀도 상태바 영역 ─── */}
+        <View style={styles.affinityWrapper}>
+          <Text style={styles.affinityPercent}>{affinity}%</Text>
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, { width: `${affinity}%` }]} />
+
+            {/* 1/3 포인트 하트 - 바 아래 배치 */}
+            <View style={[styles.pointHeartWrapper, { left: '33%' }]}>
+              <Ionicons
+                name="heart"
+                size={14}
+                color={affinity >= 33 ? '#F6A3A6' : '#FFFFFF'}
+              />
+            </View>
+            {/* 2/3 포인트 하트 - 바 아래 배치 */}
+            <View style={[styles.pointHeartWrapper, { left: '66%' }]}>
+              <Ionicons
+                name="heart"
+                size={14}
+                color={affinity >= 66 ? '#F6A3A6' : '#FFFFFF'}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* ─── [중앙] 채팅 및 나레이션 영역 ────────────────── */}
+        <ScrollView 
+          style={styles.chatScrollView}
+          contentContainerStyle={styles.chatContentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* 1. 나레이션 */}
+          <View style={styles.narrationContainer}>
+            <Text style={styles.narrationText}>
+              (Jamie shakes the portafilter of the espresso machine and gives you a sweet smile.)
+            </Text>
+          </View>
+
+          {/* 2. 채팅 버블 */}
+          {messages.map((msg) => {
+            const isAI = msg.sender === 'ai';
+            return (
+              <View 
+                key={msg.id} 
+                style={[styles.messageRow, isAI ? styles.messageRowLeft : styles.messageRowRight]}
+              >
+                <View style={[styles.bubble, isAI ? styles.bubbleAI : styles.bubbleUser]}>
+                  <Text style={[styles.bubbleText, isAI ? styles.bubbleTextAI : styles.bubbleTextUser]}>
+                    {msg.text}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        {/* ─── [하단] 힌트 + 입력창 영역 ────────────────── */}
+        <View style={styles.bottomAreaContainer}>
+          
+          {/* 힌트 버튼 시스템 */}
+          <View style={styles.hintWrapper}>
+            <TouchableOpacity 
+              style={styles.hintHeader} 
+              onPress={() => setShowHint(!showHint)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.hintTitleRow}>
+                <View style={styles.hintDot} />
+                <Text style={styles.hintTitleText}>무엇을 말해야 하나요?</Text>
+              </View>
+              <Ionicons 
+                name={showHint ? 'chevron-down' : 'chevron-up'} 
+                size={16} 
+                color="#616161" 
+              />
+            </TouchableOpacity>
+
+            {showHint && (
+              <View style={styles.hintContent}>
+                <Text style={styles.hintEnglish}>Could you recommend a signature coffee here?</Text>
+                <Text style={styles.hintKorean}>여기 시그니처 커피 추천해 주실 수 있나요?</Text>
+              </View>
+            )}
+          </View>
+
+          {/* 입력창 + 전송 단추 */}
+          <View style={styles.inputBar}>
             <TextInput
-              style={styles.input}
-              placeholder="영어 문장으로 답변을 구성해보세요."
-              placeholderTextColor="#A9A9A9"
+              style={styles.textInput}
+              placeholder="대화를 입력하세요..."
+              placeholderTextColor="#AAAAAA"
               value={inputText}
               onChangeText={setInputText}
             />
-            <TouchableOpacity style={styles.micButton}>
-              <Ionicons name="mic" size={18} color="#1C1C1E" />
+            <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+              <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity
-            style={[styles.sendButton, inputText.trim() === '' ? styles.btnDisabled : styles.btnActive]}
-            onPress={handleSend}
-            disabled={inputText.trim() === ''}
-          >
-            <Ionicons name="send" size={14} color="#FFFFFF" />
-          </TouchableOpacity>
         </View>
+
+        {/* ─── [팝업] 알림창 (요청대로 배경색 흰색 고정 및 하트 기호 가이드) ─── */}
+        <Modal
+          visible={popupType !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPopupType(null)}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setPopupType(null)}>
+            <Pressable style={styles.modalContent} onPress={() => {}}>
+              
+              {/* 1. 표현 중복 팝업 */}
+              {popupType === 'duplicate' && (
+                <View style={styles.popupInner}>
+                  <Text style={[styles.popupTitle, { color: '#854448' }]}>표현 중복!</Text>
+                  <Text style={styles.popupBody}>
+                    질문 흐름과 맞지 않는 답변을 선택하셨어요.{"\n"}대화 맥락을 다시 한번 확인해 볼까요?
+                  </Text>
+                  <Text style={[styles.popupScore, { color: '#854448' }]}>❤️ -1</Text>
+                </View>
+              )}
+
+              {/* 2. 호감도 상승 팝업 */}
+              {popupType === 'success' && (
+                <View style={styles.popupInner}>
+                  <Text style={[styles.popupTitle, { color: '#2C3A5F' }]}>호감도 상승!</Text>
+                  <Text style={styles.popupBody}>
+                    센스 있는 답변 덕분에 상대방의 기분이 좋아졌어요.{"\n"}대화가 아주 매끄럽게 이어지고 있어요!
+                  </Text>
+                  <Text style={[styles.popupScore, { color: '#F6A3A6' }]}>❤️ + 5 pts</Text>
+                </View>
+              )}
+
+            </Pressable>
+          </Pressable>
+        </Modal>
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-/* [StyleSheet 스타일 시트 분리] */
+// ─── 디자인 데코레이션 스타일시트 ──────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingTop: Platform.OS === 'ios' ? 12 : 36, 
+    backgroundColor: '#FFFFFF', // 1. 요구사항: 전체 배경 컬러 흰색으로 변경
   },
   header: {
-    height: 56,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 45 : 25, 
+    paddingBottom: 10,
     backgroundColor: '#FFFFFF',
   },
-  backButton: {
-    paddingVertical: 4,
-    paddingRight: 8,
-  },
-  headerTitleContainer: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    letterSpacing: -0.3,
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: '#8E8E93',
-    marginTop: 1,
-  },
-  lifeHeartContainer: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  capsuleRow: {
-    flexDirection: 'row',
-    marginBottom: 2,
-  },
-  lifeCapsule: {
-    width: 5,
-    height: 16,
-    borderRadius: 2.5,
-    marginLeft: 3,
-  },
-  lifeCapsuleActive: {
-    backgroundColor: '#1C1C1E',
-  },
-  lifeCapsuleInactive: {
-    backgroundColor: '#E5E5EA',
-  },
-  lifeRatioText: {
-    fontSize: 10,
-    color: '#8E8E93',
-    fontWeight: '600',
-  },
-  affinityContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
-    position: 'relative',
-  },
-  affinityLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: 16,
-  },
-  progressSection: {
+  headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '82%',
   },
-  progressBarWrapper: {
+  backBtn: {
+    marginRight: 6,
+    padding: 2,
+  },
+  charName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0B0B12',
+  },
+  charRole: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#616161',
+  },
+  liveContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  affinityWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginVertical: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  affinityPercent: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2C3A5F',
+    marginRight: 10,
+    width: 35,
+  },
+  progressBarBg: {
     flex: 1,
+    height: 10,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 5,
     position: 'relative',
-    justifyContent: 'center',
-    height: 24,
-  },
-  progressBarTrack: {
-    width: '100%',
-    height: 4, 
-    backgroundColor: '#E5E5EA',
-    borderRadius: 2,
-    overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#007AFF', 
-    borderRadius: 2,
+    backgroundColor: '#F6A3A6',
+    borderRadius: 5,
   },
-  percentBadge: {
+  pointHeartWrapper: {
     position: 'absolute',
-    top: -10,
-    backgroundColor: '#007AFF', 
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 8,
+    top: 12, 
+    transform: [{ translateX: -7 }],
   },
-  percentBadgeText: {
-    fontSize: 9,
-    color: '#FFFFFF',
-    fontWeight: '700',
+  chatScrollView: {
+    flex: 1,
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
   },
-  arrowIcon: {
-    marginLeft: 6,
-  },
-  rewardContainer: {
-    position: 'absolute',
-    right: 20,
-    bottom: 10,
-    alignItems: 'center',
-  },
-  rewardText: {
-    fontSize: 9,
-    color: '#8E8E93',
-    marginTop: 2,
-  },
-  chatListContent: {
-    paddingHorizontal: 16,
+  chatContentContainer: {
     paddingVertical: 10,
   },
-  messageWrapper: {
-    width: '100%',
+  narrationContainer: {
+    backgroundColor: '#EEF2F6', 
+    borderRadius: 14,
+    padding: 15,
+    marginBottom: 20,
+  },
+  narrationText: {
+    fontSize: 14,
+    color: '#2C3A5F',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  messageRow: {
+    flexDirection: 'row',
     marginBottom: 12,
+    width: '100%',
   },
-  aiWrapper: {
-    alignItems: 'flex-start',
+  messageRowLeft: {
+    justifyContent: 'flex-start',
   },
-  userWrapper: {
-    alignItems: 'flex-end',
-  },
-  bubbleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    maxWidth: '85%',
-  },
-  aiRowDirection: {
-    flexDirection: 'row',
-  },
-  userRowDirection: {
-    flexDirection: 'row-reverse',
+  messageRowRight: {
+    justifyContent: 'flex-end',
   },
   bubble: {
+    maxWidth: '78%',
+    paddingHorizontal: 15,
+    paddingVertical: 11,
     borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
   },
-  aiBubble: {
-    backgroundColor: '#E5E5EA',
+  bubbleAI: {
+    backgroundColor: '#AAAAAA', // 2. 요구사항: AI 말풍선 색상 #AAAAAA로 변경
+    borderTopLeftRadius: 4, 
+    borderWidth: 0.5,
+    borderColor: '#999999',
   },
-  userBubble: {
-    backgroundColor: '#000000',
+  bubbleUser: {
+    backgroundColor: '#F6A3A6', 
+    borderTopRightRadius: 4,
   },
-  messageText: {
-    fontSize: 14,
-    lineHeight: 19,
-    letterSpacing: -0.2,
+  bubbleText: {
+    fontSize: 15,
+    lineHeight: 21,
   },
-  aiText: {
-    color: '#000000',
+  bubbleTextAI: {
+    color: '#FFFFFF', // 어두워진 말풍선에 맞게 글자색을 화이트로 전환하여 가독성 확보
   },
-  userText: {
+  bubbleTextUser: {
     color: '#FFFFFF',
+    fontWeight: '500',
   },
-  timeText: {
-    fontSize: 10,
-    color: '#AEAEB2',
-    marginHorizontal: 6,
-    marginBottom: 1,
+  bottomAreaContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 15 : 25,
+    backgroundColor: '#FFFFFF', // 입력창 주변 영역도 전체 컨셉에 맞춰 화이트 처리
   },
-  hintContainer: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 10,
-    marginHorizontal: 16,
-    paddingVertical: 9,
+  hintWrapper: {
+    backgroundColor: '#FAF5EE', 
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+  },
+  hintHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 14,
-    marginBottom: 8,
+    paddingVertical: 12,
   },
-  hintText: {
-    fontSize: 13,
-    color: '#1C1C1E',
-    letterSpacing: -0.1,
-  },
-  inputContainer: {
+  hintTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
+    gap: 8,
   },
-  inputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#1C1C1E',
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    height: 40,
+  hintDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F6A3A6',
   },
-  input: {
-    flex: 1,
+  hintTitleText: {
     fontSize: 14,
-    color: '#1C1C1E',
-    paddingVertical: 0,
+    fontWeight: '600',
+    color: '#2C3A5F',
   },
-  micButton: {
-    padding: 2,
+  hintContent: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    gap: 4,
+  },
+  hintEnglish: {
+    fontSize: 14,
+    color: '#E87C7C',
+    fontWeight: '600',
+  },
+  hintKorean: {
+    fontSize: 13,
+    color: '#616161',
+  },
+  inputBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0B0B12',
+    paddingVertical: 4,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginLeft: 10,
-    alignItems: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F6A3A6',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
   },
-  btnActive: {
-    backgroundColor: '#000000',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(11, 11, 18, 0.35)', 
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  btnDisabled: {
-    backgroundColor: '#AEAEB2',
+  modalContent: {
+    width: '82%',
+    backgroundColor: '#FFFFFF', // 팝업창 배경색 흰색 고정 완료
+    borderRadius: 18,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+  },
+  popupInner: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  popupTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    marginBottom: 10,
+    letterSpacing: -0.5,
+  },
+  popupBody: {
+    fontSize: 14,
+    color: '#616161',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  popupScore: {
+    fontSize: 22,
+    fontWeight: '800',
   },
 });
