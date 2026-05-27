@@ -77,7 +77,7 @@ export default function SignupScreen() {
       nickname: nickname.trim(),
       selectedGender,
     });
-    router.push('/(auth)/level-select');
+    router.push('/(auth)/welcome');
   };
 
   return (

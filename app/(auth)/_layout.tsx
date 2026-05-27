@@ -8,9 +8,11 @@ export default function AuthLayout() {
       <Stack.Screen name="terms" />
       <Stack.Screen name="login" />
       <Stack.Screen name="signup" />
+      <Stack.Screen name="welcome" />
       <Stack.Screen name="level-select" />
       <Stack.Screen name="tutorial" />
       <Stack.Screen name="level-test" />
+      <Stack.Screen name="level-test-result" />
     </Stack>
   );
 }
