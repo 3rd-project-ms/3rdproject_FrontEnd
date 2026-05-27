@@ -10,6 +10,9 @@
       "expo-router",
       "expo-secure-store",
       "expo-font"
-    ]
+    ],
+    "android": {
+      "package": "com.anonymous.x3rdproject_frontend"
+    }
   }
 }
