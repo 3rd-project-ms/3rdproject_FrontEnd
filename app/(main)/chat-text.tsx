@@ -1,149 +1,329 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Modal, SafeAreaView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  StyleSheet, Text, View, TouchableOpacity, ScrollView,
+  SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator,
+  TextInput as RNTextInput,
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import ChatBubble from '@/components/chat/ChatBubble';
+import InputBar from '@/components/chat/InputBar';
+import PenaltyPopup, { PopupType, usePenaltyPopup } from '@/components/chat/PenaltyPopup';
+
+// ─────────────────────────────────────────
+// 타입
+// ─────────────────────────────────────────
+interface Message {
+  id: string;
+  sender: 'ai' | 'user';
+  text: string;
+  time: string;
+  action_description?: string;
+  grammar_feedback?: string;
+  is_penalty?: boolean;
+}
+
+interface ApiResponse {
+  success: boolean;
+  code: string;
+  message: string;
+  data: {
+    message_id: string;
+    turn_count: number;
+    role: string;
+    text_content: string;
+    action_description: string;
+    audio_url: string | null;
+    current_affinity: number;
+    remaining_penalties: number;
+    system_evaluation: {
+      grammar_feedback: string;
+      is_penalty: boolean;
+      penalty_reason: 'korean_used' | 'duplicate_expr' | 'context_deviation' | 'abusive_words' | null;
+      pronunciation_score: null;
+    };
+  } | null;
+}
+
+// ─────────────────────────────────────────
+// penalty_reason → PopupType 매핑
+// ─────────────────────────────────────────
+const PENALTY_REASON_MAP: Record<string, PopupType> = {
+  korean_used:        'off_topic',
+  duplicate_expr:     'repetitive_phrases',
+  context_deviation:  'off_topic',
+  abusive_words:      'off_topic',
+};
+
+// ─────────────────────────────────────────
+// 유틸
+// ─────────────────────────────────────────
+const getTimeString = () => {
+  const now = new Date();
+  const h = now.getHours();
+  const m = now.getMinutes().toString().padStart(2, '0');
+  const ampm = h >= 12 ? '오후' : '오전';
+  return `${ampm} ${h % 12 || 12}:${m}`;
+};
+
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+
+// ─────────────────────────────────────────
+// 🧪 목업 데이터 (순서대로 순환)
+// ─────────────────────────────────────────
+const MOCK_RESPONSES: ApiResponse[] = [
+  {
+    success: true, code: 'SUCCESS', message: '',
+    data: {
+      message_id: 'mock_1', turn_count: 1, role: 'assistant',
+      text_content: "Morning! Your usual Americano? Coming right up!",
+      action_description: '커피 머신을 닦다가 유저를 발견하고 부드럽게 미소 짓는다.',
+      audio_url: null, current_affinity: 50, remaining_penalties: 3,
+      system_evaluation: { grammar_feedback: '완벽한 문장이에요!', is_penalty: false, penalty_reason: null, pronunciation_score: null },
+    },
+  },
+  {
+    success: true, code: 'SUCCESS', message: '',
+    data: {
+      message_id: 'mock_2', turn_count: 2, role: 'assistant',
+      text_content: "Oh no, you look so exhausted! A slice of cake is on its way! ✨",
+      action_description: '귀엽게 눈을 동그랗게 뜨며 쇼케이스에서 딸기 케이크를 꺼낸다.',
+      audio_url: null, current_affinity: 42, remaining_penalties: 2,
+      system_evaluation: { grammar_feedback: "'너무 피곤해'는 'I am so exhausted'로 표현하는 것이 더 자연스러워요.", is_penalty: true, penalty_reason: 'korean_used', pronunciation_score: null },
+    },
+  },
+  {
+    success: true, code: 'SUCCESS', message: '',
+    data: {
+      message_id: 'mock_3', turn_count: 3, role: 'assistant',
+      text_content: "You always know how to make my heart race. Stay a bit longer today... please?",
+      action_description: '카운터에 턱을 괸 채 나른하고 달콤한 미소를 짓는다.',
+      audio_url: null, current_affinity: 60, remaining_penalties: 2,
+      system_evaluation: { grammar_feedback: '아주 좋은 표현이에요!', is_penalty: false, penalty_reason: null, pronunciation_score: null },
+    },
+  },
+];
+
+// ─────────────────────────────────────────
+// 컴포넌트
+// ─────────────────────────────────────────
 export default function ChatTextScreen() {
   const router = useRouter();
+  const { character_id, session_id, scenario_id, stage_id, user_id } =
+    useLocalSearchParams<{
+      character_id: string;
+      session_id: string;
+      scenario_id: string;
+      stage_id: string;
+      user_id: string;
+    }>();
 
-  // ─── 상태 관리 ───────────────────────────────────────────
-  const [character] = useState({ name: 'Jamie', role: '카페 사장님' });
-  const [affinity, setAffinity] = useState(42);
-  const [lives, setLives] = useState(2);
-  
-  const [showHint, setShowHint] = useState(false);
+  // ─── 상태 ───────────────────────────────
+  const [affinity, setAffinity]   = useState(42);
+  const [lives, setLives]         = useState(3);
+  const [messages, setMessages]   = useState<Message[]>([]);
+  const [turnCount, setTurnCount] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showHint, setShowHint]   = useState(false);
   const [inputText, setInputText] = useState('');
-  
-  // 예시 채팅 데이터 (좌: AI 캐릭터, 우: 사용자)
-  const [messages, setMessages] = useState([
-    { id: 1, sender: 'ai', text: "Hello! Welcome to the espresso bar 'Lavazza'. How would you like a drink?" },
-    { id: 2, sender: 'user', text: "I haven't been able to decide yet, so do you happen to have any signature dishes you would recommend?" },
-    { id: 3, sender: 'ai', text: "Our shop's most popular item is the 'Con Panna' topped with smooth cream. If you enjoy sweet and slightly bitter flavors, you won't regret it!" },
-  ]);
+  const [mockIndex, setMockIndex] = useState(0); // 🧪 목업 순환용
 
-  // 팝업(모달) 상태 관리
-  const [popupType, setPopupType] = useState<'duplicate' | 'success' | null>(null);
+  // PenaltyPopup 훅
+  const popup = usePenaltyPopup();
 
-  // ─── 하트 목숨 렌더링 (chat-voice와 동일) ──────────────────
-  const renderLives = () => {
-    return (
-      <View style={styles.liveContainer}>
-        {[1, 2, 3].map((i) => (
-          <Ionicons
-            key={i}
-            name={i <= lives ? 'heart' : 'heart-outline'}
-            size={22}
-            color={i <= lives ? '#F6A3A6' : '#E0E0E0'}
-            style={{ marginLeft: 3 }}
-          />
-        ))}
-      </View>
-    );
-  };
+  const scrollViewRef = useRef<ScrollView>(null);
+  const inputRef = useRef<RNTextInput>(null); // ⭐ TextInput 직접 제어용
 
-  const handleSendMessage = () => {
-    if (!inputText.trim()) return;
+  // ─── 초기 AI 인사 ───────────────────────
+  useEffect(() => {
+    setMessages([{
+      id: 'init',
+      sender: 'ai',
+      text: "Hello! Welcome to the espresso bar 'Lavazza'. How would you like a drink?",
+      time: getTimeString(),
+      action_description: 'Jamie shakes the portafilter of the espresso machine and gives you a sweet smile.',
+    }]);
+  }, []);
 
-    const newMsg = { id: Date.now(), sender: 'user', text: inputText };
-    setMessages((prev) => [...prev, newMsg]);
-
-    // 테스트용 비밀 트리거
-    if (inputText.includes('중복')) {
-      setPopupType('duplicate');
-      setLives((prev) => Math.max(0, prev - 1));
-    } else if (inputText.includes('상승')) {
-      setPopupType('success');
-      setAffinity((prev) => Math.min(100, prev + 5));
+  // ─── 새 메시지 자동 스크롤 ──────────────
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     }
+  }, [messages]);
+
+  // ─── 메시지 전송 & API 호출 ─────────────
+  const handleSend = async () => {
+    const text = inputText.trim();
+    if (!text || isLoading) return;
 
     setInputText('');
+
+    const userMsgId = `user_${Date.now()}`;
+    const userMsg: Message = { id: userMsgId, sender: 'user', text, time: getTimeString() };
+    setMessages((prev) => [...prev, userMsg]);
+    setIsLoading(true);
+
+    try {
+      // ── 🧪 목업 테스트용 (백엔드 연동 시 아래 주석 해제 후 이 블록 삭제) ──
+      await new Promise((r) => setTimeout(r, 300)); // 네트워크 딜레이 시뮬레이션
+      const json: ApiResponse = MOCK_RESPONSES[mockIndex % MOCK_RESPONSES.length];
+      setMockIndex((prev) => prev + 1);
+      // ── 🔌 실제 연동 시 위 목업 블록 지우고 아래 주석 해제 ──
+      // const res = await fetch(`${API_BASE}/api/chat/message`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     user_id:     Number(user_id) || 1,
+      //     character_id: character_id  || 'CH_01_M',
+      //     session_id:  session_id     || 'sess_dev_001',
+      //     scenario_id: scenario_id    || 'SC_01',
+      //     stage_id:    Number(stage_id) || 1,
+      //     turn_count:  turnCount,
+      //     input_type:  'text',
+      //     text_content: text,
+      //   }),
+      // });
+      // const json: ApiResponse = await res.json();
+
+      // ── 에러 응답 ──
+      if (!json.success || !json.data) {
+        if (json.code === 'ERR_NO_LIVES_REMAINING') {
+          popup.show('off_topic'); // 하트 소진 — 가장 근접한 팝업 재활용
+        } else if (json.code === 'ERR_ABUSIVE_WORDS') {
+          popup.show('off_topic');
+        }
+        return;
+      }
+
+      const { data } = json;
+      const eval_ = data.system_evaluation;
+
+      // ── 유저 메시지에 피드백 반영 ──
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === userMsgId
+            ? { ...m, grammar_feedback: eval_.grammar_feedback, is_penalty: eval_.is_penalty }
+            : m
+        )
+      );
+
+      // ── AI 응답 추가 ──
+      setMessages((prev) => [...prev, {
+        id:   `${data.message_id}_${Date.now()}`, // 중복 key 방지
+        sender: 'ai',
+        text: data.text_content,
+        time: getTimeString(),
+        action_description: data.action_description,
+      }]);
+
+      // ── 호감도 & 하트 업데이트 ──
+      const prevAffinity = affinity;
+      setAffinity(data.current_affinity);
+      setLives(data.remaining_penalties);
+      setTurnCount((prev) => prev + 1);
+
+      // ── 팝업 트리거 ──
+      if (eval_.is_penalty && eval_.penalty_reason) {
+        const popupType = PENALTY_REASON_MAP[eval_.penalty_reason] ?? 'off_topic';
+        popup.show(popupType, 1);
+      } else if (data.current_affinity > prevAffinity) {
+        const gain = data.current_affinity - prevAffinity;
+        popup.show(gain >= 10 ? 'affection_perfect' : 'affection_good');
+      }
+
+    } catch (e) {
+      console.error('API 오류:', e);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  // ─── 하트 렌더링 ────────────────────────
+  const renderLives = () => (
+    <View style={styles.liveContainer}>
+      {[1, 2, 3].map((i) => (
+        <Ionicons
+          key={i}
+          name={i <= lives ? 'heart' : 'heart-outline'}
+          size={22}
+          color={i <= lives ? '#F6A3A6' : '#E0E0E0'}
+          style={{ marginLeft: 3 }}
+        />
+      ))}
+    </View>
+  );
+
+  // ─────────────────────────────────────────
+  // 렌더
+  // ─────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container}>
-      {/* KeyboardAvoidingView 내부 속성을 유연하게 조정하여 블랙아웃 현상 완화 */}
-      <KeyboardAvoidingView 
-        style={{ flex: 1, backgroundColor: '#FFFFFF' }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 30}
       >
-        
-        {/* ─── [상단] 헤더 영역 ─── */}
+        {/* ── 헤더 ── */}
         <View style={styles.header}>
           <View style={styles.headerTitleRow}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={24} color="#0B0B12" />
             </TouchableOpacity>
-            <Text style={styles.charName}>{character.name}</Text>
-            <Text style={styles.charRole}> · {character.role}</Text>
+            <Text style={styles.charName}>Jamie</Text>
+            <Text style={styles.charRole}> · 카페 사장님</Text>
           </View>
           {renderLives()}
         </View>
 
-        {/* ─── [상단] 친밀도 상태바 영역 ─── */}
+        {/* ── 호감도 바 ── */}
         <View style={styles.affinityWrapper}>
           <Text style={styles.affinityPercent}>{affinity}%</Text>
           <View style={styles.progressBarBg}>
             <View style={[styles.progressBarFill, { width: `${affinity}%` }]} />
-
-            {/* 1/3 포인트 하트 - 바 아래 배치 */}
-            <View style={[styles.pointHeartWrapper, { left: '33%' }]}>
-              <Ionicons
-                name="heart"
-                size={14}
-                color={affinity >= 33 ? '#F6A3A6' : '#FFFFFF'}
-              />
-            </View>
-            {/* 2/3 포인트 하트 - 바 아래 배치 */}
-            <View style={[styles.pointHeartWrapper, { left: '66%' }]}>
-              <Ionicons
-                name="heart"
-                size={14}
-                color={affinity >= 66 ? '#F6A3A6' : '#FFFFFF'}
-              />
-            </View>
+            {[33, 66].map((point) => (
+              <View key={point} style={[styles.pointHeartWrapper, { left: `${point}%` }]}>
+                <Ionicons name="heart" size={14} color={affinity >= point ? '#F6A3A6' : '#FFFFFF'} />
+              </View>
+            ))}
           </View>
         </View>
 
-        {/* ─── [중앙] 채팅 및 나레이션 영역 ────────────────── */}
-        <ScrollView 
+        {/* ── 채팅 영역 ── */}
+        <ScrollView
+          ref={scrollViewRef}
           style={styles.chatScrollView}
           contentContainerStyle={styles.chatContentContainer}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 1. 나레이션 */}
-          <View style={styles.narrationContainer}>
-            <Text style={styles.narrationText}>
-              (Jamie shakes the portafilter of the espresso machine and gives you a sweet smile.)
-            </Text>
-          </View>
-
-          {/* 2. 채팅 버블 */}
-          {messages.map((msg) => {
-            const isAI = msg.sender === 'ai';
-            return (
-              <View 
-                key={msg.id} 
-                style={[styles.messageRow, isAI ? styles.messageRowLeft : styles.messageRowRight]}
-              >
-                <View style={[styles.bubble, isAI ? styles.bubbleAI : styles.bubbleUser]}>
-                  <Text style={[styles.bubbleText, isAI ? styles.bubbleTextAI : styles.bubbleTextUser]}>
-                    {msg.text}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
+          {messages.map((msg, index) => (
+            <ChatBubble
+              key={msg.id}
+              sender={msg.sender}
+              text={msg.text}
+              time={msg.time}
+              character_id={character_id || 'CH_01_M'}
+              action_description={msg.action_description}
+              grammar_feedback={msg.grammar_feedback}
+              is_penalty={msg.is_penalty}
+              isNew={index === messages.length - 1}
+            />
+          ))}
+          {isLoading && (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator size="small" color="#F6A3A6" />
+              <Text style={styles.loadingText}>답변 중...</Text>
+            </View>
+          )}
         </ScrollView>
 
-        {/* ─── [하단] 힌트 + 입력창 영역 ────────────────── */}
+        {/* ── 하단: 힌트 + 입력창 ── */}
         <View style={styles.bottomAreaContainer}>
-          
-          {/* 힌트 버튼 시스템 */}
           <View style={styles.hintWrapper}>
-            <TouchableOpacity 
-              style={styles.hintHeader} 
+            <TouchableOpacity
+              style={styles.hintHeader}
               onPress={() => setShowHint(!showHint)}
               activeOpacity={0.8}
             >
@@ -151,13 +331,8 @@ export default function ChatTextScreen() {
                 <View style={styles.hintDot} />
                 <Text style={styles.hintTitleText}>무엇을 말해야 하나요?</Text>
               </View>
-              <Ionicons 
-                name={showHint ? 'chevron-down' : 'chevron-up'} 
-                size={16} 
-                color="#616161" 
-              />
+              <Ionicons name={showHint ? 'chevron-down' : 'chevron-up'} size={16} color="#616161" />
             </TouchableOpacity>
-
             {showHint && (
               <View style={styles.hintContent}>
                 <Text style={styles.hintEnglish}>Could you recommend a signature coffee here?</Text>
@@ -166,301 +341,80 @@ export default function ChatTextScreen() {
             )}
           </View>
 
-          {/* 입력창 + 전송 단추 */}
-          <View style={styles.inputBar}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="대화를 입력하세요..."
-              placeholderTextColor="#AAAAAA"
-              value={inputText}
-              onChangeText={setInputText}
-            />
-            <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
-              <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
+          {/* InputBar — 기존 props 구조 그대로 사용 */}
+          <InputBar
+            inputRef={inputRef}
+            value={inputText}
+            onChangeText={setInputText}
+            onSend={handleSend}
+            disabled={isLoading || lives === 0}
+          />
         </View>
 
-        {/* ─── [팝업] 알림창 (요청대로 배경색 흰색 고정 및 하트 기호 가이드) ─── */}
-        <Modal
-          visible={popupType !== null}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setPopupType(null)}
-        >
-          <Pressable style={styles.modalOverlay} onPress={() => setPopupType(null)}>
-            <Pressable style={styles.modalContent} onPress={() => {}}>
-              
-              {/* 1. 표현 중복 팝업 */}
-              {popupType === 'duplicate' && (
-                <View style={styles.popupInner}>
-                  <Text style={[styles.popupTitle, { color: '#854448' }]}>표현 중복!</Text>
-                  <Text style={styles.popupBody}>
-                    질문 흐름과 맞지 않는 답변을 선택하셨어요.{"\n"}대화 맥락을 다시 한번 확인해 볼까요?
-                  </Text>
-                  <Text style={[styles.popupScore, { color: '#854448' }]}>❤️ -1</Text>
-                </View>
-              )}
-
-              {/* 2. 호감도 상승 팝업 */}
-              {popupType === 'success' && (
-                <View style={styles.popupInner}>
-                  <Text style={[styles.popupTitle, { color: '#2C3A5F' }]}>호감도 상승!</Text>
-                  <Text style={styles.popupBody}>
-                    센스 있는 답변 덕분에 상대방의 기분이 좋아졌어요.{"\n"}대화가 아주 매끄럽게 이어지고 있어요!
-                  </Text>
-                  <Text style={[styles.popupScore, { color: '#F6A3A6' }]}>❤️ + 5 pts</Text>
-                </View>
-              )}
-
-            </Pressable>
-          </Pressable>
-        </Modal>
-
       </KeyboardAvoidingView>
+
+      {/* PenaltyPopup — KeyboardAvoidingView 밖에 배치해야 키보드 위로 뜸 */}
+      <PenaltyPopup
+        visible={popup.visible}
+        popupType={popup.currentType}
+        penaltyPoints={popup.penaltyPoints}
+        onClose={() => {
+          popup.hide();
+          // ⭐ 모달 닫힌 후 키보드 재활성화 (Modal 버그 대응)
+          setTimeout(() => {
+            inputRef.current?.focus();
+          }, 200);
+        }}
+      />
     </SafeAreaView>
   );
 }
 
-// ─── 디자인 데코레이션 스타일시트 ──────────────────────────────
+// ─────────────────────────────────────────
+// 스타일
+// ─────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF', // 1. 요구사항: 전체 배경 컬러 흰색으로 변경
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 45 : 25, 
-    paddingBottom: 10,
-    backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'android' ? 45 : 25,
+    paddingBottom: 10, backgroundColor: '#FFFFFF',
   },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backBtn: {
-    marginRight: 6,
-    padding: 2,
-  },
-  charName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0B0B12',
-  },
-  charRole: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: '#616161',
-  },
-  liveContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  backBtn: { marginRight: 6, padding: 2 },
+  charName: { fontSize: 20, fontWeight: '700', color: '#0B0B12' },
+  charRole: { fontSize: 15, fontWeight: '400', color: '#616161' },
+  liveContainer: { flexDirection: 'row', alignItems: 'center' },
   affinityWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginVertical: 10,
-    backgroundColor: '#FFFFFF',
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 20, marginVertical: 10, backgroundColor: '#FFFFFF',
   },
-  affinityPercent: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2C3A5F',
-    marginRight: 10,
-    width: 35,
-  },
-  progressBarBg: {
-    flex: 1,
-    height: 10,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 5,
-    position: 'relative',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#F6A3A6',
-    borderRadius: 5,
-  },
-  pointHeartWrapper: {
-    position: 'absolute',
-    top: 12, 
-    transform: [{ translateX: -7 }],
-  },
-  chatScrollView: {
-    flex: 1,
-    paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-  },
-  chatContentContainer: {
-    paddingVertical: 10,
-  },
-  narrationContainer: {
-    backgroundColor: '#EEF2F6', 
-    borderRadius: 14,
-    padding: 15,
-    marginBottom: 20,
-  },
-  narrationText: {
-    fontSize: 14,
-    color: '#2C3A5F',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  messageRow: {
-    flexDirection: 'row',
-    marginBottom: 12,
-    width: '100%',
-  },
-  messageRowLeft: {
-    justifyContent: 'flex-start',
-  },
-  messageRowRight: {
-    justifyContent: 'flex-end',
-  },
-  bubble: {
-    maxWidth: '78%',
-    paddingHorizontal: 15,
-    paddingVertical: 11,
-    borderRadius: 16,
-  },
-  bubbleAI: {
-    backgroundColor: '#AAAAAA', // 2. 요구사항: AI 말풍선 색상 #AAAAAA로 변경
-    borderTopLeftRadius: 4, 
-    borderWidth: 0.5,
-    borderColor: '#999999',
-  },
-  bubbleUser: {
-    backgroundColor: '#F6A3A6', 
-    borderTopRightRadius: 4,
-  },
-  bubbleText: {
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  bubbleTextAI: {
-    color: '#FFFFFF', // 어두워진 말풍선에 맞게 글자색을 화이트로 전환하여 가독성 확보
-  },
-  bubbleTextUser: {
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
+  affinityPercent: { fontSize: 14, fontWeight: '600', color: '#2C3A5F', marginRight: 10, width: 35 },
+  progressBarBg: { flex: 1, height: 10, backgroundColor: '#E0E0E0', borderRadius: 5, position: 'relative' },
+  progressBarFill: { height: '100%', backgroundColor: '#F6A3A6', borderRadius: 5 },
+  pointHeartWrapper: { position: 'absolute', top: 12, transform: [{ translateX: -7 }] },
+  chatScrollView: { flex: 1, paddingHorizontal: 20, backgroundColor: '#FFFFFF' },
+  chatContentContainer: { paddingVertical: 10 },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 4 },
+  loadingText: { fontSize: 13, color: '#AEAEB2' },
   bottomAreaContainer: {
     paddingHorizontal: 20,
     paddingBottom: Platform.OS === 'ios' ? 15 : 25,
-    backgroundColor: '#FFFFFF', // 입력창 주변 영역도 전체 컨셉에 맞춰 화이트 처리
+    backgroundColor: '#FFFFFF',
   },
   hintWrapper: {
-    backgroundColor: '#FAF5EE', 
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
+    backgroundColor: '#FAF5EE', borderRadius: 12, overflow: 'hidden',
+    marginBottom: 12, borderWidth: 1, borderColor: '#EAEAEA',
   },
   hintHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 12,
   },
-  hintTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  hintDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#F6A3A6',
-  },
-  hintTitleText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2C3A5F',
-  },
-  hintContent: {
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-    gap: 4,
-  },
-  hintEnglish: {
-    fontSize: 14,
-    color: '#E87C7C',
-    fontWeight: '600',
-  },
-  hintKorean: {
-    fontSize: 13,
-    color: '#616161',
-  },
-  inputBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#0B0B12',
-    paddingVertical: 4,
-  },
-  sendButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F6A3A6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(11, 11, 18, 0.35)', 
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '82%',
-    backgroundColor: '#FFFFFF', // 팝업창 배경색 흰색 고정 완료
-    borderRadius: 18,
-    paddingVertical: 28,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-  },
-  popupInner: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  popupTitle: {
-    fontSize: 19,
-    fontWeight: '800',
-    marginBottom: 10,
-    letterSpacing: -0.5,
-  },
-  popupBody: {
-    fontSize: 14,
-    color: '#616161',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 18,
-  },
-  popupScore: {
-    fontSize: 22,
-    fontWeight: '800',
-  },
+  hintTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hintDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#F6A3A6' },
+  hintTitleText: { fontSize: 14, fontWeight: '600', color: '#2C3A5F' },
+  hintContent: { paddingHorizontal: 14, paddingBottom: 14, gap: 4 },
+  hintEnglish: { fontSize: 14, color: '#E87C7C', fontWeight: '600' },
+  hintKorean: { fontSize: 13, color: '#616161' },
 });
