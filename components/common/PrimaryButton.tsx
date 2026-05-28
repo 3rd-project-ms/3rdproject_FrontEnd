@@ -49,20 +49,25 @@ const styles = StyleSheet.create({
   },
   primaryLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     color: '#FFFFFF',
   },
   outline: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#E0E0E0',
+    shadowColor: '#E0E0E0',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 2,
   },
   outlinePressed: {
     backgroundColor: '#E0E0E0',
   },
   outlineLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     color: '#AAAAAA',
   },
   disabled: {

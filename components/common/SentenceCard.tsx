@@ -29,11 +29,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 12,
+    fontFamily: 'Inter_400Regular',
     color: '#AAAAAA',
   },
   sentenceText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     color: '#0B0B12',
     lineHeight: 24,
   },

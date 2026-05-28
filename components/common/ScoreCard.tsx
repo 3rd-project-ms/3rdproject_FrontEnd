@@ -22,24 +22,28 @@ export default function ScoreCard({ label, value, unit }: ScoreCardProps) {
 const styles = StyleSheet.create({
   card: {
     flex: 1,
+    height: 78,
     alignItems: 'flex-start',
     paddingLeft: 27,
     paddingTop: 17,
+    paddingBottom: 19,
   },
   label: {
     fontSize: 12,
-    fontWeight: '400',
-    color: '#616161',
+    fontFamily: 'Inter_400Regular',
+    color: '#0B0B12',
+    lineHeight: 12,
     marginBottom: 6,
   },
   value: {
     fontSize: 24,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     color: '#0B0B12',
+    lineHeight: 24,
   },
   unit: {
-    fontSize: 14,
-    fontWeight: '400',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
     color: '#0B0B12',
   },
 });

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import PrimaryButton from '@/components/common/PrimaryButton';
 
-const BAR_COUNT = 12;
+const BAR_COUNT = 24;
 const MIN_HEIGHT = 8;
 const MAX_HEIGHT = 48;
 
@@ -131,13 +131,14 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
+    fontFamily: 'Inter_400Regular',
     color: '#616161',
   },
   waveform: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 6,
     height: MAX_HEIGHT,
   },
   bar: {

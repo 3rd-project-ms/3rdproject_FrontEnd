@@ -37,13 +37,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: 12,
+    fontSize: 16,
     color: '#0B0B12',
-    fontWeight: '400',
+    fontFamily: 'Inter_600SemiBold',
   },
   change: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 10,
+    fontFamily: 'Inter_400Regular',
     textAlign: 'right',
   },
   positive: {

@@ -1,68 +1,79 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import AudioControlButtons from '@/components/common/AudioControlButtons';
 import SentenceCard from '@/components/common/SentenceCard';
-import WordJudgementCard, { WordItem } from '@/components/common/WordJudgementCard';
+import WordJudgementCard from '@/components/common/WordJudgementCard';
 
-interface SentenceItem {
-  sentence: string;
-  words: WordItem[];
-}
-
-const MOCK_SENTENCES: SentenceItem[] = [
-  {
-    sentence: '"Hello, I want to learn surfing today."',
-    words: [
-      { word: 'learn', guide: '[la:rn]', myPronunciation: '[la:rn]', status: 'pass' },
-      { word: 'surfing', guide: '[sɔ:rfɪŋ]', myPronunciation: '[sʌfɪn]', status: 'warning', warningNote: "'r' 누락" },
-      { word: 'today', guide: "[tə'deɪ]", myPronunciation: "[tə'deɪ]", status: 'pass' },
-    ],
-  },
-  {
-    sentence: '"Can I get a coffee, please?"',
-    words: [
-      { word: 'coffee', guide: "[kɔ:fi]", myPronunciation: "[kɔ:fi]", status: 'pass' },
-      { word: 'please', guide: '[pli:z]', myPronunciation: '[pli:z]', status: 'pass' },
-    ],
-  },
-  {
-    sentence: '"That sounds really interesting!"',
-    words: [
-      { word: 'really', guide: '[ri:əli]', myPronunciation: '[ri:li]', status: 'warning', warningNote: '모음 누락' },
-      { word: 'interesting', guide: '[ɪntrɪstɪŋ]', myPronunciation: '[ɪntrɪstɪŋ]', status: 'pass' },
-    ],
-  },
-];
+import { PRONUNCIATION_SENTENCES } from '@/utils/pronunciation';
 
 export default function PronunciationDetailPlayScreen() {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [stopSignal, setStopSignal] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const [scrollY, setScrollY] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
 
-  const current = MOCK_SENTENCES[currentIndex];
+  const showScrollDown = contentHeight > containerHeight && scrollY < 10;
+
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setScrollY(e.nativeEvent.contentOffset.y);
+  };
+
+  const current = PRONUNCIATION_SENTENCES[currentIndex];
   const isFirst = currentIndex === 0;
-  const isLast = currentIndex === MOCK_SENTENCES.length - 1;
+  const isLast = currentIndex === PRONUNCIATION_SENTENCES.length - 1;
 
   return (
     <View style={styles.container}>
       {/* 헤더 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backIcon}>{'‹'}</Text>
+          <Ionicons name="chevron-back" size={20} color="#0B0B12" />
           <Text style={styles.backLabel}>발음 정밀 진단</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
         <SentenceCard sentence={current.sentence} />
-        <View style={styles.wordCardWrapper}>
-          <WordJudgementCard words={current.words} />
-        </View>
+        <View
+          style={styles.wordCardContainer}
+          onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
+        >
+          <Text style={styles.wordCardLabel}>단어 단위 상세 판정</Text>
+          <ScrollView
+            ref={scrollRef}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.wordCardInner}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            onContentSizeChange={(_, h) => setContentHeight(h)}
+            decelerationRate={0.98}
+          >
+            <WordJudgementCard
+              words={current.words}
+              showLabel={false}
+              style={{ borderWidth: 0, borderRadius: 0 }}
+            />
+          </ScrollView>
 
-        {/* 오디오 버튼 */}
+          {showScrollDown && (
+            <View style={styles.scrollDownWrap}>
+              <TouchableOpacity
+                style={styles.scrollDownButton}
+                onPress={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-down" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
         <AudioControlButtons isRecording={isRecording} stopSignal={stopSignal} />
       </View>
 
@@ -93,15 +104,15 @@ export default function PronunciationDetailPlayScreen() {
           disabled={isFirst}
           activeOpacity={0.7}
         >
-          <Text style={[styles.navArrow, isFirst && styles.navArrowDisabled]}>{'‹'}</Text>
+          <Ionicons name="chevron-back" size={20} color={isFirst ? '#AAAAAA' : '#0B0B12'} />
         </TouchableOpacity>
-        <Text style={styles.navLabel}>{currentIndex + 1}/{MOCK_SENTENCES.length} 문장</Text>
+        <Text style={styles.navLabel}>{currentIndex + 1}/{PRONUNCIATION_SENTENCES.length} 문장</Text>
         <TouchableOpacity
           onPress={() => setCurrentIndex((i) => i + 1)}
           disabled={isLast}
           activeOpacity={0.7}
         >
-          <Text style={[styles.navArrow, isLast && styles.navArrowDisabled]}>{'›'}</Text>
+          <Ionicons name="chevron-forward" size={20} color={isLast ? '#AAAAAA' : '#0B0B12'} />
         </TouchableOpacity>
       </View>
     </View>
@@ -125,12 +136,13 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 26,
+    fontFamily: 'Inter_400Regular',
     color: '#0B0B12',
     lineHeight: 26,
   },
   backLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 20,
+    fontFamily: 'Inter_600SemiBold',
     color: '#0B0B12',
   },
   content: {
@@ -138,8 +150,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  wordCardWrapper: {
+  wordCardLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+    color: '#616161',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  wordCardContainer: {
+    flex: 1,
     marginTop: -16,
+    marginBottom: 12,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  wordCardInner: {
+    paddingBottom: 16,
   },
   buttonArea: {
     paddingHorizontal: 16,
@@ -154,22 +180,20 @@ const styles = StyleSheet.create({
   },
   recordButtonLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     color: '#FFFFFF',
   },
   stopButton: {
     height: 46,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderRadius: 16,
+    backgroundColor: 'rgba(246,163,166,0.19)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   stopButtonLabel: {
     fontSize: 16,
-    fontWeight: '400',
-    color: '#616161',
+    fontFamily: 'Inter_600SemiBold',
+    color: '#FFFFFF',
   },
   navRow: {
     flexDirection: 'row',
@@ -184,6 +208,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     fontSize: 26,
+    fontFamily: 'Inter_400Regular',
     color: '#0B0B12',
     textAlign: 'center',
     lineHeight: 36,
@@ -193,7 +218,22 @@ const styles = StyleSheet.create({
   },
   navLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     color: '#AAAAAA',
+  },
+  scrollDownWrap: {
+    position: 'absolute',
+    bottom: 6,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  scrollDownButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    backgroundColor: 'rgba(246,163,166,0.19)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

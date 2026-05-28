@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 
 export interface WordItem {
   word: string;
@@ -11,12 +11,16 @@ export interface WordItem {
 
 interface WordJudgementCardProps {
   words: WordItem[];
+  style?: ViewStyle;
+  showLabel?: boolean;
 }
 
-export default function WordJudgementCard({ words }: WordJudgementCardProps) {
+export default function WordJudgementCard({ words, style, showLabel = true }: WordJudgementCardProps) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionLabel}>단어 단위 상세 판정</Text>
+    <View style={[styles.section, style]}>
+      {showLabel !== false && (
+        <Text style={styles.sectionLabel}>단어 단위 상세 판정</Text>
+      )}
       <View style={styles.wordList}>
         {words.map((item, index) => (
           <View
@@ -42,7 +46,7 @@ export default function WordJudgementCard({ words }: WordJudgementCardProps) {
 
 const styles = StyleSheet.create({
   section: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 12,
@@ -55,6 +59,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 12,
+    fontFamily: 'Inter_400Regular',
     color: '#616161',
   },
   wordList: {
@@ -86,27 +91,27 @@ const styles = StyleSheet.create({
   },
   wordName: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     color: '#0B0B12',
   },
   statusPass: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     color: '#AAAAAA',
   },
   statusWarning: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     color: '#F43F5E',
   },
   guideText: {
     fontSize: 10,
-    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
     color: '#AAAAAA',
   },
   myPronText: {
     fontSize: 10,
-    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
     color: '#AAAAAA',
   },
 });
