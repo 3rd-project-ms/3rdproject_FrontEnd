@@ -47,7 +47,7 @@ export default function LevelSelectScreen() {
   };
 
   const handleStartLevelTest = () => {
-    router.push('/(auth)/level-test');
+    router.push('/(auth)/level-test?tutorial=1');
   };
 
   return (

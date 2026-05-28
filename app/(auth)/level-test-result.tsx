@@ -3,9 +3,16 @@
 import { useRouter } from 'expo-router';
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import Button from '../../components/common/Button';
+import RadarChart from '../../components/level-test/RadarChart';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
 
-const radarLabels = ['유창성', '표현력', '문법 정확도', '과제 수행도', '어휘력'];
+const MOCK_RADAR_DATA = {
+  fluency: 0.7,
+  expression: 0.85,
+  grammar: 0.6,
+  task: 0.5,
+  vocabulary: 0.75,
+};
 
 export default function LevelTestResultScreen() {
   const router = useRouter();
@@ -28,19 +35,7 @@ export default function LevelTestResultScreen() {
         </View>
 
         <View style={styles.chartCard}>
-          <View style={styles.radarMock}>
-            <View style={styles.radarOuter} />
-            <View style={styles.radarMiddle} />
-            <View style={styles.radarInner} />
-            <Text style={styles.chartCenterText}>레이더 차트 영역</Text>
-          </View>
-          <View style={styles.labelWrap}>
-            {radarLabels.map((label) => (
-              <View key={label} style={styles.labelChip}>
-                <Text style={styles.labelText}>{label}</Text>
-              </View>
-            ))}
-          </View>
+          <RadarChart data={MOCK_RADAR_DATA} size={280} />
         </View>
 
         <Text style={styles.detailText}>자세히 보기</Text>
@@ -96,56 +91,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray2,
     borderRadius: 8,
     backgroundColor: COLORS.white,
-  },
-  radarMock: {
-    height: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radarOuter: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderWidth: 1,
-    borderColor: COLORS.gray2,
-    borderRadius: 90,
-  },
-  radarMiddle: {
-    position: 'absolute',
-    width: 128,
-    height: 128,
-    borderWidth: 1,
-    borderColor: COLORS.gray2,
-    borderRadius: 64,
-  },
-  radarInner: {
-    position: 'absolute',
-    width: 76,
-    height: 76,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: 38,
-    backgroundColor: COLORS.subColor3Light,
-  },
-  chartCenterText: {
-    ...TYPOGRAPHY.semibold14,
-    color: COLORS.gray0,
-  },
-  labelWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  labelChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-    backgroundColor: COLORS.background,
-  },
-  labelText: {
-    ...TYPOGRAPHY.regular10,
-    color: COLORS.gray0,
   },
   detailText: {
     marginTop: 18,
