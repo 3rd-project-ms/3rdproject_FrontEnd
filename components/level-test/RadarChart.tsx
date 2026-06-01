@@ -70,8 +70,8 @@ export default function RadarChart({ data, size = 280 }: RadarChartProps) {
           <Polygon
             key={idx}
             points={pts}
-            fill={idx === 0 ? '#2A2A2A' : 'none'}
-            stroke="rgba(255,255,255,0.3)"
+            fill="none"
+            stroke="rgba(0,0,0,0.15)"
             strokeWidth={1}
           />
         ))}
@@ -86,7 +86,7 @@ export default function RadarChart({ data, size = 280 }: RadarChartProps) {
               y1={cy}
               x2={end.x}
               y2={end.y}
-              stroke="rgba(255,255,255,0.3)"
+              stroke="rgba(0,0,0,0.15)"
               strokeWidth={1}
             />
           );
@@ -109,7 +109,7 @@ export default function RadarChart({ data, size = 280 }: RadarChartProps) {
               x={x}
               y={y}
               fontSize={12}
-              fill="#BBBBBB"
+              fill="#616161"
               textAnchor={textAnchor}
               alignmentBaseline="middle"
             >
@@ -126,7 +126,5 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2A2A2A',
-    borderRadius: 8,
   },
 });

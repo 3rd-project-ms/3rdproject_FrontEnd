@@ -87,6 +87,7 @@ const styles = StyleSheet.create({
   chartCard: {
     marginTop: 34,
     padding: SPACING.lg,
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.gray2,
     borderRadius: 8,
