@@ -121,7 +121,7 @@ export default function HomeScreen() {
         {/* 헤더 바 */}
         <View style={s.header}>
           <Text style={s.logo}>LOGO</Text>
-          <TouchableOpacity onPress={() => router.push('/(main)/session-result' as any)} style={s.iconPad}>
+          <TouchableOpacity onPress={() => router.push('/(main)/mypage' as any)} style={s.iconPad}>
             <Ionicons name="settings-outline" size={24} color="#0B0B12" />
           </TouchableOpacity>
         </View>

@@ -123,10 +123,7 @@ export default function ChatVoiceScreen() {
   const [showEndModal, setShowEndModal] = useState(false);
   const [mockIndex, setMockIndex]   = useState(0);
 
-  // 발음 점수
-  const [pronScore, setPronScore] = useState<{
-    accuracy: number; fluency: number; completeness: number; prosody: number;
-  } | null>(null);
+  // 발음 점수 — 결과분석 화면에서 표시 (여기선 제거)
 
   // 녹음 ref
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -234,16 +231,6 @@ export default function ChatVoiceScreen() {
       // AI 응답 텍스트
       showAiText(data.text_content);
 
-      // 발음 점수 업데이트
-      if (eval_.pronunciation_score) {
-        setPronScore({
-          accuracy:     eval_.pronunciation_score.accuracy,
-          fluency:      eval_.pronunciation_score.fluency,
-          completeness: eval_.pronunciation_score.completeness,
-          prosody:      eval_.pronunciation_score.prosody,
-        });
-      }
-
       // TTS 재생
       if (data.audio_url) {
         await playAudio(data.audio_url);
@@ -288,13 +275,6 @@ export default function ChatVoiceScreen() {
     } catch (e) {
       console.error('다시듣기 오류:', e);
     }
-  };
-
-  // ─── 발음 점수 색상 ─────────────────────
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return colors.score_high;
-    if (score >= 60) return colors.score_mid;
-    return colors.score_low;
   };
 
   // ─── 하트 렌더링 ────────────────────────
@@ -351,21 +331,7 @@ export default function ChatVoiceScreen() {
         ) : null}
       </View>
 
-      {/* ── 발음 점수 ── */}
-      {pronScore && (
-        <View style={styles.scoreContainer}>
-          {(['accuracy', 'fluency', 'completeness', 'prosody'] as const).map((key) => (
-            <View key={key} style={styles.scoreItem}>
-              <Text style={[styles.scoreValue, { color: getScoreColor(pronScore[key]) }]}>
-                {pronScore[key]}
-              </Text>
-              <Text style={styles.scoreLabel}>
-                {{ accuracy: '정확도', fluency: '유창성', completeness: '완성도', prosody: '운율' }[key]}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
+
 
       {/* ── 힌트 ── */}
       <View style={styles.hintContainer}>
@@ -408,7 +374,7 @@ export default function ChatVoiceScreen() {
           state={micState}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
-          size={88}
+          size={54}
         />
 
         {/* 통화종료 */}
@@ -499,15 +465,7 @@ const styles = StyleSheet.create({
     fontSize: 15, color: '#1C1C1E', lineHeight: 22, textAlign: 'center',
   },
 
-  // 발음 점수
-  scoreContainer: {
-    flexDirection: 'row', justifyContent: 'space-around',
-    marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: '#F8F8F8', borderRadius: 14, paddingVertical: 12,
-  },
-  scoreItem: { alignItems: 'center', gap: 4 },
-  scoreValue: { fontSize: 20, fontWeight: '700' },
-  scoreLabel: { fontSize: 11, color: '#888' },
+
 
   // 힌트
   hintContainer: {

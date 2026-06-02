@@ -12,62 +12,64 @@ interface MicButtonProps {
   size?: number;
 }
 
+// 웨이브 바 1개
+function WaveBar({ delay, isActive }: { delay: number; isActive: boolean }) {
+  const height = useRef(new Animated.Value(4)).current;
+  const anim = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (isActive) {
+      anim.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(height, { toValue: 4 + Math.random() * 16 + 8, duration: 300 + delay, useNativeDriver: false }),
+          Animated.timing(height, { toValue: 4, duration: 300 + delay, useNativeDriver: false }),
+        ])
+      );
+      anim.current.start();
+    } else {
+      anim.current?.stop();
+      Animated.timing(height, { toValue: 4, duration: 200, useNativeDriver: false }).start();
+    }
+  }, [isActive]);
+
+  return (
+    <Animated.View
+      style={{
+        width: 3,
+        height,
+        borderRadius: 2,
+        backgroundColor: isActive ? colors.primary : '#D0D0D0',
+        marginHorizontal: 2,
+      }}
+    />
+  );
+}
+
 export default function MicButton({
   state,
   onPressIn,
   onPressOut,
-  size = 54, // 다른 버튼과 동일한 크기
+  size = 54, // 양옆 버튼과 동일
 }: MicButtonProps) {
-  const pulseScale = useRef(new Animated.Value(1)).current;
-  const pulseOpacity = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef<Animated.CompositeAnimation | null>(null);
-
   const isRecording = state === 'recording';
   const isDisabled  = state === 'disabled';
 
-  useEffect(() => {
-    if (isRecording) {
-      // 링 페이드인
-      Animated.timing(pulseOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-      // 링 박동
-      pulseAnim.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseScale, { toValue: 1.5, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseScale, { toValue: 1.2, duration: 800, useNativeDriver: true }),
-        ])
-      );
-      pulseAnim.current.start();
-    } else {
-      pulseAnim.current?.stop();
-      Animated.parallel([
-        Animated.timing(pulseScale,   { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.timing(pulseOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [isRecording]);
-
   const bgColor = isDisabled ? '#E0E0E0' : isRecording ? '#E8355A' : colors.primary;
-  const iconName = isRecording ? 'stop' : 'mic';
-  const iconSize = size * 0.42;
+
+  // 웨이브 바 8개 — 각각 다른 딜레이
+  const BAR_DELAYS = [80, 120, 60, 180, 100, 140, 70, 160];
 
   return (
     <View style={styles.wrapper}>
 
-      {/* 박동 링 — 녹음 중에만 보임 */}
-      <Animated.View
-        style={[
-          styles.ring,
-          {
-            width: size + 30,
-            height: size + 30,
-            borderRadius: (size + 30) / 2,
-            transform: [{ scale: pulseScale }],
-            opacity: pulseOpacity,
-          },
-        ]}
-      />
+      {/* 웨이브 바 — 녹음 중에만 표시 */}
+      <View style={[styles.waveContainer, !isRecording && styles.waveHidden]}>
+        {BAR_DELAYS.map((delay, i) => (
+          <WaveBar key={i} delay={delay} isActive={isRecording} />
+        ))}
+      </View>
 
-      {/* 버튼 */}
+      {/* 마이크 버튼 */}
       <TouchableOpacity
         onPressIn={() => { if (!isDisabled) onPressIn(); }}
         onPressOut={() => { if (!isDisabled) onPressOut(); }}
@@ -77,16 +79,15 @@ export default function MicButton({
         <View
           style={[
             styles.button,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              backgroundColor: bgColor,
-            },
+            { width: size, height: size, borderRadius: size / 2, backgroundColor: bgColor },
             isRecording && styles.buttonRecording,
           ]}
         >
-          <Ionicons name={iconName} size={iconSize} color="#FFFFFF" />
+          <Ionicons
+            name={isRecording ? 'stop' : 'mic'}
+            size={size * 0.42}
+            color="#FFFFFF"
+          />
         </View>
       </TouchableOpacity>
 
@@ -105,11 +106,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 90,
   },
-  ring: {
-    position: 'absolute',
-    borderWidth: 1.5,
-    borderColor: 'rgba(232,53,90,0.35)',
-    backgroundColor: 'rgba(232,53,90,0.08)',
+  waveContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 32,
+    marginBottom: 10,
+    position: 'absolute',  // 버튼 위에 absolute로 띄움 — 레이아웃 영향 없음
+    top: -42,
+  },
+  waveHidden: {
+    opacity: 0,
   },
   button: {
     justifyContent: 'center',
