@@ -1,15 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { Colors, Typography } from '@/constants/tokens';
 
-interface ScoreCardProps {
+export interface ScoreCardProps {
   label: string;
   value: string | number;
   unit?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
-export default function ScoreCard({ label, value, unit }: ScoreCardProps) {
+export default function ScoreCard({ label, value, unit, style }: ScoreCardProps) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, style]}>
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.value}>
         {value}
@@ -29,21 +31,21 @@ const styles = StyleSheet.create({
     paddingBottom: 19,
   },
   label: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: '#0B0B12',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.regular,
+    color: Colors.textPrimary,
     lineHeight: 12,
     marginBottom: 6,
   },
   value: {
-    fontSize: 24,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#0B0B12',
+    fontSize: Typography.size.score,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.textPrimary,
     lineHeight: 24,
   },
   unit: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: '#0B0B12',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.regular,
+    color: Colors.textPrimary,
   },
 });

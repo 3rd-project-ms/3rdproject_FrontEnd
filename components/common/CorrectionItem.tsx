@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { Colors, Typography } from '@/constants/tokens';
 
-interface CorrectionItemProps {
+export interface CorrectionItemProps {
   original: string;
   corrected: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 interface LineMetrics {
@@ -13,11 +15,11 @@ interface LineMetrics {
   height: number;
 }
 
-export default function CorrectionItem({ original, corrected }: CorrectionItemProps) {
+export default function CorrectionItem({ original, corrected, style }: CorrectionItemProps) {
   const [lines, setLines] = useState<LineMetrics[]>([]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <View style={styles.originalWrap}>
         <Text
           style={styles.original}
@@ -51,31 +53,31 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: Colors.border,
   },
   originalWrap: {
     flex: 1,
   },
   original: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: '#616161',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.regular,
+    color: Colors.textSecondary,
   },
   strikethrough: {
     position: 'absolute',
     left: 0,
     height: 1.5,
-    backgroundColor: '#F43F5E',
+    backgroundColor: Colors.danger,
   },
   arrow: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: '#616161',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.regular,
+    color: Colors.textSecondary,
   },
   corrected: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: '#0B0B12',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.regular,
+    color: Colors.textPrimary,
     flex: 2,
   },
 });

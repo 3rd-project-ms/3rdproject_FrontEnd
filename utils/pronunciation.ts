@@ -1,36 +1,14 @@
 import { WordDetail } from '@/types/api';
 import { WordItem } from '@/components/common/WordJudgementCard';
-import { MOCK_CASE_B } from '@/constants/mockData';
 
 export function mapWordDetails(wordDetails: WordDetail[]): WordItem[] {
   return wordDetails.map((w) => ({
     word: w.word,
-    guide: '',
-    myPronunciation: '',
+    // TODO(api): word_details.guide / my_pronunciation 최종 필드명 확정 시 동기화
+    // TODO(api): IPA 형식/언어별 표기 규칙 확인
+    guide: w.guide,
+    myPronunciation: w.my_pronunciation,
     status: w.error_type ? 'warning' : 'pass',
     warningNote: w.error_type ?? undefined,
   }));
 }
-
-export const pronScore = MOCK_CASE_B.data!.system_evaluation.pronunciation_score!;
-
-export const PRONUNCIATION_SENTENCES = [
-  {
-    sentence: MOCK_CASE_B.data!.text_content,
-    words: mapWordDetails(pronScore.word_details),
-  },
-  {
-    sentence: '"Can I get a coffee, please?"',
-    words: [
-      { word: 'coffee', guide: '[kɔ:fi]', myPronunciation: '[kɔ:fi]', status: 'pass' as const },
-      { word: 'please', guide: '[pli:z]', myPronunciation: '[pli:z]', status: 'pass' as const },
-    ],
-  },
-  {
-    sentence: '"That sounds really interesting!"',
-    words: [
-      { word: 'really', guide: '[ri:əli]', myPronunciation: '[ri:li]', status: 'warning' as const, warningNote: '모음 누락' },
-      { word: 'interesting', guide: '[ɪntrɪstɪŋ]', myPronunciation: '[ɪntrɪstɪŋ]', status: 'pass' as const },
-    ],
-  },
-];

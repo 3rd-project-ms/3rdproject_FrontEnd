@@ -1,22 +1,32 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { Colors, Typography, Spacing } from '@/constants/tokens';
 
-interface ProgressBarProps {
+export interface ProgressBarProps {
   label: string;
-  progress: number; // 0 ~ 1
-  change?: number;  // +8 처럼 변화량
+  progress: number;
+  change?: number;
+  style?: StyleProp<ViewStyle>;
 }
 
-export default function ProgressBar({ label, progress, change }: ProgressBarProps) {
+export default function ProgressBar({ label, progress, change, style }: ProgressBarProps) {
   const clampedProgress = Math.min(Math.max(progress, 0), 1);
+  const changeLabel =
+    change === undefined ? '' :
+    change > 0 ? `+${change}% 상승` :
+    change < 0 ? `${change}% 하락` :
+    '변화 없음';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <View style={styles.header}>
         <Text style={styles.label}>{label}</Text>
         {change !== undefined && (
-          <Text style={[styles.change, change >= 0 ? styles.positive : styles.negative]}>
-            {change >= 0 ? `+${change}%` : `${change}%`} 상승
+          <Text style={[
+            styles.change,
+            change > 0 ? styles.positive : change < 0 ? styles.negative : styles.neutral,
+          ]}>
+            {changeLabel}
           </Text>
         )}
       </View>
@@ -37,30 +47,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: 16,
-    color: '#0B0B12',
-    fontFamily: 'Inter_600SemiBold',
+    fontSize: Typography.size.base,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.textPrimary,
   },
   change: {
-    fontSize: 10,
-    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.size.xs,
+    fontFamily: Typography.family.regular,
     textAlign: 'right',
   },
   positive: {
-    color: '#F6A3A6',
+    color: Colors.primary,
   },
   negative: {
-    color: '#854448',
+    color: Colors.accentDark,
+  },
+  neutral: {
+    color: Colors.textMuted,
   },
   track: {
     height: 10,
-    backgroundColor: 'rgba(246,163,166,0.19)',
-    borderRadius: 26,
+    backgroundColor: Colors.primaryAlpha,
+    borderRadius: Spacing.borderRadius.progress,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    backgroundColor: '#F6A3A6',
-    borderRadius: 26,
+    backgroundColor: Colors.primary,
+    borderRadius: Spacing.borderRadius.progress,
   },
 });

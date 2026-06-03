@@ -1,17 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { Colors, Typography, Spacing } from '@/constants/tokens';
 
 export interface WordItem {
   word: string;
-  guide: string;
-  myPronunciation: string;
+  guide?: string;
+  myPronunciation?: string;
   status: 'pass' | 'warning';
   warningNote?: string;
 }
 
-interface WordJudgementCardProps {
+export interface WordJudgementCardProps {
   words: WordItem[];
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   showLabel?: boolean;
 }
 
@@ -34,8 +35,8 @@ export default function WordJudgementCard({ words, style, showLabel = true }: Wo
               </Text>
             </View>
             <View style={styles.wordRow}>
-              <Text style={styles.guideText}>가이드: {item.guide}</Text>
-              <Text style={styles.myPronText}>내 발음: {item.myPronunciation}</Text>
+              <Text style={styles.guideText}>가이드: {item.guide || '-'}</Text>
+              <Text style={styles.myPronText}>내 발음: {item.myPronunciation || '-'}</Text>
             </View>
           </View>
         ))}
@@ -48,8 +49,8 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderColor: Colors.border,
+    borderRadius: Spacing.borderRadius.card,
     paddingLeft: 20,
     paddingTop: 18,
     paddingRight: 16,
@@ -58,16 +59,16 @@ const styles = StyleSheet.create({
     marginBottom: 34,
   },
   sectionLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: '#616161',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.regular,
+    color: Colors.textSecondary,
   },
   wordList: {
     gap: 10,
   },
   wordCard: {
     height: 60,
-    borderRadius: 12,
+    borderRadius: Spacing.borderRadius.card,
     paddingLeft: 22,
     paddingRight: 14,
     paddingTop: 10,
@@ -75,14 +76,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   wordCardPass: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: Colors.border,
     borderWidth: 1,
-    borderColor: '#AAAAAA',
+    borderColor: Colors.textMuted,
   },
   wordCardWarning: {
-    backgroundColor: 'rgba(246,163,166,0.19)',
+    backgroundColor: Colors.primaryAlpha,
     borderWidth: 1,
-    borderColor: '#F6A3A6',
+    borderColor: Colors.primary,
   },
   wordRow: {
     flexDirection: 'row',
@@ -90,28 +91,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wordName: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#0B0B12',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.textPrimary,
   },
   statusPass: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#AAAAAA',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.textMuted,
   },
   statusWarning: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#F43F5E',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.danger,
   },
   guideText: {
-    fontSize: 10,
-    fontFamily: 'Inter_400Regular',
-    color: '#AAAAAA',
+    fontSize: Typography.size.xs,
+    fontFamily: Typography.family.regular,
+    color: Colors.textMuted,
   },
   myPronText: {
-    fontSize: 10,
-    fontFamily: 'Inter_400Regular',
-    color: '#AAAAAA',
+    fontSize: Typography.size.xs,
+    fontFamily: Typography.family.regular,
+    color: Colors.textMuted,
   },
 });

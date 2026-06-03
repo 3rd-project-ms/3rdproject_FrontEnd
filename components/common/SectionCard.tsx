@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { Colors, Typography } from '@/constants/tokens';
 
 interface SectionCardProps {
   title?: string;
@@ -20,20 +21,20 @@ export default function SectionCard({ title, subtitle, children, style }: Sectio
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: Colors.cardBackground,
     borderRadius: 0,
     padding: 16,
     gap: 6,
   },
   title: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0B0B12',
+    fontSize: Typography.size.md,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.textPrimary,
     lineHeight: 20,
   },
   subtitle: {
-    fontSize: 12,
-    color: '#616161',
+    fontSize: Typography.size.sm,
+    color: Colors.textSecondary,
     lineHeight: 18,
   },
 });

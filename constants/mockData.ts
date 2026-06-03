@@ -1,4 +1,5 @@
 // constants/mockData.ts
+// TODO: API 연동 시 이 파일 전체를 실제 응답 데이터로 교체 (mock source)
 
 import { ChatApiResponse } from '@/types/api';
 
@@ -53,14 +54,14 @@ export const MOCK_CASE_B: ChatApiResponse = {
         completeness: 95,
         prosody: 88,
         word_details: [
-          { word: 'You', accuracy: 95, error_type: null },
-          { word: 'always', accuracy: 88, error_type: null },
-          { word: 'know', accuracy: 92, error_type: null },
-          { word: 'exactly', accuracy: 85, error_type: null },
-          { word: 'make', accuracy: 90, error_type: null },
-          { word: 'heart', accuracy: 78, error_type: 'r 발음 약화' },
-          { word: 'race', accuracy: 72, error_type: "'r' 누락" },
-          { word: 'longer', accuracy: 80, error_type: null },
+          { word: 'You', accuracy: 95, error_type: null, guide: '[juː]', my_pronunciation: '[juː]' },
+          { word: 'always', accuracy: 88, error_type: null, guide: '[ˈɔːlweɪz]', my_pronunciation: '[ˈɔːlweɪz]' },
+          { word: 'know', accuracy: 92, error_type: null, guide: '[noʊ]', my_pronunciation: '[noʊ]' },
+          { word: 'exactly', accuracy: 85, error_type: null, guide: '[ɪɡˈzæktli]', my_pronunciation: '[ɪɡˈzæktli]' },
+          { word: 'make', accuracy: 90, error_type: null, guide: '[meɪk]', my_pronunciation: '[meɪk]' },
+          { word: 'heart', accuracy: 78, error_type: 'r 발음 약화', guide: '[hɑːrt]', my_pronunciation: '[hɑːt]' },
+          { word: 'race', accuracy: 72, error_type: "'r' 누락", guide: '[reɪs]', my_pronunciation: '[eɪs]' },
+          { word: 'longer', accuracy: 80, error_type: null, guide: '[ˈlɔŋɡər]', my_pronunciation: '[ˈlɔŋɡər]' },
         ],
       },
     },
@@ -89,6 +90,8 @@ export const MOCK_CASE_C: ChatApiResponse = {
       is_penalty: true,
       penalty_reason: 'korean_used',
       pronunciation_score: null,
+      // TODO(api): system_evaluation.corrections는 백엔드 최종 응답 스키마 확인 후 mock과 동기화
+      corrections: [{ original_sentence: '너무 피곤해', corrected_sentence: 'I am so exhausted' }],
     },
   },
 };

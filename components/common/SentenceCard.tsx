@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { Colors, Typography, Spacing } from '@/constants/tokens';
 
-interface SentenceCardProps {
+export interface SentenceCardProps {
   sentence: string;
+  style?: StyleProp<ViewStyle>;
 }
 
-export default function SentenceCard({ sentence }: SentenceCardProps) {
+export default function SentenceCard({ sentence, style }: SentenceCardProps) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, style]}>
       <Text style={styles.cardTitle}>진단 분석 대상 문장</Text>
       <Text style={styles.sentenceText}>{sentence}</Text>
     </View>
@@ -16,10 +18,10 @@ export default function SentenceCard({ sentence }: SentenceCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderColor: Colors.border,
+    borderRadius: Spacing.borderRadius.card,
     paddingLeft: 20,
     paddingTop: 16,
     paddingRight: 16,
@@ -28,14 +30,14 @@ const styles = StyleSheet.create({
     marginBottom: 35,
   },
   cardTitle: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: '#AAAAAA',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.regular,
+    color: Colors.textMuted,
   },
   sentenceText: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#0B0B12',
+    fontSize: Typography.size.base,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.textPrimary,
     lineHeight: 24,
   },
 });

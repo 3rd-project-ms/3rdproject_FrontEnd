@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { Colors, Typography, Spacing, Shadow } from '@/constants/tokens';
 
-interface PrimaryButtonProps {
+export interface PrimaryButtonProps {
   label: string;
   onPress: () => void;
   variant?: 'primary' | 'outline';
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   icon?: React.ReactNode;
   disabled?: boolean;
 }
 
-export default function PrimaryButton({ label, onPress, variant = 'primary', style, icon, disabled }: PrimaryButtonProps) {
+export default function PrimaryButton({
+  label,
+  onPress,
+  variant = 'primary',
+  style,
+  icon,
+  disabled,
+}: PrimaryButtonProps) {
   const [pressed, setPressed] = useState(false);
 
   const buttonStyle = variant === 'outline' ? styles.outline : styles.primary;
@@ -35,40 +43,36 @@ export default function PrimaryButton({ label, onPress, variant = 'primary', sty
 const styles = StyleSheet.create({
   base: {
     height: 46,
-    borderRadius: 16,
+    borderRadius: Spacing.borderRadius.action,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
   primary: {
-    backgroundColor: '#F6A3A6',
+    backgroundColor: Colors.primary,
   },
   primaryPressed: {
-    backgroundColor: '#F6A3A6',
+    backgroundColor: Colors.primaryDark,
   },
   primaryLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#FFFFFF',
+    fontSize: Typography.size.base,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.white,
   },
   outline: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderWidth: 2,
-    borderColor: '#E0E0E0',
-    shadowColor: '#E0E0E0',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 2,
+    borderColor: Colors.border,
+    ...Shadow.cardFull,
   },
   outlinePressed: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: Colors.border,
   },
   outlineLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#AAAAAA',
+    fontSize: Typography.size.base,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.textMuted,
   },
   disabled: {
     opacity: 0.5,

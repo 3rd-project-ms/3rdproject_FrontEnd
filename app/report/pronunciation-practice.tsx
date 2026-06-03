@@ -1,40 +1,42 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+// app/report/pronunciation-practice.tsx
+// Pronunciation Practice — 발음 녹음 연습
+
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import AudioControlButtons from '@/components/common/AudioControlButtons';
 import SentenceCard from '@/components/common/SentenceCard';
 import WordJudgementCard from '@/components/common/WordJudgementCard';
+import { SharedStyles } from '@/components/common/styles/shared';
 
-import { PRONUNCIATION_SENTENCES } from '@/utils/pronunciation';
+import { getPronunciationResponse } from '@/utils/mockSelectors';
+import { mapPronunciationViewModel } from '@/utils/mappers';
+import { useScrollVisibility } from '@/hooks/useScrollVisibility';
+import { Colors, Typography, Spacing } from '@/constants/tokens';
 
-export default function PronunciationDetailPlayScreen() {
+// TODO(api): API 연동 시 컴포넌트 내부 또는 커스텀 훅으로 이동
+const sentences = mapPronunciationViewModel(getPronunciationResponse()).sentences;
+
+export default function PronunciationPracticeScreen() {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [stopSignal, setStopSignal] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
-  const [scrollY, setScrollY] = useState(0);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
+  const { scrollRef, showScrollDown, handleScroll, handleContentSizeChange, handleLayout, scrollToEnd } =
+    useScrollVisibility();
 
-  const showScrollDown = contentHeight > containerHeight && scrollY < 10;
-
-  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setScrollY(e.nativeEvent.contentOffset.y);
-  };
-
-  const current = PRONUNCIATION_SENTENCES[currentIndex];
+  const current = sentences[currentIndex];
   const isFirst = currentIndex === 0;
-  const isLast = currentIndex === PRONUNCIATION_SENTENCES.length - 1;
+  const isLast = currentIndex === sentences.length - 1;
 
   return (
     <View style={styles.container}>
       {/* 헤더 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={20} color="#0B0B12" />
+          <Ionicons name="chevron-back" size={20} color={Colors.textPrimary} />
           <Text style={styles.backLabel}>발음 정밀 진단</Text>
         </TouchableOpacity>
       </View>
@@ -43,7 +45,7 @@ export default function PronunciationDetailPlayScreen() {
         <SentenceCard sentence={current.sentence} />
         <View
           style={styles.wordCardContainer}
-          onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
+          onLayout={handleLayout}
         >
           <Text style={styles.wordCardLabel}>단어 단위 상세 판정</Text>
           <ScrollView
@@ -52,7 +54,7 @@ export default function PronunciationDetailPlayScreen() {
             contentContainerStyle={styles.wordCardInner}
             onScroll={handleScroll}
             scrollEventThrottle={16}
-            onContentSizeChange={(_, h) => setContentHeight(h)}
+            onContentSizeChange={handleContentSizeChange}
             decelerationRate={0.98}
           >
             <WordJudgementCard
@@ -66,10 +68,10 @@ export default function PronunciationDetailPlayScreen() {
             <View style={styles.scrollDownWrap}>
               <TouchableOpacity
                 style={styles.scrollDownButton}
-                onPress={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                onPress={scrollToEnd}
                 activeOpacity={0.8}
               >
-                <Ionicons name="chevron-down" size={20} color="#FFFFFF" />
+                <Ionicons name="chevron-down" size={20} color={Colors.white} />
               </TouchableOpacity>
             </View>
           )}
@@ -104,15 +106,15 @@ export default function PronunciationDetailPlayScreen() {
           disabled={isFirst}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={20} color={isFirst ? '#AAAAAA' : '#0B0B12'} />
+          <Ionicons name="chevron-back" size={20} color={isFirst ? Colors.textMuted : Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.navLabel}>{currentIndex + 1}/{PRONUNCIATION_SENTENCES.length} 문장</Text>
+        <Text style={styles.navLabel}>{currentIndex + 1}/{sentences.length} 문장</Text>
         <TouchableOpacity
           onPress={() => setCurrentIndex((i) => i + 1)}
           disabled={isLast}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-forward" size={20} color={isLast ? '#AAAAAA' : '#0B0B12'} />
+          <Ionicons name="chevron-forward" size={20} color={isLast ? Colors.textMuted : Colors.textPrimary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -120,40 +122,23 @@ export default function PronunciationDetailPlayScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F4FBF8',
-  },
-  header: {
-    paddingTop: 56,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  backIcon: {
-    fontSize: 26,
-    fontFamily: 'Inter_400Regular',
-    color: '#0B0B12',
-    lineHeight: 26,
-  },
-  backLabel: {
-    fontSize: 20,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#0B0B12',
-  },
+  container: SharedStyles.screenContainer,
+  header: SharedStyles.screenHeader,
+  backButton: SharedStyles.backButton,
+  backLabel: SharedStyles.backLabel,
+  navRow: SharedStyles.navRow,
+  navLabel: SharedStyles.navLabel,
+  scrollDownWrap: SharedStyles.scrollDownWrap,
+  scrollDownButton: SharedStyles.scrollDownButton,
   content: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.screenHorizontal,
     paddingTop: 8,
   },
   wordCardLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#616161',
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.textSecondary,
     marginTop: 8,
     marginBottom: 8,
   },
@@ -165,75 +150,36 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   wordCardInner: {
-    paddingBottom: 16,
+    paddingBottom: Spacing.screenHorizontal,
   },
   buttonArea: {
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.screenHorizontal,
     paddingBottom: 12,
   },
   recordButton: {
     height: 46,
-    borderRadius: 16,
-    backgroundColor: '#F6A3A6',
+    borderRadius: Spacing.borderRadius.action,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   recordButtonLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#FFFFFF',
+    fontSize: Typography.size.base,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.white,
   },
   stopButton: {
     height: 46,
-    borderRadius: 16,
-    backgroundColor: 'rgba(246,163,166,0.19)',
+    borderRadius: Spacing.borderRadius.action,
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stopButtonLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#FFFFFF',
-  },
-  navRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: 36,
-    backgroundColor: '#F4FBF8',
-  },
-  navArrow: {
-    width: 36,
-    height: 36,
-    fontSize: 26,
-    fontFamily: 'Inter_400Regular',
-    color: '#0B0B12',
-    textAlign: 'center',
-    lineHeight: 36,
-  },
-  navArrowDisabled: {
-    color: '#AAAAAA',
-  },
-  navLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#AAAAAA',
-  },
-  scrollDownWrap: {
-    position: 'absolute',
-    bottom: 6,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  scrollDownButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 999,
-    backgroundColor: 'rgba(246,163,166,0.19)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontSize: Typography.size.base,
+    fontFamily: Typography.family.semiBold,
+    color: Colors.primary,
   },
 });
