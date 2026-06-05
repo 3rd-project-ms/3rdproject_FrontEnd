@@ -1,5 +1,6 @@
 {
   "expo": {
+<<<<<<< HEAD
     "name": "LinguaDate",
     "slug": "linguadate",
     "version": "1.0.0",
@@ -28,6 +29,15 @@
       "eas": {
         "projectId": "c7e05ff2-1cc4-41a4-a02d-03c8f1d9dcbb"
       }
+=======
+    "entryPoint": "expo-router/entry",
+    "plugins": [
+      "expo-secure-store",
+      "expo-router"
+    ],
+    "android": {
+      "package": "com.anonymous.x3rdproject_frontend"
+>>>>>>> fdbcec90a153012ece0abb7c6e8682480800204b
     }
   }
 }

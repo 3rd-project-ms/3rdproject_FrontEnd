@@ -1,3 +1,7 @@
 <resources>
+<<<<<<< HEAD
   <string name="app_name">LinguaDate</string>
+=======
+  <string name="app_name">3rdproject_FrontEnd</string>
+>>>>>>> fdbcec90a153012ece0abb7c6e8682480800204b
 </resources>

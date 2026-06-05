@@ -14,3 +14,9 @@ local.properties
 
 # Bundle artifacts
 *.jsbundle
+<<<<<<< HEAD
+=======
+
+# Signing keys
+app/debug.keystore
+>>>>>>> fdbcec90a153012ece0abb7c6e8682480800204b

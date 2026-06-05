@@ -87,9 +87,15 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
+<<<<<<< HEAD
     namespace 'com.sihyun0102.linguadate'
     defaultConfig {
         applicationId 'com.sihyun0102.linguadate'
+=======
+    namespace 'com.anonymous.x3rdproject_frontend'
+    defaultConfig {
+        applicationId 'com.anonymous.x3rdproject_frontend'
+>>>>>>> fdbcec90a153012ece0abb7c6e8682480800204b
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

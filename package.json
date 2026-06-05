@@ -2,6 +2,7 @@
   "name": "3rdproject_FrontEnd",
   "version": "1.0.0",
   "main": "expo-router/entry",
+<<<<<<< HEAD
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -10,16 +11,28 @@
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
+=======
+  "scripts": {},
+  "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo/ngrok": "^4.1.0",
+>>>>>>> fdbcec90a153012ece0abb7c6e8682480800204b
     "@expo/vector-icons": "^15.0.2",
     "axios": "^1.16.1",
     "expo": "~55.0.25",
     "expo-av": "^16.0.8",
+<<<<<<< HEAD
     "expo-dev-client": "~55.0.35",
     "expo-font": "~55.0.8",
     "expo-router": "~55.0.15",
     "expo-secure-store": "~55.0.14",
     "expo-splash-screen": "~55.0.21",
     "lucide-react-native": "^1.16.0",
+=======
+    "expo-router": "~55.0.15",
+    "expo-secure-store": "~55.0.14",
+    "expo-splash-screen": "~55.0.21",
+>>>>>>> fdbcec90a153012ece0abb7c6e8682480800204b
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-native": "0.83.6",

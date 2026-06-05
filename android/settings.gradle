@@ -31,7 +31,11 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 }
 expoAutolinking.useExpoModules()
 
+<<<<<<< HEAD
 rootProject.name = 'LinguaDate'
+=======
+rootProject.name = '3rdproject_FrontEnd'
+>>>>>>> fdbcec90a153012ece0abb7c6e8682480800204b
 
 expoAutolinking.useExpoVersionCatalog()
 

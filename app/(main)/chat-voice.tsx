@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
-  SafeAreaView, Pressable, Platform, Animated,
+  SafeAreaView, Platform, Animated,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -22,7 +22,10 @@ interface VoiceApiResponse {
     message_id: string;
     turn_count: number;
     role: string;
+    // 캐릭터 응답 텍스트
     text_content: string;
+    // STT 인식 결과 (사용자 발화) — 백엔드 연동 시 실제 필드명으로 교체
+    user_text?: string;
     action_description: string;
     audio_url: string | null;
     current_affinity: number;
@@ -59,19 +62,23 @@ const MOCK_VOICE_RESPONSES: VoiceApiResponse[] = [
     success: true, code: 'SUCCESS', message: '',
     data: {
       message_id: 'voice_mock_1', turn_count: 1, role: 'assistant',
-      text_content: "Wow, your pronunciation is really good! I almost thought you were a native speaker.",
+      // 캐릭터 응답
+      text_content: "That sounds amazing! Tell me more about your trip.",
+      // 사용자 발화 (STT 결과) — 실제 연동 시 백엔드에서 받아옴
+      user_text: "I went to Jeju Island last weekend. It was really fun.",
       action_description: '눈을 동그랗게 뜨며 감탄한다.',
       audio_url: null,
-      current_affinity: 55, remaining_penalties: 3,
+      current_affinity: 45, remaining_penalties: 3,
       system_evaluation: {
-        grammar_feedback: '완벽한 발음이에요!',
+        grammar_feedback: '자연스러운 문장이에요!',
         is_penalty: false, penalty_reason: null,
-        pronunciation_score: { accuracy: 90, fluency: 85, completeness: 95, prosody: 88,
+        pronunciation_score: {
+          accuracy: 90, fluency: 85, completeness: 95, prosody: 88,
           word_details: [
-            { word: "I'm", accuracy: 95, error_type: null },
-            { word: "going", accuracy: 88, error_type: null },
+            { word: "I", accuracy: 95, error_type: null },
+            { word: "went", accuracy: 88, error_type: null },
             { word: "to", accuracy: 92, error_type: null },
-            { word: "study", accuracy: 85, error_type: null },
+            { word: "Jeju", accuracy: 85, error_type: null },
           ],
         },
       },
@@ -81,18 +88,19 @@ const MOCK_VOICE_RESPONSES: VoiceApiResponse[] = [
     success: true, code: 'SUCCESS', message: '',
     data: {
       message_id: 'voice_mock_2', turn_count: 2, role: 'assistant',
-      text_content: "Hmm, I noticed you mixed in some Korean there! Try to keep it all in English.",
+      text_content: "Hmm, try saying that in English next time!",
+      user_text: "I drank 물 every day at the beach.",
       action_description: '살짝 눈썹을 올리며 웃는다.',
       audio_url: null,
       current_affinity: 42, remaining_penalties: 2,
       system_evaluation: {
         grammar_feedback: "'물'은 영어로 'water'입니다.",
         is_penalty: true, penalty_reason: 'korean_used',
-        pronunciation_score: { accuracy: 65, fluency: 60, completeness: 70, prosody: 55,
+        pronunciation_score: {
+          accuracy: 65, fluency: 60, completeness: 70, prosody: 55,
           word_details: [
             { word: "I", accuracy: 92, error_type: null },
-            { word: "am", accuracy: 88, error_type: null },
-            { word: "drinking", accuracy: 75, error_type: null },
+            { word: "drank", accuracy: 88, error_type: null },
             { word: "물", accuracy: 10, error_type: "Mispronunciation" },
           ],
         },
@@ -100,6 +108,15 @@ const MOCK_VOICE_RESPONSES: VoiceApiResponse[] = [
     },
   },
 ];
+
+// 목업 힌트 (백엔드 연동 전 임시)
+const MOCK_HINT = {
+  english: "I'm feeling a bit under the weather.",
+  korean: "나 오늘 몸 컨디션이 좀 별로야",
+};
+
+// 선물 마커 위치
+const GIFT_MARKERS = [40, 80] as const;
 
 // ─────────────────────────────────────────
 // 컴포넌트
@@ -113,48 +130,47 @@ export default function ChatVoiceScreen() {
     }>();
 
   // ─── 상태 ───────────────────────────────
-  const [affinity, setAffinity]     = useState(42);
-  const [lives, setLives]           = useState(3);
-  const [turnCount, setTurnCount]   = useState(1);
-  const [micState, setMicState]     = useState<'idle' | 'recording' | 'disabled'>('idle');
-  const [sttText, setSttText]       = useState('누르고 말해보세요...');
-  const [aiText, setAiText]         = useState('');
-  const [showHint, setShowHint]     = useState(false);
-  const [showEndModal, setShowEndModal] = useState(false);
-  const [mockIndex, setMockIndex]   = useState(0);
+  const [affinity, setAffinity]       = useState(0);
+  const [lives, setLives]             = useState(3);
+  const [turnCount, setTurnCount]     = useState(1);
+  const [micState, setMicState]       = useState<'idle' | 'recording' | 'disabled'>('idle');
 
-  // 발음 점수 — 결과분석 화면에서 표시 (여기선 제거)
+  // 캐릭터 대사 (AI 응답)
+  const [currentAiText, setCurrentAiText]     = useState('');
+  // 사용자 발화 (STT 결과)
+  const [currentUserText, setCurrentUserText] = useState('');
 
-  // 녹음 ref
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef     = useRef<Audio.Sound | null>(null);
+  // 팝업
+  const [showHintModal, setShowHintModal] = useState(false);
+  const [showEndModal, setShowEndModal]   = useState(false);
 
-  // AI 텍스트 fade 애니메이션
-  const aiTextOpacity = useRef(new Animated.Value(0)).current;
+  const [mockIndex, setMockIndex] = useState(0);
+
+  // refs
+  const recordingRef     = useRef<Audio.Recording | null>(null);
+  const soundRef         = useRef<Audio.Sound | null>(null);
+  const aiCaptionOpacity = useRef(new Animated.Value(0)).current;
+  const userTextOpacity  = useRef(new Animated.Value(0)).current;
 
   const popup = usePenaltyPopup();
 
   // ─── 권한 요청 ──────────────────────────
   useEffect(() => {
     Audio.requestPermissionsAsync();
-    return () => {
-      soundRef.current?.unloadAsync();
-    };
+    return () => { soundRef.current?.unloadAsync(); };
   }, []);
 
-  // ─── AI 텍스트 페이드인 ─────────────────
-  const showAiText = (text: string) => {
-    setAiText(text);
-    aiTextOpacity.setValue(0);
-    Animated.timing(aiTextOpacity, {
-      toValue: 1, duration: 400, useNativeDriver: true,
+  // ─── 텍스트 페이드인 ────────────────────
+  const fadeIn = (animVal: Animated.Value) => {
+    animVal.setValue(0);
+    Animated.timing(animVal, {
+      toValue: 1, duration: 350, useNativeDriver: true,
     }).start();
   };
 
   // ─── 녹음 시작 ──────────────────────────
   const handlePressIn = async () => {
     try {
-      // 이전 녹음 잔존 시 정리
       if (recordingRef.current) {
         try { await recordingRef.current.stopAndUnloadAsync(); } catch {}
         recordingRef.current = null;
@@ -165,7 +181,6 @@ export default function ChatVoiceScreen() {
       );
       recordingRef.current = recording;
       setMicState('recording');
-      setSttText('듣고 있어요...');
     } catch (e) {
       console.error('녹음 시작 오류:', e);
       setMicState('idle');
@@ -176,18 +191,12 @@ export default function ChatVoiceScreen() {
   const handlePressOut = async () => {
     if (!recordingRef.current) return;
     setMicState('disabled');
-
     const rec = recordingRef.current;
-    recordingRef.current = null; // 먼저 null로 — 중복 호출 방지
-
+    recordingRef.current = null;
     try {
       await rec.stopAndUnloadAsync();
       const uri = rec.getURI();
-      if (!uri) {
-        setSttText('너무 짧아요! 다시 눌러주세요.');
-        setMicState('idle');
-        return;
-      }
+      if (!uri) { setMicState('idle'); return; }
       await sendVoiceMessage(uri);
     } catch (e) {
       console.error('녹음 종료 오류:', e);
@@ -198,8 +207,8 @@ export default function ChatVoiceScreen() {
   // ─── API 전송 ───────────────────────────
   const sendVoiceMessage = async (audioUri: string | null) => {
     try {
-      // 🧪 목업 (백엔드 연동 시 아래 실제 fetch로 교체)
-      await new Promise((r) => setTimeout(r, 1000));
+      // 🧪 목업
+      await new Promise((r) => setTimeout(r, 800));
       const json = MOCK_VOICE_RESPONSES[mockIndex % MOCK_VOICE_RESPONSES.length];
       setMockIndex((prev) => prev + 1);
 
@@ -217,7 +226,6 @@ export default function ChatVoiceScreen() {
       // const json: VoiceApiResponse = await res.json();
 
       if (!json.success || !json.data) {
-        setSttText('오류가 발생했어요. 다시 시도해주세요.');
         setMicState('idle');
         return;
       }
@@ -225,18 +233,20 @@ export default function ChatVoiceScreen() {
       const { data } = json;
       const eval_ = data.system_evaluation;
 
-      // STT 결과 → 자막 표시
-      setSttText(data.text_content ?? '...');
-
-      // AI 응답 텍스트
-      showAiText(data.text_content);
-
-      // TTS 재생
-      if (data.audio_url) {
-        await playAudio(data.audio_url);
+      // 사용자 발화 (STT 결과)
+      if (data.user_text) {
+        setCurrentUserText(data.user_text);
+        fadeIn(userTextOpacity);
       }
 
-      // 호감도 & 하트
+      // 캐릭터 응답
+      setCurrentAiText(data.text_content);
+      fadeIn(aiCaptionOpacity);
+
+      // TTS 재생
+      if (data.audio_url) await playAudio(data.audio_url);
+
+      // 호감도 & 페널티
       setAffinity(data.current_affinity);
       setLives(data.remaining_penalties);
       setTurnCount((prev) => prev + 1);
@@ -251,7 +261,6 @@ export default function ChatVoiceScreen() {
 
     } catch (e) {
       console.error('API 오류:', e);
-      setSttText('오류가 발생했어요.');
     } finally {
       setMicState('idle');
     }
@@ -269,29 +278,6 @@ export default function ChatVoiceScreen() {
     }
   };
 
-  const replayAudio = async () => {
-    try {
-      await soundRef.current?.replayAsync();
-    } catch (e) {
-      console.error('다시듣기 오류:', e);
-    }
-  };
-
-  // ─── 하트 렌더링 ────────────────────────
-  const renderLives = () => (
-    <View style={styles.liveContainer}>
-      {[1, 2, 3].map((i) => (
-        <Ionicons
-          key={i}
-          name={i <= lives ? 'heart' : 'heart-outline'}
-          size={22}
-          color={i <= lives ? '#F6A3A6' : '#D0D0D0'}
-          style={{ marginLeft: 2 }}
-        />
-      ))}
-    </View>
-  );
-
   // ─────────────────────────────────────────
   // 렌더
   // ─────────────────────────────────────────
@@ -306,70 +292,105 @@ export default function ChatVoiceScreen() {
         <Text style={styles.charName}>
           Jamie<Text style={styles.charRole}> · 카페 사장님</Text>
         </Text>
-        {renderLives()}
       </View>
 
-      {/* ── 호감도 바 ── */}
-      <View style={styles.affinityWrapper}>
-        <Text style={styles.affinityPercent}>{affinity}%</Text>
-        <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${affinity}%` }]} />
-          {[33, 66].map((point) => (
-            <View key={point} style={[styles.pointHeartWrapper, { left: `${point}%` }]}>
-              <Ionicons name="heart" size={14} color={affinity >= point ? '#F6A3A6' : '#D0D0D0'} />
-            </View>
-          ))}
+      {/* ── 호감도 바 + 선물 마커 ── */}
+      <View style={styles.affinitySection}>
+        {/* 퍼센트 + 바 */}
+        <View style={styles.affinityRow}>
+          <Text style={styles.affinityPercent}>{affinity}%</Text>
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, { width: `${affinity}%` }]} />
+            {/* 40% / 80% 구분선 */}
+            {GIFT_MARKERS.map((point) => (
+              <View
+                key={point}
+                style={[styles.barDivider, { left: `${point}%` }]}
+              />
+            ))}
+          </View>
+        </View>
+
+        {/* 하트 마커 — 바 아래 완전 분리 */}
+        <View style={styles.affinityMarkerRow}>
+          <View style={styles.affinityMarkerSpacer} />
+          <View style={styles.affinityMarkerTrack}>
+            {GIFT_MARKERS.map((point) => {
+              const unlocked = affinity >= point;
+              return (
+                <View
+                  key={point}
+                  style={[styles.affinityMarkerItem, { left: `${point}%` }]}
+                >
+                  <Ionicons
+                    name={unlocked ? 'heart' : 'heart-outline'}
+                    size={14}
+                    color={unlocked ? '#F6A3A6' : '#C8C8C8'}
+                  />
+                  <Text style={[
+                    styles.affinityMarkerLabel,
+                    { color: unlocked ? '#F6A3A6' : '#C8C8C8' },
+                  ]}>
+                    {point}%
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
         </View>
       </View>
 
-      {/* ── 캐릭터 영역 ── */}
+      {/* ── 캐릭터 영역 (중앙) ── */}
       <View style={styles.characterArea}>
-        {aiText ? (
-          <Animated.View style={[styles.aiSpeechBubble, { opacity: aiTextOpacity }]}>
-            <Text style={styles.aiSpeechText}>{aiText}</Text>
-          </Animated.View>
-        ) : null}
+        {/* 캐릭터 이미지 자리 — 추후 <Image> 로 교체 */}
+        <View style={styles.characterImagePlaceholder} />
       </View>
 
+      {/* ── 하단 텍스트 영역: 캐릭터 대사 + 내 발화 ── */}
+      <View style={styles.textDisplayArea}>
 
-
-      {/* ── 힌트 ── */}
-      <View style={styles.hintContainer}>
-        <TouchableOpacity
-          style={styles.hintHeader}
-          onPress={() => setShowHint(!showHint)}
-          activeOpacity={0.8}
-        >
-          <View style={styles.hintTitleRow}>
-            <View style={styles.hintDot} />
-            <Text style={styles.hintTitleText}>무엇을 말해야 하나요?</Text>
+        {/* 캐릭터 대사 */}
+        <View style={styles.speechRow}>
+          <View style={styles.speakerBadgeAi}>
+            <Text style={styles.speakerBadgeTextAi}>Jamie</Text>
           </View>
-          <Ionicons name={showHint ? 'chevron-down' : 'chevron-up'} size={16} color="#888" />
-        </TouchableOpacity>
-        {showHint && (
-          <View style={styles.hintContent}>
-            <Text style={styles.hintEnglish}>I'm feeling a bit under the weather.</Text>
-            <Text style={styles.hintKorean}>나 오늘 몸 컨디션이 좀 별로야</Text>
-          </View>
-        )}
-      </View>
+          <Animated.Text
+            style={[styles.speechTextAi, { opacity: aiCaptionOpacity }]}
+            numberOfLines={2}
+          >
+            {currentAiText || '—'}
+          </Animated.Text>
+        </View>
 
-      {/* ── STT 자막 ── */}
-      <View style={styles.subtitleArea}>
-        <Text style={styles.subtitleText}>{sttText}</Text>
+        {/* 구분선 */}
+        <View style={styles.divider} />
+
+        {/* 내 발화 (STT 결과) */}
+        <View style={styles.speechRow}>
+          <View style={styles.speakerBadgeUser}>
+            <Text style={styles.speakerBadgeTextUser}>나</Text>
+          </View>
+          <Animated.Text
+            style={[styles.speechTextUser, { opacity: userTextOpacity }]}
+            numberOfLines={2}
+          >
+            {currentUserText || '누르고 말해보세요'}
+          </Animated.Text>
+        </View>
+
       </View>
 
       {/* ── 하단 컨트롤 ── */}
       <View style={styles.controlBar}>
-        {/* 다시듣기 */}
-        <TouchableOpacity style={styles.subButton} onPress={replayAudio}>
+        {/* 힌트 */}
+        <TouchableOpacity style={styles.subButton} onPress={() => setShowHintModal(true)}>
           <View style={styles.iconCircleSub}>
-            <Ionicons name="volume-medium" size={22} color="#888" />
+            <Ionicons name="bulb-outline" size={22} color="#888" />
           </View>
-          <Text style={styles.buttonLabel}>다시듣기</Text>
+          <Text style={styles.buttonLabel}>힌트</Text>
         </TouchableOpacity>
 
-        {/* MicButton (중앙) */}
+        {/* 마이크 */}
         <MicButton
           state={micState}
           onPressIn={handlePressIn}
@@ -386,21 +407,59 @@ export default function ChatVoiceScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ── 힌트 팝업 ── */}
+      {showHintModal && (
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowHintModal(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="bulb" size={20} color="#F6A3A6" />
+              <Text style={styles.modalTitleText}>힌트</Text>
+            </View>
+            <Text style={styles.hintEnglish}>{MOCK_HINT.english}</Text>
+            <Text style={styles.hintKorean}>{MOCK_HINT.korean}</Text>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowHintModal(false)}
+            >
+              <Text style={styles.modalCloseButtonText}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* ── 통화 종료 모달 ── */}
       {showEndModal && (
-        <View style={styles.endModalOverlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowEndModal(false)} />
-          <View style={styles.endModalContent}>
-            <Text style={styles.modalTitle}>정말 통화를 종료하시겠습니까?</Text>
-            <TouchableOpacity
-              style={styles.modalConfirmButton}
-              onPress={() => {
-                setShowEndModal(false);
-                router.push('/(main)/session-result' as any);
-              }}
-            >
-              <Text style={styles.modalConfirmButtonText}>통화 종료하기</Text>
-            </TouchableOpacity>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowEndModal(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitleText}>통화를 종료하시겠어요?</Text>
+            <Text style={styles.modalSubText}>지금까지의 대화가 결과로 저장됩니다.</Text>
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowEndModal(false)}
+              >
+                <Text style={styles.modalCancelButtonText}>계속하기</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={() => {
+                  setShowEndModal(false);
+                  router.push('/(main)/session-result' as any);
+                }}
+              >
+                <Text style={styles.modalConfirmButtonText}>종료하기</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       )}
@@ -428,71 +487,114 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 48 : 12,
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   backBtn: { padding: 4, marginRight: 8 },
   charName: { flex: 1, fontSize: 22, fontWeight: '700', color: '#0B0B12' },
   charRole: { fontSize: 18, fontWeight: '400', color: '#888888' },
-  liveContainer: { flexDirection: 'row', alignItems: 'center' },
 
-  // 호감도 바
-  affinityWrapper: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    paddingHorizontal: 16, marginBottom: 16,
+  // ── 호감도 섹션 ──────────────────────────
+  affinitySection: {
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  affinityRow: {
+    flexDirection: 'row', alignItems: 'center',
   },
   affinityPercent: {
     fontSize: 13, fontWeight: '600', color: '#888888',
-    width: 36, marginRight: 8, marginTop: 2,
+    width: 36, marginRight: 8,
   },
   progressBarBg: {
     flex: 1, height: 8, backgroundColor: '#F0F0F0',
-    borderRadius: 4, position: 'relative', marginTop: 6,
+    borderRadius: 4, position: 'relative', overflow: 'hidden',
   },
-  progressBarFill: { height: '100%', backgroundColor: '#F6A3A6', borderRadius: 4 },
-  pointHeartWrapper: { position: 'absolute', top: 8, transform: [{ translateX: -7 }] },
+  progressBarFill: {
+    height: '100%', backgroundColor: '#F6A3A6', borderRadius: 4,
+  },
+  // 바 위 구분선 (40% / 80% 위치)
+  barDivider: {
+    position: 'absolute', top: 0, bottom: 0,
+    width: 1.5, backgroundColor: 'rgba(255,255,255,0.7)',
+  },
+
+  // 하트 마커 행 (바와 완전 분리)
+  affinityMarkerRow: {
+    flexDirection: 'row',
+    marginTop: 6,
+  },
+  affinityMarkerSpacer: { width: 44 },  // affinityPercent(36) + marginRight(8)
+  affinityMarkerTrack: {
+    flex: 1, position: 'relative', height: 28,
+  },
+  affinityMarkerItem: {
+    position: 'absolute',
+    alignItems: 'center',
+    gap: 1,
+    transform: [{ translateX: -10 }],
+  },
+  affinityMarkerLabel: {
+    fontSize: 10, fontWeight: '600',
+  },
 
   // 캐릭터 영역
   characterArea: {
-    flex: 1, marginHorizontal: 20, marginVertical: 8,
-    justifyContent: 'center', alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 16,
+    marginVertical: 8,
   },
-  aiSpeechBubble: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 18, paddingHorizontal: 20, paddingVertical: 14,
-    maxWidth: '90%',
-  },
-  aiSpeechText: {
-    fontSize: 15, color: '#1C1C1E', lineHeight: 22, textAlign: 'center',
+  characterImagePlaceholder: {
+    flex: 1,
+    borderRadius: 20,
+    backgroundColor: '#F9F9F9',
   },
 
-
-
-  // 힌트
-  hintContainer: {
-    marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: '#FFF5F5', borderRadius: 12, overflow: 'hidden',
+  // ── 하단 텍스트 영역 ──────────────────────
+  textDisplayArea: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+    gap: 8,
   },
-  hintHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 12,
+  speechRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
   },
-  hintTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  hintDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#F6A3A6' },
-  hintTitleText: { fontSize: 14, fontWeight: '600', color: '#333' },
-  hintContent: { paddingHorizontal: 14, paddingBottom: 14, gap: 4 },
-  hintEnglish: { fontSize: 14, color: '#E87C7C', fontWeight: '500' },
-  hintKorean: { fontSize: 13, color: '#888' },
-
-  // STT 자막
-  subtitleArea: {
-    marginHorizontal: 16, marginBottom: 16,
-    backgroundColor: '#F8F8F8', borderRadius: 14,
-    padding: 20, minHeight: 72,
-    justifyContent: 'center', alignItems: 'center',
+  // 캐릭터 뱃지
+  speakerBadgeAi: {
+    backgroundColor: '#F6A3A6',
+    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2,
+    marginTop: 2,
   },
-  subtitleText: {
-    fontSize: 16, color: '#0B0B12', textAlign: 'center',
-    lineHeight: 24, fontWeight: '500',
+  speakerBadgeTextAi: {
+    fontSize: 11, fontWeight: '700', color: '#FFFFFF',
+  },
+  speechTextAi: {
+    flex: 1, fontSize: 14, color: '#1C1C1E',
+    lineHeight: 20, fontWeight: '500',
+  },
+  // 사용자 뱃지
+  speakerBadgeUser: {
+    backgroundColor: '#EFEFEF',
+    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2,
+    marginTop: 2,
+  },
+  speakerBadgeTextUser: {
+    fontSize: 11, fontWeight: '700', color: '#888888',
+  },
+  speechTextUser: {
+    flex: 1, fontSize: 14, color: '#555555',
+    lineHeight: 20,
+  },
+  divider: {
+    height: 1, backgroundColor: '#EBEBEB',
+    marginVertical: 2,
   },
 
   // 하단 컨트롤
@@ -508,23 +610,42 @@ const styles = StyleSheet.create({
   },
   buttonLabel: { fontSize: 12, color: '#888', fontWeight: '500' },
 
-  // 통화종료 모달 (Modal 제거 — absolute View)
-  endModalOverlay: {
+  // 공용 모달
+  modalOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end',
-    zIndex: 999,
+    backgroundColor: 'rgba(0,0,0,0.40)',
+    justifyContent: 'center', alignItems: 'center',
+    zIndex: 999, paddingHorizontal: 32,
   },
-  endModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 28, paddingBottom: 48,
-    alignItems: 'center', gap: 20,
+  modalCard: {
+    width: '100%', backgroundColor: '#FFFFFF',
+    borderRadius: 20, padding: 28,
+    alignItems: 'center', gap: 14,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 12,
   },
-  modalTitle: { fontSize: 16, fontWeight: '600', color: '#0B0B12' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  modalTitleText: { fontSize: 17, fontWeight: '700', color: '#0B0B12', textAlign: 'center' },
+  modalSubText: { fontSize: 14, color: '#888888', textAlign: 'center' },
+  hintEnglish: { fontSize: 15, color: '#E87C7C', fontWeight: '600', textAlign: 'center' },
+  hintKorean:  { fontSize: 13, color: '#888888', textAlign: 'center' },
+  modalCloseButton: {
+    width: '100%', paddingVertical: 14,
+    borderRadius: 12, backgroundColor: '#F6A3A6',
+    alignItems: 'center', marginTop: 4,
+  },
+  modalCloseButtonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  modalButtonRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 4 },
+  modalCancelButton: {
+    flex: 1, paddingVertical: 14,
+    borderRadius: 12, backgroundColor: '#F0F0F0', alignItems: 'center',
+  },
+  modalCancelButtonText: { fontSize: 15, fontWeight: '600', color: '#555555' },
   modalConfirmButton: {
-    width: '100%', paddingVertical: 16,
-    borderRadius: 14, backgroundColor: '#F6A3A6', alignItems: 'center',
+    flex: 1, paddingVertical: 14,
+    borderRadius: 12, backgroundColor: '#F6A3A6', alignItems: 'center',
   },
-  modalConfirmButtonText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  modalConfirmButtonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });
