@@ -1,44 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import CorrectionItem from '@/components/common/CorrectionItem';
+import ReportChatTabs, { ChatMode } from '@/components/report/ReportChatTabs';
 import { SharedStyles } from '@/components/common/styles/shared';
 import { useScrollVisibility } from '@/hooks/useScrollVisibility';
 import { Colors, Typography, Spacing, Shadow } from '@/constants/tokens';
 import { Correction } from '@/types/api';
 
 export interface ReportCorrectionSectionProps {
-  corrections: Correction[];
-  isPenalty: boolean;
-  remainingPenalties: number;
+  chatCorrections: Correction[];
+  voiceCorrections: Correction[];
   grammarFeedback: string;
   style?: StyleProp<ViewStyle>;
 }
 
 export default function ReportCorrectionSection({
-  corrections,
-  isPenalty,
-  remainingPenalties,
+  chatCorrections,
+  voiceCorrections,
   grammarFeedback,
   style,
 }: ReportCorrectionSectionProps) {
+  const [activeMode, setActiveMode] = useState<ChatMode>('채팅');
   const { scrollRef, showScrollDown, handleScroll, handleContentSizeChange, handleLayout, scrollToEnd } =
     useScrollVisibility();
 
+  const corrections = activeMode === '채팅' ? chatCorrections : voiceCorrections;
+
   return (
     <View style={[styles.section, style]}>
-      <Text style={styles.sectionTitle}>오늘 교정된 표현</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.sectionTitle}>교정된 표현</Text>
+        <ReportChatTabs activeMode={activeMode} onModeChange={setActiveMode} />
+      </View>
 
-      {isPenalty && (
-        <View style={styles.penaltyBanner}>
-          <Text style={styles.penaltyText}>
-            ⚠ 한국어 사용이 감지되었습니다 · 남은 기회 {remainingPenalties}회
-          </Text>
-        </View>
-      )}
-
-      <View style={{ flex: 1 }}>
+<View style={{ flex: 1 }}>
         <ScrollView
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
@@ -56,7 +53,10 @@ export default function ReportCorrectionSection({
             ))
           )}
           {grammarFeedback !== '' && (
-            <Text style={styles.grammarFeedback}>💬 {grammarFeedback}</Text>
+            <View style={styles.grammarFeedbackRow}>
+              <Ionicons name="bulb-outline" size={Typography.size.sm} color={Colors.textSecondary} />
+              <Text style={styles.grammarFeedback}>{grammarFeedback}</Text>
+            </View>
           )}
         </ScrollView>
 
@@ -90,38 +90,36 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     height: 240,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   sectionTitle: {
     fontSize: Typography.size.base,
     fontFamily: Typography.family.semiBold,
     color: Colors.textPrimary,
   },
-  penaltyBanner: {
-    backgroundColor: Colors.primaryAlpha,
-    borderRadius: Spacing.borderRadius.banner,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  penaltyText: {
-    fontSize: Typography.size.xs,
-    fontFamily: Typography.family.semiBold,
-    color: Colors.accentDark,
-  },
-  emptyCorrections: {
+emptyCorrections: {
     fontSize: Typography.size.sm,
     fontFamily: Typography.family.regular,
     color: Colors.textMuted,
     textAlign: 'center',
     paddingVertical: Spacing.screenHorizontal,
   },
+  grammarFeedbackRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 12,
+  },
   grammarFeedback: {
+    flex: 1,
     fontSize: Typography.size.sm,
     fontFamily: Typography.family.regular,
     color: Colors.textSecondary,
     fontStyle: 'italic',
     lineHeight: 18,
-    marginTop: 12,
   },
   scrollDownButton: {
     ...SharedStyles.scrollDownButton,

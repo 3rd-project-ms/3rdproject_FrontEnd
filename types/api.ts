@@ -25,6 +25,7 @@ export interface Correction {
   corrected_sentence: string;
   translation?: string;               // 유저 직접 작성 해석/코멘트
   is_reviewed?: boolean;              // 복습 완료 여부
+  grammar_feedback?: string;          // ReportApiResponse: 각 correction 내 포함
 }
 
 export interface SystemEvaluation {
@@ -54,4 +55,18 @@ export interface ChatApiResponse {
   code: string;
   message: string;
   data: ChatResponseData | null;
+}
+
+export interface ReportResponseData {
+  session_id: string;
+  scenario_id: string;
+  average_pronunciation: PronunciationScore;
+  corrections: Correction[];
+}
+
+export interface ReportApiResponse {
+  success: boolean;
+  code: string;
+  message: string;
+  data: ReportResponseData | null;
 }

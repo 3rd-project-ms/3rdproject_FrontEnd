@@ -5,7 +5,6 @@ import { Colors, Typography, Spacing } from '@/constants/tokens';
 export interface WordItem {
   word: string;
   guide?: string;
-  myPronunciation?: string;
   status: 'pass' | 'warning';
   warningNote?: string;
 }
@@ -36,7 +35,6 @@ export default function WordJudgementCard({ words, style, showLabel = true }: Wo
             </View>
             <View style={styles.wordRow}>
               <Text style={styles.guideText}>가이드: {item.guide || '-'}</Text>
-              <Text style={styles.myPronText}>내 발음: {item.myPronunciation || '-'}</Text>
             </View>
           </View>
         ))}
@@ -106,11 +104,6 @@ const styles = StyleSheet.create({
     color: Colors.danger,
   },
   guideText: {
-    fontSize: Typography.size.xs,
-    fontFamily: Typography.family.regular,
-    color: Colors.textMuted,
-  },
-  myPronText: {
     fontSize: Typography.size.xs,
     fontFamily: Typography.family.regular,
     color: Colors.textMuted,

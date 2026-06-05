@@ -16,9 +16,8 @@ export interface ReportSummaryContentProps {
   onPronPress: () => void;
   affinityProgress: number;
   affinityValue: number;
-  corrections: Correction[];
-  isPenalty: boolean;
-  remainingPenalties: number;
+  chatCorrections: Correction[];
+  voiceCorrections: Correction[];
   grammarFeedback: string;
   affinityLabel: string;
   affinityChange?: number;
@@ -35,9 +34,8 @@ export default function ReportSummaryContent({
   onPronPress,
   affinityProgress,
   affinityValue,
-  corrections,
-  isPenalty,
-  remainingPenalties,
+  chatCorrections,
+  voiceCorrections,
   grammarFeedback,
   affinityLabel,
   affinityChange,
@@ -62,9 +60,8 @@ export default function ReportSummaryContent({
           change={affinityChange}
         />
         <ReportCorrectionSection
-          corrections={corrections}
-          isPenalty={isPenalty}
-          remainingPenalties={remainingPenalties}
+          chatCorrections={chatCorrections}
+          voiceCorrections={voiceCorrections}
           grammarFeedback={grammarFeedback}
         />
       </View>

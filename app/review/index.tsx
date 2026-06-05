@@ -56,7 +56,9 @@ export default function ReviewScreen() {
     activeFilter,
     setActiveFilter,
     handleStarToggle,
+    toggleStarred,
   } = useReviewFilter();
+
 
   const THUMB_HEIGHT = 60;
   const maxScrollY = Math.max(contentHeight - containerHeight, 1);
@@ -93,12 +95,22 @@ export default function ReviewScreen() {
           <TouchableOpacity
             key={filter}
             style={[styles.filterChip, activeFilter === filter && styles.filterChipActive]}
-            onPress={() => setActiveFilter(filter)}
+            onPress={() => {
+              if (filter === '저장' && activeFilter === '저장') {
+                toggleStarred();
+              } else {
+                setActiveFilter(filter);
+              }
+            }}
             activeOpacity={0.7}
           >
-            <Text style={[styles.filterLabel, activeFilter === filter && styles.filterLabelActive]}>
-              {filter}
-            </Text>
+            {filter === '저장' ? (
+              <StarIcon active={filteredGroups.some((g) => g.items.some((i) => i.starred))} />
+            ) : (
+              <Text style={[styles.filterLabel, activeFilter === filter && styles.filterLabelActive]}>
+                {filter}
+              </Text>
+            )}
           </TouchableOpacity>
         ))}
       </View>

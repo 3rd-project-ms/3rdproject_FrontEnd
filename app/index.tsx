@@ -13,7 +13,6 @@ const HUB_BUTTONS: { label: string; href: string }[] = [
   { label: '모드 리포트 (히스토리)', href: ROUTES.MODE_REPORT },
   { label: '발음 요약', href: ROUTES.PRON_OVERVIEW },
   { label: '발음 정밀진단', href: ROUTES.PRON_DETAIL },
-  { label: '발음 연습', href: ROUTES.PRON_PRACTICE },
   { label: '복습 페이지', href: ROUTES.REVIEW },
 ];
 

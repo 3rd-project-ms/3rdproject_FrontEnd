@@ -7,7 +7,6 @@ export default function ReportLayout() {
       <Stack.Screen name="mode-report" />
       <Stack.Screen name="pronunciation-overview" />
       <Stack.Screen name="pronunciation-detail" />
-      <Stack.Screen name="pronunciation-practice" />
     </Stack>
   );
 }

@@ -13,6 +13,14 @@ export function getReportResponseByMode(mode: ChatMode, _day?: number): ChatApiR
   return mode === '통화' ? MOCK_CASE_B : MOCK_CASE_C;
 }
 
+export function getChatReportResponse(): ChatApiResponse {
+  return MOCK_CASE_C;
+}
+
+export function getVoiceReportResponse(): ChatApiResponse {
+  return MOCK_CASE_B;
+}
+
 export function getPronunciationResponse(): ChatApiResponse {
   return MOCK_CASE_B;
 }
@@ -22,7 +30,7 @@ export function getPronunciationResponse(): ChatApiResponse {
 const MOCK_REVIEW_GROUPS: DateGroup[] = [
   {
     day: 'Day1',
-    character: 'Jamie',
+    character: 'Liam',
     items: [
       { id: '1', type: '표현', english: '"In New York, we don\'t really say hello."', korean: '뉴욕에서 우리는 \'hello\'라고 잘 안 해요.', starred: false },
       { id: '2', type: '문법', english: '"That\'s how you order like a local without stressing out."', korean: '이렇게 하면 스트레스 없이 현지인처럼 주문할 수 있어요.', starred: false },
@@ -32,7 +40,7 @@ const MOCK_REVIEW_GROUPS: DateGroup[] = [
   },
   {
     day: 'Day2',
-    character: 'ALEX',
+    character: 'June',
     items: [
       { id: '5', type: '발음', english: '"The weather is really nice today, isn\'t it?"', korean: '오늘 날씨 정말 좋죠, 그렇지 않나요?', starred: false },
       { id: '6', type: '표현', english: '"I\'m just browsing, thanks."', korean: '그냥 구경하는 거예요, 감사합니다.', starred: false },
@@ -42,7 +50,7 @@ const MOCK_REVIEW_GROUPS: DateGroup[] = [
   },
   {
     day: 'Day3',
-    character: 'SARAH',
+    character: 'Ian',
     items: [
       { id: '9', type: '표현', english: '"That\'s totally up to you."', korean: '그건 완전히 당신 마음이에요.', starred: false },
       { id: '10', type: '문법', english: '"I should have called you earlier."', korean: '더 일찍 전화했어야 했는데.', starred: false },

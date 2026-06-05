@@ -60,7 +60,7 @@ export default function PronunciationOverviewScreen() {
               </View>
             ))}
           </View>
-          <Text style={styles.cardFootnote}>실시간 음성 비교분석 파형 데이터 기반 생성됨</Text>
+          <Text style={styles.cardFootnote}>본 점수는 Microsoft Azure Speech Service의{'\n'}음성 인식 기술을 기반으로 산출됩니다</Text>
         </View>
 
         {/* 발음 종합 분석 의견 카드 */}
