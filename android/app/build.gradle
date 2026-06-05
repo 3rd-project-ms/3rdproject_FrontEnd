@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.x3rdproject_frontend'
+    namespace 'com.ms3rdproject_frontend'
     defaultConfig {
-        applicationId 'com.anonymous.x3rdproject_frontend'
+        applicationId 'com.ms3rdproject_frontend'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

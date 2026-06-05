@@ -268,7 +268,7 @@ export default function ChatTextScreen() {
         {/* ── 헤더 ── */}
         <View style={styles.header}>
           <View style={styles.headerTitleRow}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <TouchableOpacity onPress={() => router.push('/report' as any)} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={24} color="#0B0B12" />
             </TouchableOpacity>
             <Text style={styles.charName}>Jamie</Text>

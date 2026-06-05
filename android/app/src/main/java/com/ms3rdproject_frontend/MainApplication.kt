@@ -1,4 +1,4 @@
-package com.anonymous.x3rdproject_frontend
+package com.ms3rdproject_frontend
 
 import android.app.Application
 import android.content.res.Configuration

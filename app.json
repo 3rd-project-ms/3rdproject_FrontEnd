@@ -2,14 +2,25 @@
   "expo": {
     "name": "SimSpeak",
     "slug": "simspeak",
+    "version": "1.0.0",
     "scheme": "simspeak",
-    "entryPoint": "expo-router/entry",
-    "plugins": [
-      "expo-secure-store",
-      "expo-router"
-    ],
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "plugins": ["expo-router", "expo-secure-store", "expo-font"],
     "android": {
-      "package": "com.anonymous.x3rdproject_frontend"
+      "permissions": ["RECORD_AUDIO", "INTERNET"],
+      "package": "com.ms3rdproject_frontend"
+    },
+    "ios": {
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "음성 채팅을 위해 마이크가 필요합니다."
+      }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c7e05ff2-1cc4-41a4-a02d-03c8f1d9dcbb"
+      }
     }
   }
 }

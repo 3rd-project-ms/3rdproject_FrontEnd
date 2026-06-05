@@ -1,49 +1,3 @@
-
-/
-Claude가 응답을 완료했습니다
-
-mypage.tsx
-310줄
-
-tsx
-
-팀원분이 머지 해보려고 다음 사항 요청했어 수정 ㄱㄱ 
-마이페이지에서 화면이 이동할 수 있게, 제가 만든 화면 이름으로
- app/(main)/mypage.tsx 파일  아래 부분 수정 해주시면 될 것 같아요.
-// 결과분석 버튼 onPress={() => router.push('/report/mode-report')}
-
-// 복습하기 버튼 onPress={() => router.push('/review')}마이페이지-결과분석 router.push('/report/mode-report')
-채팅/통화 종료 후는  router.push('/report')
-
-입니다.
-
-오후 3:48
-요청대로 두 군데 onPress 경로만 수정할게요.
-
-
-명령 2개 실행함, 2개 파일 수정됨, 파일 조회함
-명령 2개 실행함, 2개 파일 수정됨, 파일 조회함
-수정 내용 요약:
-
-버튼	변경 전	변경 후
-결과 분석	/(main)/session-result	/report/mode-report
-오답 노트	onPress 없음	/review
-app/(main)/mypage.tsx에 덮어쓰면 됩니다.
-
-
-Mypage
-코드 · TSX 
-
-
-
-
-
-
-Claude는 AI이며 실수할 수 있습니다. 응답을 다시 한번 확인해 주세요.
-
-
-raw
-Mypage · TSX
 import React, { useState } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
@@ -178,9 +132,12 @@ export default function MyPageScreen() {
             <Ionicons name="chevron-forward" size={16} color="#AEAEB2" style={{ marginLeft: 'auto' }} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/review' as any)}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/review' as any)}
+          >
             <Ionicons name="book-outline" size={20} color="#2C3A5F" />
-            <Text style={styles.menuItemText}>오답 노트</Text>
+            <Text style={styles.menuItemText}>복습하기</Text>
             <Ionicons name="chevron-forward" size={16} color="#AEAEB2" style={{ marginLeft: 'auto' }} />
           </TouchableOpacity>
         </View>
@@ -353,4 +310,3 @@ const styles = StyleSheet.create({
   },
   modalCancelText: { fontSize: 15, fontWeight: '600', color: '#616161' },
 });
- 
