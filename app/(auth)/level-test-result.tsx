@@ -1,7 +1,13 @@
 // 영어 레벨 테스트 결과 화면
 
 import { useRouter } from 'expo-router';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Button from '../../components/common/Button';
 import RadarChart from '../../components/level-test/RadarChart';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
@@ -16,6 +22,10 @@ const MOCK_RADAR_DATA = {
 
 export default function LevelTestResultScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  // 차트 실제 폭 = size + 64(라벨 여백). 화면/카드 안쪽 폭에 맞춰 자동 조절.
+  // 160 = 화면패딩(24*2) + 카드패딩(24*2) + 라벨여백(32*2)
+  const chartSize = Math.max(180, Math.min(260, width - 160));
 
   const handleRetryTest = () => {
     router.replace('/(auth)/level-test');
@@ -35,10 +45,8 @@ export default function LevelTestResultScreen() {
         </View>
 
         <View style={styles.chartCard}>
-          <RadarChart data={MOCK_RADAR_DATA} size={280} />
+          <RadarChart data={MOCK_RADAR_DATA} size={chartSize} />
         </View>
-
-        <Text style={styles.detailText}>자세히 보기</Text>
 
         <View style={styles.buttonSection}>
           <Button
@@ -92,12 +100,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray2,
     borderRadius: 8,
     backgroundColor: COLORS.white,
-  },
-  detailText: {
-    marginTop: 18,
-    ...TYPOGRAPHY.semibold14,
-    textAlign: 'center',
-    textDecorationLine: 'underline',
   },
   buttonSection: {
     marginTop: 'auto',

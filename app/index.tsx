@@ -27,7 +27,7 @@ export default function StartScreen() {
             style={styles.loginButton}
           />
           <Pressable
-            onPress={() => router.replace('/(main)/home')}
+            onPress={() => router.push('/(auth)/signup?guest=1')}
             style={styles.guestLink}
           >
             <Text style={styles.guestText}>

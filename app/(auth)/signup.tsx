@@ -1,6 +1,6 @@
 // 회원가입 2단계 화면
 
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   Pressable,
@@ -24,8 +24,11 @@ const passwordRegex =
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { guest } = useLocalSearchParams<{ guest?: string }>();
+  const isGuest = guest === '1';
   const setAuth = useAuthStore((state) => state.setAuth);
-  const [step, setStep] = useState<1 | 2>(1);
+  // 게스트는 계정 생성(1단계)을 건너뛰고 초기설정(2단계)부터 시작
+  const [step, setStep] = useState<1 | 2>(isGuest ? 2 : 1);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -62,7 +65,8 @@ export default function SignupScreen() {
   };
 
   const handleBack = () => {
-    if (step === 1) {
+    // 게스트는 2단계만 사용하므로 항상 이전 화면으로
+    if (step === 1 || isGuest) {
       router.back();
       return;
     }
@@ -73,11 +77,11 @@ export default function SignupScreen() {
   const handleSubmit = () => {
     setAuth({
       isLoggedIn: true,
-      email: email.trim().toLowerCase(),
+      email: isGuest ? '' : email.trim().toLowerCase(),
       nickname: nickname.trim(),
       selectedGender,
     });
-    router.push('/(auth)/welcome');
+    router.replace('/(auth)/level-select');
   };
 
   return (

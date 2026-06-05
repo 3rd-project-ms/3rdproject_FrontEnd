@@ -19,7 +19,7 @@ import type { ReactNode } from 'react';
 import LevelTestTutorialOverlay, {
   TutorialStep,
 } from '../../components/level-test/LevelTestTutorialOverlay';
-import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { COLORS, TYPOGRAPHY } from '../../constants/theme';
 
 type InputMode = 'none' | 'recording' | 'keyboard';
 
@@ -36,12 +36,12 @@ const tutorialOrder: TutorialStep[] = [
   'intro',
   'controls',
   'recording',
-  'result',
+  'keyboard',
   'start',
 ];
 
 const mockVoiceAnswer = "I'm going to study here for a semester.";
-const surferImage = require('../../assets/images/level-test-surfer.png');
+const instructorImage = require('../../assets/characters/level_test_instructor.png');
 
 export default function LevelTestScreen() {
   const router = useRouter();
@@ -54,37 +54,38 @@ export default function LevelTestScreen() {
 
   const totalQuestions = questions.length;
   const currentProgress = currentQuestionIndex + 1;
-  const isLastQuestion = currentQuestionIndex === totalQuestions - 1;
-  const nextButtonLabel = isLastQuestion ? '제출하기' : '다음으로 넘어가기';
 
-  const moveQuestion = (direction: -1 | 1) => {
-    setCurrentQuestionIndex((index) => {
-      const nextIndex = index + direction;
-      return Math.min(Math.max(nextIndex, 0), totalQuestions - 1);
-    });
-    setInputMode('none');
-    setAnswer('');
-    Keyboard.dismiss();
-  };
-
-  const handleStartRecording = () => {
-    Keyboard.dismiss();
-    setAnswer('');
-    setInputMode('recording');
-  };
-
-  const handleStopRecording = () => {
-    setInputMode('none');
-    setAnswer(mockVoiceAnswer);
-  };
-
-  const handlePressMic = () => {
-    if (inputMode === 'recording') {
-      handleStopRecording();
+  // 답안을 저장하고 곧바로 다음 문항으로 넘어간다. (제출 후 이전 문항 복귀 불가)
+  const submitAndAdvance = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
       return;
     }
 
-    handleStartRecording();
+    setAnswers((prev) => ({ ...prev, [currentQuestionIndex]: trimmed }));
+    setAnswer('');
+    setInputMode('none');
+    Keyboard.dismiss();
+
+    if (currentQuestionIndex < totalQuestions - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+      return;
+    }
+
+    router.replace('/(auth)/level-test-result');
+  };
+
+  const handlePressMic = () => {
+    // 녹음 중이면 정지 → 곧바로 제출 후 다음 문항
+    if (inputMode === 'recording') {
+      submitAndAdvance(answer);
+      return;
+    }
+
+    // 녹음 시작 → STT 결과(목업)를 결과 카드에 표시
+    Keyboard.dismiss();
+    setInputMode('recording');
+    setAnswer(mockVoiceAnswer);
   };
 
   const handlePressKeyboard = () => {
@@ -99,31 +100,8 @@ export default function LevelTestScreen() {
     setAnswer('');
   };
 
-  const handleRetryRecording = () => {
-    setAnswer('');
-    setInputMode('none');
-    Keyboard.dismiss();
-  };
-
-  const handleSubmitAnswer = () => {
-    if (!answer.trim()) {
-      return;
-    }
-
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestionIndex]: answer.trim(),
-    }));
-    setAnswer('');
-    setInputMode('none');
-    Keyboard.dismiss();
-
-    if (currentQuestionIndex < totalQuestions - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
-      return;
-    }
-
-    router.replace('/(auth)/level-test-result');
+  const handleSendKeyboard = () => {
+    submitAndAdvance(answer);
   };
 
   const resetLevelTest = () => {
@@ -140,37 +118,17 @@ export default function LevelTestScreen() {
   };
 
   const goNextTutorialStep = () => {
-    const currentIndex = tutorialOrder.indexOf(tutorialStep);
-    const nextStep =
-      tutorialOrder[Math.min(currentIndex + 1, tutorialOrder.length - 1)];
-
-    if (tutorialStep === 'controls') {
-      setInputMode('recording');
-      setAnswer('');
-    }
-
-    if (tutorialStep === 'recording') {
-      setInputMode('none');
-      setAnswer(mockVoiceAnswer);
-    }
-
     if (tutorialStep === 'start') {
       setIsTutorialVisible(false);
       resetLevelTest();
       return;
     }
 
-    setTutorialStep(nextStep);
+    const currentIndex = tutorialOrder.indexOf(tutorialStep);
+    setTutorialStep(
+      tutorialOrder[Math.min(currentIndex + 1, tutorialOrder.length - 1)]
+    );
   };
-
-  const displayedInputMode =
-    isTutorialVisible && tutorialStep === 'recording' ? 'recording' : inputMode;
-  const displayedAnswer =
-    isTutorialVisible && tutorialStep === 'result' ? mockVoiceAnswer : answer;
-  const shouldShowActions =
-    displayedAnswer.trim().length > 0 &&
-    displayedInputMode !== 'keyboard' &&
-    displayedInputMode !== 'recording';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -181,18 +139,13 @@ export default function LevelTestScreen() {
               currentProgress={currentProgress}
               totalQuestions={totalQuestions}
               currentQuestion={questions[currentQuestionIndex]}
-              answer={displayedAnswer}
-              inputMode={displayedInputMode}
-              shouldShowActions={shouldShowActions}
-              nextButtonLabel={nextButtonLabel}
+              answer={answer}
+              inputMode={inputMode}
               onBack={() => router.back()}
-              onPrevious={() => moveQuestion(-1)}
-              onNext={() => moveQuestion(1)}
               onChangeAnswer={setAnswer}
               onPressMic={handlePressMic}
               onPressKeyboard={handlePressKeyboard}
-              onRetry={handleRetryRecording}
-              onSubmit={handleSubmitAnswer}
+              onSendKeyboard={handleSendKeyboard}
             />
           </ContentWrapper>
         ) : (
@@ -200,18 +153,13 @@ export default function LevelTestScreen() {
             currentProgress={currentProgress}
             totalQuestions={totalQuestions}
             currentQuestion={questions[currentQuestionIndex]}
-            answer={displayedAnswer}
-            inputMode={displayedInputMode}
-            shouldShowActions={shouldShowActions}
-            nextButtonLabel={nextButtonLabel}
+            answer={answer}
+            inputMode={inputMode}
             onBack={() => router.back()}
-            onPrevious={() => moveQuestion(-1)}
-            onNext={() => moveQuestion(1)}
             onChangeAnswer={setAnswer}
             onPressMic={handlePressMic}
             onPressKeyboard={handlePressKeyboard}
-            onRetry={handleRetryRecording}
-            onSubmit={handleSubmitAnswer}
+            onSendKeyboard={handleSendKeyboard}
           />
         )}
 
@@ -245,33 +193,26 @@ function LevelTestContent({
   currentQuestion,
   answer,
   inputMode,
-  shouldShowActions,
-  nextButtonLabel,
   onBack,
-  onPrevious,
-  onNext,
   onChangeAnswer,
   onPressMic,
   onPressKeyboard,
-  onRetry,
-  onSubmit,
+  onSendKeyboard,
 }: {
   currentProgress: number;
   totalQuestions: number;
   currentQuestion: string;
   answer: string;
   inputMode: InputMode;
-  shouldShowActions: boolean;
-  nextButtonLabel: string;
   onBack: () => void;
-  onPrevious: () => void;
-  onNext: () => void;
   onChangeAnswer: (text: string) => void;
   onPressMic: () => void;
   onPressKeyboard: () => void;
-  onRetry: () => void;
-  onSubmit: () => void;
+  onSendKeyboard: () => void;
 }) {
+  const isKeyboardMode = inputMode === 'keyboard';
+  const isRecording = inputMode === 'recording';
+
   return (
     <View style={styles.content}>
       <View style={styles.headerRow}>
@@ -286,36 +227,31 @@ function LevelTestContent({
 
       <LevelProgressBar total={totalQuestions} currentIndex={currentProgress - 1} />
 
-      <QuestionCard
-        question={currentQuestion}
-        onPrevious={onPrevious}
-        onNext={onNext}
-      />
+      <QuestionCard question={currentQuestion} />
 
-      <Image
-        source={surferImage}
-        resizeMode="cover"
-        style={styles.characterImage}
-      />
+      <View style={styles.characterImageWrapper}>
+        <Image
+          source={instructorImage}
+          resizeMode="cover"
+          style={styles.characterImage}
+        />
+      </View>
 
-      <AnswerCard
-        answer={answer}
-        inputMode={inputMode}
-        onChangeAnswer={onChangeAnswer}
-      />
-
-      {shouldShowActions ? (
-        <AnswerActionRow
-          nextButtonLabel={nextButtonLabel}
-          onRetry={onRetry}
-          onSubmit={onSubmit}
+      {isKeyboardMode ? (
+        <KeyboardInputRow
+          value={answer}
+          onChangeAnswer={onChangeAnswer}
+          onSend={onSendKeyboard}
         />
       ) : (
-        <VoiceInputControls
-          inputMode={inputMode}
-          onPressMic={onPressMic}
-          onPressKeyboard={onPressKeyboard}
-        />
+        <>
+          <AnswerCard answer={answer} isRecording={isRecording} />
+          <VoiceInputControls
+            isRecording={isRecording}
+            onPressMic={onPressMic}
+            onPressKeyboard={onPressKeyboard}
+          />
+        </>
       )}
     </View>
   );
@@ -343,77 +279,40 @@ function LevelProgressBar({
   );
 }
 
-function QuestionCard({
-  question,
-  onPrevious,
-  onNext,
-}: {
-  question: string;
-  onPrevious: () => void;
-  onNext: () => void;
-}) {
+function QuestionCard({ question }: { question: string }) {
   return (
-    <View style={styles.questionCard}>
-      <Pressable onPress={onPrevious} style={styles.questionArrow}>
-        <Text style={styles.arrowText}>‹</Text>
-      </Pressable>
-      <View style={styles.questionContent}>
-        <Text numberOfLines={3} style={styles.questionText}>
-          {question}
-        </Text>
-        <Ionicons name="volume-medium" size={22} color={COLORS.gray0} />
-      </View>
-      <Pressable onPress={onNext} style={styles.questionArrow}>
-        <Text style={styles.arrowText}>›</Text>
-      </Pressable>
+    <View style={[styles.questionCard, styles.cardShadow]}>
+      <Text style={styles.questionText}>{question}</Text>
     </View>
   );
 }
 
 function AnswerCard({
   answer,
-  inputMode,
-  onChangeAnswer,
+  isRecording,
 }: {
   answer: string;
-  inputMode: InputMode;
-  onChangeAnswer: (text: string) => void;
+  isRecording: boolean;
 }) {
-  const isKeyboardMode = inputMode === 'keyboard';
-
+  // 녹음 중/후: STT 결과 텍스트 카드 (재생 기능 없음)
   return (
-    <View style={styles.answerBox}>
-      {isKeyboardMode ? (
-        <TextInput
-          value={answer}
-          onChangeText={onChangeAnswer}
-          placeholder="키보드로 답변을 작성해주세요."
-          placeholderTextColor={COLORS.gray0}
-          multiline
-          autoFocus
-          style={styles.answerInput}
-        />
-      ) : (
-        <Text style={styles.answerText}>
-          {answer || '마이크 혹은 키보드로 답변해주세요.'}
-        </Text>
-      )}
+    <View style={[styles.answerBox, styles.cardShadow]}>
+      <Text style={styles.answerText}>
+        {isRecording ? answer : '마이크 혹은 키보드로 답변해주세요.'}
+      </Text>
     </View>
   );
 }
 
 function VoiceInputControls({
-  inputMode,
+  isRecording,
   onPressMic,
   onPressKeyboard,
 }: {
-  inputMode: InputMode;
+  isRecording: boolean;
   onPressMic: () => void;
   onPressKeyboard: () => void;
 }) {
-  const isRecording = inputMode === 'recording';
-  const isKeyboardMode = inputMode === 'keyboard';
-
   return (
     <View style={styles.inputControlArea}>
       <Pressable
@@ -422,44 +321,41 @@ function VoiceInputControls({
       >
         <Ionicons
           name={isRecording ? 'square' : 'mic'}
-          size={isRecording ? 34 : 48}
+          size={isRecording ? 26 : 34}
           color={isRecording ? '#FF4F73' : COLORS.gray0}
         />
       </Pressable>
 
-      <Pressable
-        onPress={onPressKeyboard}
-        style={[
-          styles.keyboardButton,
-          isKeyboardMode && styles.activeKeyboardButton,
-        ]}
-      >
-        <Ionicons
-          name="keypad"
-          size={36}
-          color={isKeyboardMode ? COLORS.primary : COLORS.gray0}
-        />
+      <Pressable onPress={onPressKeyboard} style={styles.keyboardButton}>
+        <Ionicons name="keypad" size={24} color={COLORS.gray0} />
       </Pressable>
     </View>
   );
 }
 
-function AnswerActionRow({
-  nextButtonLabel,
-  onRetry,
-  onSubmit,
+function KeyboardInputRow({
+  value,
+  onChangeAnswer,
+  onSend,
 }: {
-  nextButtonLabel: string;
-  onRetry: () => void;
-  onSubmit: () => void;
+  value: string;
+  onChangeAnswer: (text: string) => void;
+  onSend: () => void;
 }) {
   return (
-    <View style={styles.answerActionArea}>
-      <Pressable onPress={onRetry} style={styles.retryButton}>
-        <Text style={styles.retryButtonText}>다시하기</Text>
-      </Pressable>
-      <Pressable onPress={onSubmit} style={styles.submitButton}>
-        <Text style={styles.submitButtonText}>{nextButtonLabel}</Text>
+    <View style={styles.keyboardInputRow}>
+      <TextInput
+        value={value}
+        onChangeText={onChangeAnswer}
+        placeholder="메세지를 입력하세요 ..."
+        placeholderTextColor={COLORS.gray0}
+        autoFocus
+        returnKeyType="send"
+        onSubmitEditing={onSend}
+        style={styles.keyboardTextInput}
+      />
+      <Pressable onPress={onSend} style={styles.sendButton}>
+        <Ionicons name="arrow-up" size={24} color={COLORS.white} />
       </Pressable>
     </View>
   );
@@ -486,7 +382,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 18,
     paddingBottom: 8,
+    gap: 12,
     backgroundColor: COLORS.background,
+  },
+  cardShadow: {
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   headerRow: {
     height: 56,
@@ -517,88 +421,53 @@ const styles = StyleSheet.create({
   progressRow: {
     height: 6,
     flexDirection: 'row',
-    gap: 4,
+    gap: 6,
   },
   progressSegment: {
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#C8C8C8',
+    backgroundColor: '#E5E7EB',
   },
   progressSegmentActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#FB7185',
   },
   questionCard: {
-    height: 100,
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
-    borderRadius: 12,
-    backgroundColor: COLORS.white,
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  questionArrow: {
-    width: 44,
-    height: '100%',
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  arrowText: {
-    fontSize: 32,
-    lineHeight: 34,
-    color: COLORS.black,
-  },
-  questionContent: {
-    flex: 1,
-    height: '100%',
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderRadius: 16,
+    backgroundColor: COLORS.white,
   },
   questionText: {
     ...TYPOGRAPHY.semibold16,
-    lineHeight: 20,
+    lineHeight: 22,
     textAlign: 'center',
     color: '#000000',
   },
-  characterImage: {
-    width: '100%',
+  characterImageWrapper: {
     flex: 1,
     minHeight: 230,
-    maxHeight: 360,
-    marginTop: 10,
-    borderRadius: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
     backgroundColor: COLORS.white,
   },
+  characterImage: {
+    width: '100%',
+    height: '100%',
+  },
   answerBox: {
-    height: 102,
-    marginTop: 10,
-    paddingHorizontal: SPACING.md,
+    padding: 16,
+    minHeight: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: COLORS.white,
   },
   answerText: {
     ...TYPOGRAPHY.semibold16,
     lineHeight: 22,
     textAlign: 'center',
-    color: COLORS.black,
-  },
-  answerInput: {
-    width: '100%',
-    minHeight: 74,
-    ...TYPOGRAPHY.semibold16,
-    textAlign: 'center',
-    textAlignVertical: 'center',
     color: COLORS.black,
   },
   inputControlArea: {
@@ -609,20 +478,20 @@ const styles = StyleSheet.create({
   micButton: {
     position: 'absolute',
     left: '50%',
-    width: 100,
-    height: 100,
-    marginLeft: -50,
+    top: '50%',
+    width: 72,
+    height: 72,
+    marginLeft: -36,
+    marginTop: -36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 50,
-    backgroundColor: COLORS.white,
+    borderRadius: 36,
+    backgroundColor: '#EFF1F0',
     shadowColor: COLORS.black,
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   recordingMicButton: {
     borderWidth: 2,
@@ -632,50 +501,40 @@ const styles = StyleSheet.create({
   keyboardButton: {
     position: 'absolute',
     right: 28,
-    width: 60,
-    height: 60,
+    top: '50%',
+    width: 48,
+    height: 48,
+    marginTop: -24,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 30,
+    borderColor: '#E5E7EB',
+    borderRadius: 24,
     backgroundColor: COLORS.white,
   },
-  activeKeyboardButton: {
-    borderColor: COLORS.primary,
-    borderWidth: 1.5,
-    backgroundColor: COLORS.subColor3Light,
-  },
-  answerActionArea: {
-    height: 124,
+  keyboardInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
+    paddingVertical: 8,
   },
-  retryButton: {
+  keyboardTextInput: {
     flex: 1,
-    height: LAYOUT.buttonHeight,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 48,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#D0D0D0',
-    borderRadius: LAYOUT.buttonRadius,
-    backgroundColor: COLORS.white,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F1F3F5',
+    paddingHorizontal: 18,
+    ...TYPOGRAPHY.regular14,
+    color: COLORS.black,
   },
-  submitButton: {
-    flex: 1,
-    height: LAYOUT.buttonHeight,
+  sendButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: LAYOUT.buttonRadius,
     backgroundColor: COLORS.primary,
-  },
-  retryButtonText: {
-    ...TYPOGRAPHY.semibold14,
-    color: '#888888',
-  },
-  submitButtonText: {
-    ...TYPOGRAPHY.semibold14,
-    color: COLORS.white,
   },
 });
