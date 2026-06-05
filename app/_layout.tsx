@@ -1,28 +1,32 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useFonts, Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useFonts, Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_600SemiBold,
+  const [loaded, error] = useFonts({
+    'Inter': Inter_400Regular,
+    'Inter-SemiBold': Inter_600SemiBold,
   });
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (loaded || error) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [loaded, error]);
 
-  if (!fontsLoaded) return null;
+  if (!loaded && !error) {
+    return null;
+  }
 
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(main)" />
+      </Stack>
     </SafeAreaProvider>
   );
 }
