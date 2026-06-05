@@ -487,11 +487,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 36,
     backgroundColor: '#EFF1F0',
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
   },
   recordingMicButton: {
     borderWidth: 2,
