@@ -9,80 +9,101 @@ import { Ionicons } from '@expo/vector-icons';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-const STAGE_DATA = [
-  { id: 1, stageLabel: 'Stage 1-1', title: '카페에서 생긴 일',    hint: '첫 번째 에피소드',    isLocked: false },
-  { id: 2, stageLabel: 'Stage 1-2', title: '취향 저격',           hint: '좋아하는 에스프레소',    isLocked: false },
-  { id: 3, stageLabel: 'Stage 2-1', title: '뜻밖의 공통점',       hint: '취미 공유 바이브',       isLocked: true  },
-  { id: 4, stageLabel: 'Stage 2-2', title: '깊어지는 밤',         hint: '비밀스러운 고백 타임',   isLocked: true  },
-  { id: 5, stageLabel: 'Stage 3-1', title: '흔들리는 마음',       hint: '설레임이 시작되는 순간', isLocked: true  },
-  { id: 6, stageLabel: 'Stage 3-2', title: '결정적 순간',         hint: '선택의 기로에서',        isLocked: true  },
+// ─── 호감도 설정 ──────────────────────────────────────────────────────────
+const AFFINITY_PER_STAGE = 10;
+const SPECIAL_UNLOCK_1   = 40;
+const SPECIAL_UNLOCK_2   = 80;
+
+// ─── 스테이지 데이터 ──────────────────────────────────────────────────────
+const MAIN_STAGES = [
+  { id: 1, stageLabel: 'Stage 1', title: '카페에서 생긴 일',  hint: '첫 번째 에피소드',         isSpecial: false },
+  { id: 2, stageLabel: 'Stage 2', title: '취향 저격',         hint: '좋아하는 에스프레소',       isSpecial: false },
+  { id: 3, stageLabel: 'Stage 3', title: '뜻밖의 공통점',     hint: '취미 공유 바이브',          isSpecial: false },
+  { id: 4, stageLabel: 'Stage 4', title: '깊어지는 밤',       hint: '비밀스러운 고백 타임',      isSpecial: false },
+  { id: 5, stageLabel: 'Stage 5', title: '흔들리는 마음',     hint: '설레임이 시작되는 순간',    isSpecial: false },
+  { id: 6, stageLabel: 'Stage 6', title: '결정적 순간',       hint: '선택의 기로에서',           isSpecial: false },
+  { id: 7, stageLabel: 'Stage 7', title: '약속',              hint: '다시 만나고 싶은 사람',     isSpecial: false },
+  { id: 8, stageLabel: 'Stage 8', title: '우리 사이',         hint: '이게 사랑인 걸까',          isSpecial: false },
 ];
 
-// 지그재그 비율 밸런스 조정
-const X_RATIOS  = [0.35, 0.65, 0.25, 0.70, 0.35, 0.65];
-const NODE_SIZE = 72;
-const ROW_H     = 140; 
-const PAD_H     = 30;  
+const SPECIAL_STAGES = [
+  { id: 9,  stageLabel: 'Special 1', title: '달빛 아래서', hint: '호감도 40% 달성 보상', isSpecial: true, unlockAt: SPECIAL_UNLOCK_1 },
+  { id: 10, stageLabel: 'Special 2', title: '둘만의 시간', hint: '호감도 80% 달성 보상', isSpecial: true, unlockAt: SPECIAL_UNLOCK_2 },
+];
 
-type Stage = typeof STAGE_DATA[0];
+type AnyStage = (typeof MAIN_STAGES[0] | typeof SPECIAL_STAGES[0]) & {
+  isLocked: boolean;
+  affinityRequired?: number;
+};
 
+// ─── 레이아웃 상수 ────────────────────────────────────────────────────────
+const X_RATIOS  = [0.35, 0.65, 0.25, 0.70, 0.35, 0.65, 0.25, 0.70];
+const NODE_SIZE = 68;
+const SPECIAL_NODE_SIZE = 60;
+const ROW_H     = 130;
+const PAD_H     = 24;
+
+// 메인 노드 중심 좌표
 function nodeCenter(index: number) {
-  const x = (SCREEN_W - 32) * X_RATIOS[index]; 
+  const x = (SCREEN_W - 32) * X_RATIOS[index % X_RATIOS.length];
   const y = PAD_H + ROW_H * index + NODE_SIZE / 2;
   return { x, y };
 }
 
-// ─── [수정] 하트 노드 컴포넌트 (나사 레이아웃 완전 폐기) ──────────────────
-function HeartNode({
-  stage, index, onPress,
-}: {
-  stage: Stage; index: number; onPress: (s: Stage) => void;
+// 스페셜 노드 좌표:
+// Special 1 → Stage 3(idx=2) 와 Stage 4(idx=3) 사이 행, 반대편 빈 공간
+// Special 2 → Stage 5(idx=4) 와 Stage 6(idx=5) 사이 행, 반대편 빈 공간
+function specialNodeCenter(unlockAt: number) {
+  if (unlockAt === SPECIAL_UNLOCK_1) {
+    // Stage 3(idx=2) 오른쪽 빈 공간 → x: 0.72, y: 2~3 사이 중간
+    const x = (SCREEN_W - 32) * 0.72;
+    const y = PAD_H + ROW_H * 2.5 + NODE_SIZE / 2;
+    return { x, y };
+  } else {
+    // Stage 5(idx=4) 왼쪽 빈 공간 → x: 0.20, y: 4~5 사이 중간
+    const x = (SCREEN_W - 32) * 0.20;
+    const y = PAD_H + ROW_H * 4.5 + NODE_SIZE / 2;
+    return { x, y };
+  }
+}
+
+// ─── 잠금 상태 계산 ──────────────────────────────────────────────────────
+function buildStageList(affinity: number): AnyStage[] {
+  const mainList: AnyStage[] = MAIN_STAGES.map((s, i) => ({
+    ...s,
+    isLocked: affinity < i * AFFINITY_PER_STAGE,
+  }));
+  const specialList: AnyStage[] = SPECIAL_STAGES.map((s) => ({
+    ...s,
+    isLocked: affinity < s.unlockAt,
+    affinityRequired: s.unlockAt,
+  }));
+  return [...mainList, ...specialList];
+}
+
+// ─── 메인 하트 노드 ───────────────────────────────────────────────────────
+function HeartNode({ stage, index, onPress }: {
+  stage: AnyStage; index: number; onPress: (s: AnyStage) => void;
 }) {
   const anim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
-    Animated.spring(anim, {
-      toValue: 1,
-      delay: index * 100,
-      useNativeDriver: true,
-      tension: 55,
-      friction: 7,
-    }).start();
+    Animated.spring(anim, { toValue: 1, delay: index * 80, useNativeDriver: true, tension: 55, friction: 7 }).start();
   }, []);
-
   const scale   = anim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] });
   const opacity = anim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0.7, 1] });
   const center  = nodeCenter(index);
 
   return (
-    <Animated.View
-      style={[
-        styles.nodeAbsolute,
-        {
-          left:      center.x - NODE_SIZE / 2,
-          top:       center.y - NODE_SIZE / 2,
-          transform: [{ scale }],
-          opacity,
-        },
-      ]}
-    >
-      <TouchableOpacity
-        activeOpacity={0.75}
-        onPress={() => onPress(stage)}
-        style={[
-          styles.heartNodeBtn,
-          stage.isLocked ? styles.nodeLocked : styles.nodeUnlocked,
-        ]}
-      >
-        {stage.isLocked ? (
-          // 잠긴 노드도 투박한 자물쇠 대신 톤다운된 미니 하트로 교체하여 디자인 일체감 부여
-          <Ionicons name="heart-outline" size={24} color="#E0E0E0" />
-        ) : (
-          <Ionicons name="heart" size={28} color="#F6A3A6" />
-        )}
+    <Animated.View style={[styles.nodeAbsolute, {
+      left: center.x - NODE_SIZE / 2, top: center.y - NODE_SIZE / 2,
+      transform: [{ scale }], opacity,
+    }]}>
+      <TouchableOpacity activeOpacity={0.75} onPress={() => onPress(stage)}
+        style={[styles.heartNodeBtn, stage.isLocked ? styles.nodeLocked : styles.nodeUnlocked]}>
+        {stage.isLocked
+          ? <Ionicons name="lock-closed" size={22} color="#C8C8C8" />
+          : <Ionicons name="heart"       size={26} color="#F6A3A6" />}
       </TouchableOpacity>
-
-      {/* 스테이지 번호 뱃지 가독성 업그레이드 */}
       <View style={[styles.stageBadge, stage.isLocked && styles.stageBadgeLocked]}>
         <Text style={[styles.stageBadgeTxt, stage.isLocked && styles.stageBadgeTxtLocked]}>
           {stage.stageLabel}
@@ -92,16 +113,56 @@ function HeartNode({
   );
 }
 
-// ─── [수정] 연결선 컴포넌트 (하트 도트 패스 연출) ──────────────────────
-function ConnectLine({ fromIndex, toIndex, nextIsLocked }: { fromIndex: number; toIndex: number; nextIsLocked: boolean }) {
-  const from = nodeCenter(fromIndex);
-  const to   = nodeCenter(toIndex);
+// ─── 스페셜 노드 (맵 안 띄우기) ──────────────────────────────────────────
+function SpecialNode({ stage, onPress }: {
+  stage: AnyStage; onPress: (s: AnyStage) => void;
+}) {
+  const anim   = useRef(new Animated.Value(0)).current;
+  const unlockAt = (stage as any).unlockAt as number;
+  const center = specialNodeCenter(unlockAt);
 
+  useEffect(() => {
+    // 뿅 - 스프링 팝업 효과
+    Animated.spring(anim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 6,
+    }).start();
+  }, []);
+
+  const scale   = anim.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0, 1.15, 1] });
+  const opacity = anim.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 1] });
+
+  return (
+    <Animated.View style={[styles.nodeAbsolute, {
+      left: center.x - SPECIAL_NODE_SIZE / 2,
+      top:  center.y - SPECIAL_NODE_SIZE / 2,
+      transform: [{ scale }],
+      opacity,
+      zIndex: 6,
+    }]}>
+      <TouchableOpacity activeOpacity={0.75} onPress={() => onPress(stage)}
+        style={styles.specialNodeBtn}>
+        <Ionicons name="heart" size={24} color="#F6A3A6" />
+      </TouchableOpacity>
+      <View style={styles.specialNodeBadge}>
+        <Text style={styles.specialNodeBadgeTxt}>{stage.stageLabel}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+// ─── 연결선 ───────────────────────────────────────────────────────────────
+function ConnectLine({ fromIndex, toIndex, nextIsLocked }: {
+  fromIndex: number; toIndex: number; nextIsLocked: boolean;
+}) {
+  const from   = nodeCenter(fromIndex);
+  const to     = nodeCenter(toIndex);
   const dx     = to.x - from.x;
   const dy     = to.y - from.y;
   const length = Math.sqrt(dx * dx + dy * dy);
   const angle  = Math.atan2(dy, dx) * (180 / Math.PI);
-
   const margin = NODE_SIZE / 2 + 2;
   const ratio  = margin / length;
   const startX = from.x + dx * ratio;
@@ -109,41 +170,84 @@ function ConnectLine({ fromIndex, toIndex, nextIsLocked }: { fromIndex: number; 
   const lineLen = length - margin * 2;
 
   return (
-    <View
-      style={[
-        styles.connectLineContainer,
-        {
-          left:   startX,
-          top:    startY,
-          width:  lineLen,
-          transform: [{ rotate: `${angle}deg` }],
-        },
-      ]}
-    >
-      {/* 배경과 스무스하게 이어지는 도트-하트 라인 트랙 */}
+    <View style={[styles.connectLineContainer, {
+      left: startX, top: startY, width: lineLen,
+      transform: [{ rotate: `${angle}deg` }],
+    }]}>
       <View style={[styles.lineTrack, nextIsLocked && styles.lineTrackLocked]} />
       <View style={styles.dotHeartOverlayRow}>
         <Text style={[styles.dotText, nextIsLocked && styles.dotTextLocked]}>• •</Text>
-        <Ionicons name="heart" size={10} color={nextIsLocked ? "#E0E0E0" : "#F6A3A6"} />
+        <Ionicons name="heart" size={9} color={nextIsLocked ? '#E0E0E0' : '#F6A3A6'} />
         <Text style={[styles.dotText, nextIsLocked && styles.dotTextLocked]}>• •</Text>
       </View>
     </View>
   );
 }
 
-// ─── 메인 스크린 ────────────────────────────────────────────────────────
+// ─── 호감도 바 ────────────────────────────────────────────────────────────
+function AffinityBar({ affinity }: { affinity: number }) {
+  const animW = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(animW, { toValue: affinity, duration: 800, useNativeDriver: false }).start();
+  }, [affinity]);
+
+  const widthPct = animW.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
+
+  const BAR_SIDE_PAD = 20;
+  const barW = SCREEN_W - BAR_SIDE_PAD * 2;
+  const marker1X = barW * 0.4;
+  const marker2X = barW * 0.8;
+
+  return (
+    <View style={styles.affinityWrapper}>
+      <View style={styles.affinityLabelRow}>
+        <Text style={styles.affinityLabel}>호감도</Text>
+        <Text style={styles.affinityValue}>{affinity}%</Text>
+      </View>
+      <View style={styles.affinityTrack}>
+        <Animated.View style={[styles.affinityFill, { width: widthPct }]} />
+      </View>
+      {/* 하트 마커만 표시 — 텍스트 없음 */}
+      <View style={styles.affinityMarkerRow}>
+        <View style={[styles.affinityMarkerGroup, { left: marker1X - 7 }]}>
+          <Ionicons
+            name={affinity >= SPECIAL_UNLOCK_1 ? 'heart' : 'heart-outline'}
+            size={14}
+            color={affinity >= SPECIAL_UNLOCK_1 ? '#F6A3A6' : '#C8C8C8'}
+          />
+        </View>
+        <View style={[styles.affinityMarkerGroup, { left: marker2X - 7 }]}>
+          <Ionicons
+            name={affinity >= SPECIAL_UNLOCK_2 ? 'heart' : 'heart-outline'}
+            size={14}
+            color={affinity >= SPECIAL_UNLOCK_2 ? '#F6A3A6' : '#C8C8C8'}
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── 메인 스크린 ──────────────────────────────────────────────────────────
 export default function StageScreen() {
   const router   = useRouter();
   const params   = useLocalSearchParams();
   const charName = (params.name as string) || '서태양';
 
-  const [activeStage, setActiveStage] = useState<Stage | null>(null);
-  const totalH = PAD_H + ROW_H * STAGE_DATA.length + 60;
+  // TODO: Zustand에서 실제 호감도 주입
+  const [affinity, setAffinity] = useState<number>(50);
+  const [activeStage, setActiveStage] = useState<AnyStage | null>(null);
+
+  const stageList   = buildStageList(affinity);
+  const mainNodes   = stageList.slice(0, 8);
+  const specialNodes = stageList.slice(8); // [Special1, Special2]
+
+  const totalH = PAD_H + ROW_H * mainNodes.length + 60;
 
   return (
     <SafeAreaView style={styles.container}>
 
-      {/* 헤더 바 영역 */}
+      {/* 헤더 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color="#0B0B12" />
@@ -153,31 +257,42 @@ export default function StageScreen() {
         <View style={{ width: 80 }} />
       </View>
 
-      {/* 실시간 패스 연출 맵 */}
+      {/* 호감도 바 */}
+      <AffinityBar affinity={affinity} />
+
+      {/* 맵 */}
       <ScrollView showsVerticalScrollIndicator={false} style={styles.mapScrollView}>
         <View style={[styles.mapCanvas, { height: totalH }]}>
 
-          {/* 연결선 먼저 배치 (z-index: 1) */}
-          {STAGE_DATA.map((stage, i) =>
-            i < STAGE_DATA.length - 1 ? (
-              <ConnectLine 
-                key={`line-${i}`} 
-                fromIndex={i} 
-                toIndex={i + 1} 
-                nextIsLocked={STAGE_DATA[i + 1].isLocked}
+          {/* 연결선 */}
+          {mainNodes.map((_, i) =>
+            i < mainNodes.length - 1 ? (
+              <ConnectLine
+                key={`line-${i}`}
+                fromIndex={i}
+                toIndex={i + 1}
+                nextIsLocked={mainNodes[i + 1].isLocked}
               />
             ) : null
           )}
 
-          {/* 상위 인터랙션 노드 배치 (z-index: 5) */}
-          {STAGE_DATA.map((stage, i) => (
+          {/* 메인 노드 */}
+          {mainNodes.map((stage, i) => (
             <HeartNode key={stage.id} stage={stage} index={i} onPress={setActiveStage} />
           ))}
 
+          {/* 스페셜 노드 — 호감도 달성 시만 맵 안에 뿅 */}
+          {specialNodes.map((stage) =>
+            !stage.isLocked ? (
+              <SpecialNode key={stage.id} stage={stage} onPress={setActiveStage} />
+            ) : null
+          )}
+
         </View>
+        <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* 완벽 화이트 스킨 모달 윈도우 */}
+      {/* 모달 */}
       <Modal
         visible={activeStage !== null}
         transparent
@@ -187,7 +302,11 @@ export default function StageScreen() {
         <Pressable style={styles.overlay} onPress={() => setActiveStage(null)}>
           <Pressable style={styles.modalBox} onPress={() => {}}>
 
-            <View style={[styles.modalIconBadge, { backgroundColor: activeStage?.isLocked ? '#F5F5F5' : '#FFF0F1' }]}>
+            <View style={[styles.modalIconBadge, {
+              backgroundColor: activeStage?.isLocked
+                ? '#F5F5F5'
+                : (activeStage as any)?.isSpecial ? '#FFF0F1' : '#FFF0F1',
+            }]}>
               <Ionicons
                 name={activeStage?.isLocked ? 'lock-closed' : 'heart'}
                 size={26}
@@ -200,7 +319,7 @@ export default function StageScreen() {
             <Text style={styles.modalSub}>{activeStage?.hint}</Text>
             <Text style={styles.modalDesc}>
               {activeStage?.isLocked
-                ? '아직 호감도가 부족합니다.\n이전 에피소드에서 하트를 더 획득해보세요!'
+                ? `아직 호감도가 부족합니다.\n이전 에피소드에서 하트를 더 획득해보세요!`
                 : '해당 에피소드 스토리로 바로 이동하시겠습니까?'}
             </Text>
 
@@ -244,146 +363,95 @@ export default function StageScreen() {
   );
 }
 
-// ─── [수정 및 검수] 하트-점선 트랙 전용 스타일시트 ──────────────────────
+// ─── 스타일 ───────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#FFFFFF' 
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 45 : 25,
     paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderColor: '#F8F9FA',
-    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1, borderColor: '#F8F9FA', backgroundColor: '#FFFFFF',
   },
   backBtn:     { flexDirection: 'row', alignItems: 'center', gap: 2, width: 80 },
   backLabel:   { fontSize: 15, fontWeight: '600', color: '#0B0B12' },
   headerTitle: { fontSize: 17, fontWeight: '800', color: '#0B0B12' },
 
-  mapScrollView: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
+  // 호감도 바
+  affinityWrapper: {
+    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10,
+    backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderColor: '#F3F4F6',
   },
-  mapCanvas: {
-    position: 'relative',
-    paddingHorizontal: 16,
+  affinityLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  affinityLabel:    { fontSize: 12, fontWeight: '700', color: '#888', letterSpacing: 0.5 },
+  affinityValue:    { fontSize: 12, fontWeight: '800', color: '#F6A3A6' },
+  affinityTrack: {
+    height: 10, backgroundColor: '#F3F4F6', borderRadius: 5, overflow: 'visible', position: 'relative',
   },
+  affinityFill: { height: 10, backgroundColor: '#F6A3A6', borderRadius: 5 },
+  affinityMarkerRow: { position: 'relative', height: 18, marginTop: 5 },
+  affinityMarkerGroup: { position: 'absolute', alignItems: 'center' },
 
-  // 💎 수평 정렬 후 각도 회전 기법을 통한 하트 융합형 커넥트 트랙 구조
+  // 맵
+  mapScrollView: { flex: 1, backgroundColor: '#FFFFFF' },
+  mapCanvas:     { position: 'relative', paddingHorizontal: 16 },
+
+  // 연결선
   connectLineContainer: {
-    position: 'absolute',
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-    transformOrigin: '0px 10px', // 컴포넌트 정중앙 축 회전 고정 보정
+    position: 'absolute', height: 20, justifyContent: 'center', alignItems: 'center',
+    zIndex: 1, transformOrigin: '0px 10px' as any,
   },
-  lineTrack: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: '#F6A3A6',
-    opacity: 0.3,
-  },
-  lineTrackLocked: {
-    backgroundColor: '#E0E0E0',
-    opacity: 0.4,
-  },
+  lineTrack:       { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: '#F6A3A6', opacity: 0.3 },
+  lineTrackLocked: { backgroundColor: '#E0E0E0', opacity: 0.4 },
   dotHeartOverlayRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    gap: 4,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFFFFF', paddingHorizontal: 8, borderRadius: 10, gap: 4,
   },
-  dotText: {
-    fontSize: 10,
-    color: '#F6A3A6',
-    fontWeight: '700',
-    letterSpacing: 1,
-    bottom: 1,
-  },
-  dotTextLocked: {
-    color: '#E0E0E0',
-  },
+  dotText:       { fontSize: 10, color: '#F6A3A6', fontWeight: '700', letterSpacing: 1, bottom: 1 },
+  dotTextLocked: { color: '#E0E0E0' },
 
-  // 노드 스타일시트 최적화
-  nodeAbsolute: {
-    position: 'absolute',
-    alignItems: 'center',
-    zIndex: 5,
-  },
+  // 메인 노드
+  nodeAbsolute: { position: 'absolute', alignItems: 'center', zIndex: 5 },
   heartNodeBtn: {
-    width:        NODE_SIZE,
-    height:       NODE_SIZE,
-    borderRadius: NODE_SIZE / 2,
-    justifyContent: 'center',
-    alignItems:   'center',
-    borderWidth:  3,
+    width: NODE_SIZE, height: NODE_SIZE, borderRadius: NODE_SIZE / 2,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 3,
     backgroundColor: '#FFFFFF',
-    shadowColor:  '#F6A3A6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation:    4,
+    shadowColor: '#F6A3A6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
   },
-  nodeUnlocked: { 
-    borderColor: '#F6A3A6' 
-  },
-  nodeLocked: { 
-    borderColor: '#E0E0E0', 
-    backgroundColor: '#FCFCFC', 
-    shadowColor: '#000', 
-    shadowOpacity: 0.03 
-  },
-
-  stageBadge: {
-    marginTop: 8,
-    backgroundColor: '#F6A3A6',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-  },
+  nodeUnlocked: { borderColor: '#F6A3A6' },
+  nodeLocked:   { borderColor: '#E0E0E0', backgroundColor: '#FCFCFC', shadowColor: '#000', shadowOpacity: 0.03 },
+  stageBadge:         { marginTop: 8, backgroundColor: '#F6A3A6', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 20 },
   stageBadgeLocked:   { backgroundColor: '#E0E0E0' },
   stageBadgeTxt:      { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   stageBadgeTxtLocked:{ color: '#AAAAAA' },
 
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(11,11,18,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalBox: {
-    width: '82%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 5,
-  },
-  modalIconBadge: {
-    width: 58, height: 58, borderRadius: 29,
+  // 스페셜 노드
+  specialNodeBtn: {
+    width: SPECIAL_NODE_SIZE, height: SPECIAL_NODE_SIZE, borderRadius: SPECIAL_NODE_SIZE / 2,
     justifyContent: 'center', alignItems: 'center',
-    marginBottom: 16,
+    borderWidth: 2.5, borderColor: '#F6A3A6',
+    backgroundColor: '#FFF0F1',
+    shadowColor: '#F6A3A6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 5,
   },
-  modalStageLabel: { fontSize: 13, fontWeight: '700', color: '#FF9F43', marginBottom: 6 },
-  modalTitle:      { fontSize: 21, fontWeight: '800', color: '#0B0B12', marginBottom: 6, textAlign: 'center' },
-  modalSub:        { fontSize: 14, color: '#616161', marginBottom: 14 },
-  modalDesc:       { fontSize: 13, color: '#AAAAAA', textAlign: 'center', lineHeight: 20, marginBottom: 26 },
+  specialNodeBadge: {
+    marginTop: 6, backgroundColor: '#F6A3A6',
+    paddingVertical: 3, paddingHorizontal: 10, borderRadius: 20,
+  },
+  specialNodeBadgeTxt: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
 
+  // 모달
+  overlay: { flex: 1, backgroundColor: 'rgba(11,11,18,0.35)', justifyContent: 'center', alignItems: 'center' },
+  modalBox: {
+    width: '82%', backgroundColor: '#FFFFFF', borderRadius: 24,
+    paddingVertical: 32, paddingHorizontal: 24, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 5,
+  },
+  modalIconBadge:    { width: 58, height: 58, borderRadius: 29, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  modalStageLabel:   { fontSize: 13, fontWeight: '700', color: '#FF9F43', marginBottom: 6 },
+  modalTitle:        { fontSize: 21, fontWeight: '800', color: '#0B0B12', marginBottom: 6, textAlign: 'center' },
+  modalSub:          { fontSize: 14, color: '#616161', marginBottom: 14 },
+  modalDesc:         { fontSize: 13, color: '#AAAAAA', textAlign: 'center', lineHeight: 20, marginBottom: 26 },
   modalBtnRow:       { flexDirection: 'row', width: '100%', gap: 10 },
   modalBtn:          { flex: 1, height: 48, borderRadius: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   modalBtnCancel:    { backgroundColor: '#EEF2F6' },
