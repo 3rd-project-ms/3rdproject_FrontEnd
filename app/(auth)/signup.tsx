@@ -82,7 +82,7 @@ export default function SignupScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <AuthHeader title="회원가입" onBack={handleBack} />
+      <AuthHeader title={step === 1 ? '회원가입' : '초기설정'} onBack={handleBack} />
       <View style={styles.content}>
         {step === 1 ? (
           <>
@@ -214,7 +214,7 @@ export default function SignupScreen() {
               </Pressable>
             </View>
             <Button
-              title="회원가입하기"
+              title="설정완료하기"
               disabled={!canSubmit}
               onPress={handleSubmit}
               style={styles.signupButton}
