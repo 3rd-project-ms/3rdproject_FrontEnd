@@ -1,33 +1,15 @@
 {
   "expo": {
-    "name": "LinguaDate",
-    "slug": "linguadate",
-    "version": "1.0.0",
-    "scheme": "linguadate",
-    "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "name": "SimSpeak",
+    "slug": "simspeak",
+    "scheme": "simspeak",
+    "entryPoint": "expo-router/entry",
     "plugins": [
-      "expo-router",
       "expo-secure-store",
-      "expo-font"
+      "expo-router"
     ],
     "android": {
-      "permissions": [
-        "RECORD_AUDIO",
-        "INTERNET"
-      ],
-      "package": "com.sihyun0102.linguadate"
-    },
-    "ios": {
-      "infoPlist": {
-        "NSMicrophoneUsageDescription": "음성 채팅을 위해 마이크가 필요합니다."
-      }
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "c7e05ff2-1cc4-41a4-a02d-03c8f1d9dcbb"
-      }
+      "package": "com.anonymous.x3rdproject_frontend"
     }
   }
 }
