@@ -243,11 +243,6 @@ export default function ChatVoiceScreen() {
     const rec = recordingRef.current;
     recordingRef.current = null;
     try {
-      // ✅ [수정 1] getStatusAsync() 호출 전 null 체크 — 언마운트 직후 크래시 방지
-      const status = await rec.getStatusAsync().catch(() => null);
-      if (!status?.isRecording === false) {
-        // 이미 중단된 경우 재시도 없이 안전하게 종료
-      }
       await rec.stopAndUnloadAsync();
       const uri = rec.getURI();
       if (!uri) {
