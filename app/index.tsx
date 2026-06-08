@@ -1,13 +1,92 @@
-import { Redirect } from 'expo-router';
-export default function Index() {
-  // 앱이 켜지자마자 캐릭터 선택(home) 화면으로 자동 리다이렉트(이동)시킵니다.
-  return <Redirect href="/(main)/home" />;
+// 앱 시작 화면
+
+import { useRouter } from 'expo-router';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import Button from '../components/common/Button';
+import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
+
+export default function StartScreen() {
+  const router = useRouter();
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.logoSection}>
+          <View style={styles.logoBox}>
+            <Text style={styles.logoText}>LOGO</Text>
+          </View>
+          <Text style={styles.subtitle}>대화하며 호감을 쌓아보세요</Text>
+        </View>
+
+        <View style={styles.bottomSection}>
+          <Button title="시작하기" onPress={() => router.push('/(auth)/terms')} />
+          <Button
+            title="로그인"
+            variant="secondary"
+            onPress={() => router.push('/(auth)/login')}
+            style={styles.loginButton}
+          />
+          <Pressable
+            onPress={() => router.push('/(auth)/signup?guest=1')}
+            style={styles.guestLink}
+          >
+            <Text style={styles.guestText}>
+              계정 없이 <Text style={styles.underlineText}>게스트로 시작하기</Text>
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
 }
-// 참고용 (나중에 로그인 연동 시 사용)
-// export default function Index() {
-//   const isLoggedIn = false; // 로그인 여부 체크 로직
-//   if (!isLoggedIn) {
-//     return <Redirect href="/(auth)/login" />;
-//   }
-//   return <Redirect href="/(main)/home" />;
-// }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: LAYOUT.screenPadding,
+    backgroundColor: COLORS.background,
+  },
+  logoSection: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: SPACING.xxl,
+  },
+  logoBox: {
+    width: 216,
+    height: 108,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.gray2,
+  },
+  logoText: {
+    ...TYPOGRAPHY.regular14,
+    color: COLORS.black,
+  },
+  subtitle: {
+    marginTop: 12,
+    ...TYPOGRAPHY.regular14,
+    textAlign: 'center',
+  },
+  bottomSection: {
+    paddingBottom: 92,
+  },
+  loginButton: {
+    marginTop: 14,
+  },
+  guestLink: {
+    marginTop: 32,
+    alignItems: 'center',
+  },
+  guestText: {
+    ...TYPOGRAPHY.regular14,
+    color: COLORS.gray0,
+  },
+  underlineText: {
+    textDecorationLine: 'underline',
+  },
+});
