@@ -39,7 +39,7 @@ export default function ReportHomeScreen() {
         voiceCorrections={voiceVm.corrections}
         grammarFeedback={chatVm.grammarFeedback}
         onReviewPress={() => router.push(ROUTES.REVIEW as any)}
-        onPrimaryPress={() => router.replace(ROUTES.HOME as any)}
+        onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
         primaryLabel="메인으로 돌아가기"
       />
     </View>
