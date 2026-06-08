@@ -14,7 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReactNode } from 'react';
 import LevelTestTutorialOverlay, {
   TutorialStep,
@@ -131,7 +131,7 @@ export default function LevelTestScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.screen}>
         {isTutorialVisible ? (
           <ContentWrapper>
@@ -171,7 +171,7 @@ export default function LevelTestScreen() {
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -212,9 +212,15 @@ function LevelTestContent({
 }) {
   const isKeyboardMode = inputMode === 'keyboard';
   const isRecording = inputMode === 'recording';
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.content}>
+    <View
+      style={[
+        styles.content,
+        { paddingTop: insets.top, paddingBottom: insets.bottom + 8 },
+      ]}
+    >
       <View style={styles.headerRow}>
         <Pressable onPress={onBack} style={styles.backButton}>
           <Text style={styles.backText}>‹</Text>
