@@ -1,5 +1,6 @@
 export const ROUTES = {
   HOME: '/',
+  CHAR_HOME: '/(main)/home',
   REPORT: '/report',
   REVIEW: '/review',
   MODE_REPORT: '/report/mode-report',
