@@ -5,12 +5,12 @@ import { useState } from 'react';
 import {
   Alert,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AuthHeader from '../../components/common/AuthHeader';
 import Button from '../../components/common/Button';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
