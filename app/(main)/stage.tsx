@@ -58,12 +58,12 @@ function nodeCenter(index: number) {
 
 function specialNodeCenter(unlockAt: number) {
   if (unlockAt === SPECIAL_UNLOCK_1) {
-    const x = (SCREEN_W - 32) * 0.72;
-    const y = PAD_H + ROW_H * 2.5 + NODE_SIZE / 2;
+    const x = (SCREEN_W - 32) * 0.90;
+    const y = PAD_H + ROW_H * 2.2 + NODE_SIZE / 2;
     return { x, y };
   } else {
     const x = (SCREEN_W - 32) * 0.20;
-    const y = PAD_H + ROW_H * 4.5 + NODE_SIZE / 2;
+    const y = PAD_H + ROW_H * 5.2 + NODE_SIZE / 2;
     return { x, y };
   }
 }
