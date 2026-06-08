@@ -50,10 +50,10 @@ interface ApiResponse {
 // penalty_reason → PopupType 매핑
 // ─────────────────────────────────────────
 const PENALTY_REASON_MAP: Record<string, PopupType> = {
-  korean_used:        'off_topic',
-  duplicate_expr:     'repetitive_phrases',
-  context_deviation:  'off_topic',
-  abusive_words:      'off_topic',
+  korean_used:       'off_topic',
+  duplicate_expr:    'repetitive_phrases',
+  context_deviation: 'off_topic',
+  abusive_words:     'off_topic',
 };
 
 // ─────────────────────────────────────────
@@ -70,7 +70,7 @@ const getTimeString = () => {
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 
 // ─────────────────────────────────────────
-// 🧪 목업 데이터 (순서대로 순환)
+// 🧪 목업 데이터
 // ─────────────────────────────────────────
 const MOCK_RESPONSES: ApiResponse[] = [
   {
@@ -120,20 +120,20 @@ export default function ChatTextScreen() {
     }>();
 
   // ─── 상태 ───────────────────────────────
-  const [affinity, setAffinity]   = useState(42);
-  const [lives, setLives]         = useState(3);
-  const [messages, setMessages]   = useState<Message[]>([]);
-  const [turnCount, setTurnCount] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showHint, setShowHint]   = useState(false);
-  const [inputText, setInputText] = useState('');
-  const [mockIndex, setMockIndex] = useState(0); // 🧪 목업 순환용
+  const [affinity, setAffinity]     = useState(42);
+  const [lives, setLives]           = useState(3);
+  const [messages, setMessages]     = useState<Message[]>([]);
+  const [turnCount, setTurnCount]   = useState(1);
+  const [isLoading, setIsLoading]   = useState(false);
+  const [showHint, setShowHint]     = useState(false);
+  const [inputText, setInputText]   = useState('');
+  const [mockIndex, setMockIndex]   = useState(0);
+  const [showEndModal, setShowEndModal] = useState(false); // ✅ 종료 확인 팝업
 
-  // PenaltyPopup 훅
   const popup = usePenaltyPopup();
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const inputRef = useRef<RNTextInput>(null); // ⭐ TextInput 직접 제어용
+  const inputRef = useRef<RNTextInput>(null);
 
   // ─── 초기 AI 인사 ───────────────────────
   useEffect(() => {
@@ -166,11 +166,11 @@ export default function ChatTextScreen() {
     setIsLoading(true);
 
     try {
-      // ── 🧪 목업 테스트용 (백엔드 연동 시 아래 주석 해제 후 이 블록 삭제) ──
-      await new Promise((r) => setTimeout(r, 300)); // 네트워크 딜레이 시뮬레이션
+      // 🧪 목업
+      await new Promise((r) => setTimeout(r, 300));
       const json: ApiResponse = MOCK_RESPONSES[mockIndex % MOCK_RESPONSES.length];
       setMockIndex((prev) => prev + 1);
-      // ── 🔌 실제 연동 시 위 목업 블록 지우고 아래 주석 해제 ──
+      // 🔌 실제 연동 시 위 목업 블록 지우고 아래 주석 해제
       // const res = await fetch(`${API_BASE}/api/chat/message`, {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
@@ -187,10 +187,9 @@ export default function ChatTextScreen() {
       // });
       // const json: ApiResponse = await res.json();
 
-      // ── 에러 응답 ──
       if (!json.success || !json.data) {
         if (json.code === 'ERR_NO_LIVES_REMAINING') {
-          popup.show('off_topic'); // 하트 소진 — 가장 근접한 팝업 재활용
+          popup.show('off_topic');
         } else if (json.code === 'ERR_ABUSIVE_WORDS') {
           popup.show('off_topic');
         }
@@ -200,7 +199,6 @@ export default function ChatTextScreen() {
       const { data } = json;
       const eval_ = data.system_evaluation;
 
-      // ── 유저 메시지에 피드백 반영 ──
       setMessages((prev) =>
         prev.map((m) =>
           m.id === userMsgId
@@ -209,22 +207,19 @@ export default function ChatTextScreen() {
         )
       );
 
-      // ── AI 응답 추가 ──
       setMessages((prev) => [...prev, {
-        id:   `${data.message_id}_${Date.now()}`, // 중복 key 방지
+        id:   `${data.message_id}_${Date.now()}`,
         sender: 'ai',
         text: data.text_content,
         time: getTimeString(),
         action_description: data.action_description,
       }]);
 
-      // ── 호감도 & 하트 업데이트 ──
       const prevAffinity = affinity;
       setAffinity(data.current_affinity);
       setLives(data.remaining_penalties);
       setTurnCount((prev) => prev + 1);
 
-      // ── 팝업 트리거 ──
       if (eval_.is_penalty && eval_.penalty_reason) {
         const popupType = PENALTY_REASON_MAP[eval_.penalty_reason] ?? 'off_topic';
         popup.show(popupType, 1);
@@ -240,20 +235,20 @@ export default function ChatTextScreen() {
     }
   };
 
-  // ─── 하트 렌더링 ────────────────────────
-  const renderLives = () => (
-    <View style={styles.liveContainer}>
-      {[1, 2, 3].map((i) => (
-        <Ionicons
-          key={i}
-          name={i <= lives ? 'heart' : 'heart-outline'}
-          size={22}
-          color={i <= lives ? '#F6A3A6' : '#E0E0E0'}
-          style={{ marginLeft: 3 }}
-        />
-      ))}
-    </View>
-  );
+  // ─── 종료 후 리포트 이동 ────────────────
+  const handleGoReport = () => {
+    setShowEndModal(false);
+    router.push({
+      pathname: '/report' as any,
+      params: {
+        session_id,
+        character_name: character_id,
+        stage_name:     stage_id,
+        continuous_days: '',
+        affinity_change: String(affinity),
+      },
+    });
+  };
 
   // ─────────────────────────────────────────
   // 렌더
@@ -268,13 +263,14 @@ export default function ChatTextScreen() {
         {/* ── 헤더 ── */}
         <View style={styles.header}>
           <View style={styles.headerTitleRow}>
-            <TouchableOpacity onPress={() => router.push('/report' as any)} style={styles.backBtn}>
+            {/* ✅ 백버튼 → 종료 확인 팝업 */}
+            <TouchableOpacity onPress={() => setShowEndModal(true)} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={24} color="#0B0B12" />
             </TouchableOpacity>
             <Text style={styles.charName}>Jamie</Text>
             <Text style={styles.charRole}> · 카페 사장님</Text>
           </View>
-          {renderLives()}
+          {/* ✅ 우측 상단 하트 제거 */}
         </View>
 
         {/* ── 호감도 바 ── */}
@@ -341,7 +337,6 @@ export default function ChatTextScreen() {
             )}
           </View>
 
-          {/* InputBar — 기존 props 구조 그대로 사용 */}
           <InputBar
             inputRef={inputRef}
             value={inputText}
@@ -353,17 +348,43 @@ export default function ChatTextScreen() {
 
       </KeyboardAvoidingView>
 
-      {/* PenaltyPopup — KeyboardAvoidingView 밖에 배치해야 키보드 위로 뜸 */}
+      {/* ✅ 종료 확인 팝업 — voice와 동일한 디자인 */}
+      {showEndModal && (
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowEndModal(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitleText}>채팅을 종료하시겠어요?</Text>
+            <Text style={styles.modalSubText}>지금까지의 대화가 결과로 저장됩니다.</Text>
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowEndModal(false)}
+              >
+                <Text style={styles.modalCancelButtonText}>계속하기</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={handleGoReport}
+              >
+                <Text style={styles.modalConfirmButtonText}>종료하기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* PenaltyPopup */}
       <PenaltyPopup
         visible={popup.visible}
         popupType={popup.currentType}
         penaltyPoints={popup.penaltyPoints}
         onClose={() => {
           popup.hide();
-          // ⭐ 모달 닫힌 후 키보드 재활성화 (Modal 버그 대응)
-          setTimeout(() => {
-            inputRef.current?.focus();
-          }, 200);
+          setTimeout(() => { inputRef.current?.focus(); }, 200);
         }}
       />
     </SafeAreaView>
@@ -385,7 +406,7 @@ const styles = StyleSheet.create({
   backBtn: { marginRight: 6, padding: 2 },
   charName: { fontSize: 20, fontWeight: '700', color: '#0B0B12' },
   charRole: { fontSize: 15, fontWeight: '400', color: '#616161' },
-  liveContainer: { flexDirection: 'row', alignItems: 'center' },
+
   affinityWrapper: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 20, marginVertical: 10, backgroundColor: '#FFFFFF',
@@ -394,10 +415,12 @@ const styles = StyleSheet.create({
   progressBarBg: { flex: 1, height: 10, backgroundColor: '#E0E0E0', borderRadius: 5, position: 'relative' },
   progressBarFill: { height: '100%', backgroundColor: '#F6A3A6', borderRadius: 5 },
   pointHeartWrapper: { position: 'absolute', top: 12, transform: [{ translateX: -7 }] },
+
   chatScrollView: { flex: 1, paddingHorizontal: 20, backgroundColor: '#FFFFFF' },
   chatContentContainer: { paddingVertical: 10 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 4 },
   loadingText: { fontSize: 13, color: '#AEAEB2' },
+
   bottomAreaContainer: {
     paddingHorizontal: 20,
     paddingBottom: Platform.OS === 'ios' ? 15 : 25,
@@ -417,4 +440,40 @@ const styles = StyleSheet.create({
   hintContent: { paddingHorizontal: 14, paddingBottom: 14, gap: 4 },
   hintEnglish: { fontSize: 14, color: '#E87C7C', fontWeight: '600' },
   hintKorean: { fontSize: 13, color: '#616161' },
+
+  // ── 종료 확인 팝업 (voice와 동일한 디자인) ──
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.40)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+    paddingHorizontal: 32,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    gap: 14,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  modalTitleText: { fontSize: 17, fontWeight: '700', color: '#0B0B12', textAlign: 'center' },
+  modalSubText:   { fontSize: 14, color: '#888888', textAlign: 'center' },
+  modalButtonRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 4 },
+  modalCancelButton: {
+    flex: 1, paddingVertical: 14, borderRadius: 12,
+    backgroundColor: '#F0F0F0', alignItems: 'center',
+  },
+  modalCancelButtonText:  { fontSize: 15, fontWeight: '600', color: '#555555' },
+  modalConfirmButton: {
+    flex: 1, paddingVertical: 14, borderRadius: 12,
+    backgroundColor: '#F6A3A6', alignItems: 'center',
+  },
+  modalConfirmButtonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });
