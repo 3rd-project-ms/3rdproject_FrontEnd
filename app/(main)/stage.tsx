@@ -2,12 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
   SafeAreaView, ScrollView, Modal, Pressable,
-  Platform, Dimensions, Animated,
+  Platform, Dimensions, Animated, ImageBackground,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+
+// ─── 배경 이미지 매핑 ────────────────────────────────────────────────────
+const STAGE_BACKGROUNDS: Record<string, any> = {
+  '서핑 강사': require('../../assets/stage/beach_stage.png'),
+  '대학원 선배': require('../../assets/stage/school_stage.png'),
+  '카페 사장님': require('../../assets/stage/cafe_stage.png'),
+};
 
 // ─── 호감도 설정 ──────────────────────────────────────────────────────────
 const AFFINITY_PER_STAGE = 10;
@@ -43,31 +50,24 @@ const SPECIAL_NODE_SIZE = 60;
 const ROW_H     = 130;
 const PAD_H     = 24;
 
-// 메인 노드 중심 좌표
 function nodeCenter(index: number) {
   const x = (SCREEN_W - 32) * X_RATIOS[index % X_RATIOS.length];
   const y = PAD_H + ROW_H * index + NODE_SIZE / 2;
   return { x, y };
 }
 
-// 스페셜 노드 좌표:
-// Special 1 → Stage 3(idx=2) 와 Stage 4(idx=3) 사이 행, 반대편 빈 공간
-// Special 2 → Stage 5(idx=4) 와 Stage 6(idx=5) 사이 행, 반대편 빈 공간
 function specialNodeCenter(unlockAt: number) {
   if (unlockAt === SPECIAL_UNLOCK_1) {
-    // Stage 3(idx=2) 오른쪽 빈 공간 → x: 0.72, y: 2~3 사이 중간
     const x = (SCREEN_W - 32) * 0.72;
     const y = PAD_H + ROW_H * 2.5 + NODE_SIZE / 2;
     return { x, y };
   } else {
-    // Stage 5(idx=4) 왼쪽 빈 공간 → x: 0.20, y: 4~5 사이 중간
     const x = (SCREEN_W - 32) * 0.20;
     const y = PAD_H + ROW_H * 4.5 + NODE_SIZE / 2;
     return { x, y };
   }
 }
 
-// ─── 잠금 상태 계산 ──────────────────────────────────────────────────────
 function buildStageList(affinity: number): AnyStage[] {
   const mainList: AnyStage[] = MAIN_STAGES.map((s, i) => ({
     ...s,
@@ -113,7 +113,7 @@ function HeartNode({ stage, index, onPress }: {
   );
 }
 
-// ─── 스페셜 노드 (맵 안 띄우기) ──────────────────────────────────────────
+// ─── 스페셜 노드 ──────────────────────────────────────────────────────────
 function SpecialNode({ stage, onPress }: {
   stage: AnyStage; onPress: (s: AnyStage) => void;
 }) {
@@ -122,7 +122,6 @@ function SpecialNode({ stage, onPress }: {
   const center = specialNodeCenter(unlockAt);
 
   useEffect(() => {
-    // 뿅 - 스프링 팝업 효과
     Animated.spring(anim, {
       toValue: 1,
       useNativeDriver: true,
@@ -207,7 +206,6 @@ function AffinityBar({ affinity }: { affinity: number }) {
       <View style={styles.affinityTrack}>
         <Animated.View style={[styles.affinityFill, { width: widthPct }]} />
       </View>
-      {/* 하트 마커만 표시 — 텍스트 없음 */}
       <View style={styles.affinityMarkerRow}>
         <View style={[styles.affinityMarkerGroup, { left: marker1X - 7 }]}>
           <Ionicons
@@ -233,206 +231,238 @@ export default function StageScreen() {
   const router   = useRouter();
   const params   = useLocalSearchParams();
   const charName = (params.name as string) || '서태양';
+  const charRole = (params.role as string) || '서핑 강사';
+
+  // 배경 이미지 — role 기준 분기, 매핑 없으면 beach 기본
+  const bgImage = STAGE_BACKGROUNDS[charRole] ?? STAGE_BACKGROUNDS['서핑 강사'];
 
   // TODO: Zustand에서 실제 호감도 주입
   const [affinity, setAffinity] = useState<number>(50);
   const [activeStage, setActiveStage] = useState<AnyStage | null>(null);
 
-  const stageList   = buildStageList(affinity);
-  const mainNodes   = stageList.slice(0, 8);
-  const specialNodes = stageList.slice(8); // [Special1, Special2]
+  const stageList    = buildStageList(affinity);
+  const mainNodes    = stageList.slice(0, 8);
+  const specialNodes = stageList.slice(8);
 
   const totalH = PAD_H + ROW_H * mainNodes.length + 60;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ImageBackground
+      source={bgImage}
+      style={styles.bgImage}
+      resizeMode="cover"
+    >
+      {/* 전체 어둠 오버레이 — 노드/텍스트 가독성 확보 */}
+      <View style={styles.bgOverlay} />
 
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color="#0B0B12" />
-          <Text style={styles.backLabel}>뒤로가기</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{charName}의 스토리</Text>
-        <View style={{ width: 80 }} />
-      </View>
+      <SafeAreaView style={styles.container}>
 
-      {/* 호감도 바 */}
-      <AffinityBar affinity={affinity} />
-
-      {/* 맵 */}
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.mapScrollView}>
-        <View style={[styles.mapCanvas, { height: totalH }]}>
-
-          {/* 연결선 */}
-          {mainNodes.map((_, i) =>
-            i < mainNodes.length - 1 ? (
-              <ConnectLine
-                key={`line-${i}`}
-                fromIndex={i}
-                toIndex={i + 1}
-                nextIsLocked={mainNodes[i + 1].isLocked}
-              />
-            ) : null
-          )}
-
-          {/* 메인 노드 */}
-          {mainNodes.map((stage, i) => (
-            <HeartNode key={stage.id} stage={stage} index={i} onPress={setActiveStage} />
-          ))}
-
-          {/* 스페셜 노드 — 호감도 달성 시만 맵 안에 뿅 */}
-          {specialNodes.map((stage) =>
-            !stage.isLocked ? (
-              <SpecialNode key={stage.id} stage={stage} onPress={setActiveStage} />
-            ) : null
-          )}
-
+        {/* 헤더 — 반투명 블러 느낌 */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            <Text style={styles.backLabel}>뒤로가기</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{charName}의 스토리</Text>
+          <View style={{ width: 80 }} />
         </View>
-        <View style={{ height: 40 }} />
-      </ScrollView>
 
-      {/* 모달 */}
-      <Modal
-        visible={activeStage !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setActiveStage(null)}
-      >
-        <Pressable style={styles.overlay} onPress={() => setActiveStage(null)}>
-          <Pressable style={styles.modalBox} onPress={() => {}}>
+        {/* 호감도 바 */}
+        <AffinityBar affinity={affinity} />
 
-            <View style={[styles.modalIconBadge, {
-              backgroundColor: activeStage?.isLocked
-                ? '#F5F5F5'
-                : (activeStage as any)?.isSpecial ? '#FFF0F1' : '#FFF0F1',
-            }]}>
-              <Ionicons
-                name={activeStage?.isLocked ? 'lock-closed' : 'heart'}
-                size={26}
-                color={activeStage?.isLocked ? '#AAAAAA' : '#F6A3A6'}
-              />
-            </View>
+        {/* 맵 */}
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.mapScrollView}>
+          <View style={[styles.mapCanvas, { height: totalH }]}>
 
-            <Text style={styles.modalStageLabel}>{activeStage?.stageLabel}</Text>
-            <Text style={styles.modalTitle}>{activeStage?.title}</Text>
-            <Text style={styles.modalSub}>{activeStage?.hint}</Text>
-            <Text style={styles.modalDesc}>
-              {activeStage?.isLocked
-                ? `아직 호감도가 부족합니다.\n이전 에피소드에서 하트를 더 획득해보세요!`
-                : '해당 에피소드 스토리로 바로 이동하시겠습니까?'}
-            </Text>
-
-            {activeStage?.isLocked ? (
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel, { width: '100%' }]}
-                onPress={() => setActiveStage(null)}
-              >
-                <Text style={styles.modalBtnCancelTxt}>돌아가기</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.modalBtnRow}>
-                <TouchableOpacity
-                  style={[styles.modalBtn, styles.modalBtnChat]}
-                  onPress={() => {
-                    setActiveStage(null);
-                    router.push({ pathname: '/(main)/chat-text' as any, params: { name: charName } });
-                  }}
-                >
-                  <Ionicons name="chatbubble-ellipses" size={15} color="#2C3A5F" style={{ marginRight: 4 }} />
-                  <Text style={styles.modalBtnChatTxt}>채팅하기</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalBtn, styles.modalBtnVoice]}
-                  onPress={() => {
-                    setActiveStage(null);
-                    router.push({ pathname: '/(main)/chat-voice' as any, params: { name: charName } });
-                  }}
-                >
-                  <Ionicons name="videocam" size={15} color="#FFF" style={{ marginRight: 4 }} />
-                  <Text style={styles.modalBtnVoiceTxt}>영상통화하기</Text>
-                </TouchableOpacity>
-              </View>
+            {/* 연결선 */}
+            {mainNodes.map((_, i) =>
+              i < mainNodes.length - 1 ? (
+                <ConnectLine
+                  key={`line-${i}`}
+                  fromIndex={i}
+                  toIndex={i + 1}
+                  nextIsLocked={mainNodes[i + 1].isLocked}
+                />
+              ) : null
             )}
 
-          </Pressable>
-        </Pressable>
-      </Modal>
+            {/* 메인 노드 */}
+            {mainNodes.map((stage, i) => (
+              <HeartNode key={stage.id} stage={stage} index={i} onPress={setActiveStage} />
+            ))}
 
-    </SafeAreaView>
+            {/* 스페셜 노드 */}
+            {specialNodes.map((stage) =>
+              !stage.isLocked ? (
+                <SpecialNode key={stage.id} stage={stage} onPress={setActiveStage} />
+              ) : null
+            )}
+
+          </View>
+          <View style={{ height: 40 }} />
+        </ScrollView>
+
+        {/* 모달 */}
+        <Modal
+          visible={activeStage !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setActiveStage(null)}
+        >
+          <Pressable style={styles.overlay} onPress={() => setActiveStage(null)}>
+            <Pressable style={styles.modalBox} onPress={() => {}}>
+
+              <View style={[styles.modalIconBadge, {
+                backgroundColor: activeStage?.isLocked
+                  ? '#F5F5F5'
+                  : '#FFF0F1',
+              }]}>
+                <Ionicons
+                  name={activeStage?.isLocked ? 'lock-closed' : 'heart'}
+                  size={26}
+                  color={activeStage?.isLocked ? '#AAAAAA' : '#F6A3A6'}
+                />
+              </View>
+
+              <Text style={styles.modalStageLabel}>{activeStage?.stageLabel}</Text>
+              <Text style={styles.modalTitle}>{activeStage?.title}</Text>
+              <Text style={styles.modalSub}>{activeStage?.hint}</Text>
+              <Text style={styles.modalDesc}>
+                {activeStage?.isLocked
+                  ? `아직 호감도가 부족합니다.\n이전 에피소드에서 하트를 더 획득해보세요!`
+                  : '해당 에피소드 스토리로 바로 이동하시겠습니까?'}
+              </Text>
+
+              {activeStage?.isLocked ? (
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnCancel, { width: '100%' }]}
+                  onPress={() => setActiveStage(null)}
+                >
+                  <Text style={styles.modalBtnCancelTxt}>돌아가기</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.modalBtnRow}>
+                  <TouchableOpacity
+                    style={[styles.modalBtn, styles.modalBtnChat]}
+                    onPress={() => {
+                      setActiveStage(null);
+                      router.push({ pathname: '/(main)/chat-text' as any, params: { name: charName } });
+                    }}
+                  >
+                    <Ionicons name="chatbubble-ellipses" size={15} color="#2C3A5F" style={{ marginRight: 4 }} />
+                    <Text style={styles.modalBtnChatTxt}>채팅하기</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalBtn, styles.modalBtnVoice]}
+                    onPress={() => {
+                      setActiveStage(null);
+                      router.push({ pathname: '/(main)/chat-voice' as any, params: { name: charName } });
+                    }}
+                  >
+                    <Ionicons name="videocam" size={15} color="#FFF" style={{ marginRight: 4 }} />
+                    <Text style={styles.modalBtnVoiceTxt}>영상통화하기</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 // ─── 스타일 ───────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  // ── 배경 ──
+  bgImage: {
+    flex: 1,
+  },
+  bgOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    zIndex: 0,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
 
+  // ── 헤더 ──
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 45 : 25,
     paddingBottom: 14,
-    borderBottomWidth: 1, borderColor: '#F8F9FA', backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(0,0,0,0.20)',
+    zIndex: 10,
   },
   backBtn:     { flexDirection: 'row', alignItems: 'center', gap: 2, width: 80 },
-  backLabel:   { fontSize: 15, fontWeight: '600', color: '#0B0B12' },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: '#0B0B12' },
+  backLabel:   { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
 
-  // 호감도 바
+  // ── 호감도 바 ──
   affinityWrapper: {
     paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10,
-    backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderColor: '#F3F4F6',
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    zIndex: 10,
   },
   affinityLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  affinityLabel:    { fontSize: 12, fontWeight: '700', color: '#888', letterSpacing: 0.5 },
+  affinityLabel:    { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.7)', letterSpacing: 0.5 },
   affinityValue:    { fontSize: 12, fontWeight: '800', color: '#F6A3A6' },
   affinityTrack: {
-    height: 10, backgroundColor: '#F3F4F6', borderRadius: 5, overflow: 'visible', position: 'relative',
+    height: 10, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 5, overflow: 'visible', position: 'relative',
   },
   affinityFill: { height: 10, backgroundColor: '#F6A3A6', borderRadius: 5 },
   affinityMarkerRow: { position: 'relative', height: 18, marginTop: 5 },
   affinityMarkerGroup: { position: 'absolute', alignItems: 'center' },
 
-  // 맵
-  mapScrollView: { flex: 1, backgroundColor: '#FFFFFF' },
+  // ── 맵 ──
+  mapScrollView: { flex: 1 },
   mapCanvas:     { position: 'relative', paddingHorizontal: 16 },
 
-  // 연결선
+  // ── 연결선 ──
   connectLineContainer: {
     position: 'absolute', height: 20, justifyContent: 'center', alignItems: 'center',
     zIndex: 1, transformOrigin: '0px 10px' as any,
   },
-  lineTrack:       { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: '#F6A3A6', opacity: 0.3 },
-  lineTrackLocked: { backgroundColor: '#E0E0E0', opacity: 0.4 },
+  lineTrack:       { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: '#F6A3A6', opacity: 0.5 },
+  lineTrackLocked: { backgroundColor: '#FFFFFF', opacity: 0.25 },
   dotHeartOverlayRow: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', paddingHorizontal: 8, borderRadius: 10, gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.35)', paddingHorizontal: 8, borderRadius: 10, gap: 4,
   },
   dotText:       { fontSize: 10, color: '#F6A3A6', fontWeight: '700', letterSpacing: 1, bottom: 1 },
-  dotTextLocked: { color: '#E0E0E0' },
+  dotTextLocked: { color: 'rgba(255,255,255,0.35)' },
 
-  // 메인 노드
+  // ── 메인 노드 ──
   nodeAbsolute: { position: 'absolute', alignItems: 'center', zIndex: 5 },
   heartNodeBtn: {
     width: NODE_SIZE, height: NODE_SIZE, borderRadius: NODE_SIZE / 2,
     justifyContent: 'center', alignItems: 'center', borderWidth: 3,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#F6A3A6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+    backgroundColor: 'rgba(255,255,255,0.90)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
   },
   nodeUnlocked: { borderColor: '#F6A3A6' },
-  nodeLocked:   { borderColor: '#E0E0E0', backgroundColor: '#FCFCFC', shadowColor: '#000', shadowOpacity: 0.03 },
-  stageBadge:         { marginTop: 8, backgroundColor: '#F6A3A6', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 20 },
-  stageBadgeLocked:   { backgroundColor: '#E0E0E0' },
-  stageBadgeTxt:      { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  stageBadgeTxtLocked:{ color: '#AAAAAA' },
+  nodeLocked:   { borderColor: 'rgba(255,255,255,0.4)', backgroundColor: 'rgba(255,255,255,0.55)', shadowOpacity: 0.1 },
+  stageBadge:          { marginTop: 8, backgroundColor: '#F6A3A6', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 20 },
+  stageBadgeLocked:    { backgroundColor: 'rgba(255,255,255,0.35)' },
+  stageBadgeTxt:       { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
+  stageBadgeTxtLocked: { color: 'rgba(255,255,255,0.7)' },
 
-  // 스페셜 노드
+  // ── 스페셜 노드 ──
   specialNodeBtn: {
     width: SPECIAL_NODE_SIZE, height: SPECIAL_NODE_SIZE, borderRadius: SPECIAL_NODE_SIZE / 2,
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 2.5, borderColor: '#F6A3A6',
-    backgroundColor: '#FFF0F1',
-    shadowColor: '#F6A3A6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 5,
+    backgroundColor: 'rgba(255,240,241,0.92)',
+    shadowColor: '#F6A3A6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 7,
   },
   specialNodeBadge: {
     marginTop: 6, backgroundColor: '#F6A3A6',
@@ -440,12 +470,12 @@ const styles = StyleSheet.create({
   },
   specialNodeBadgeTxt: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
 
-  // 모달
-  overlay: { flex: 1, backgroundColor: 'rgba(11,11,18,0.35)', justifyContent: 'center', alignItems: 'center' },
+  // ── 모달 ──
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalBox: {
     width: '82%', backgroundColor: '#FFFFFF', borderRadius: 24,
     paddingVertical: 32, paddingHorizontal: 24, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 10,
   },
   modalIconBadge:    { width: 58, height: 58, borderRadius: 29, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   modalStageLabel:   { fontSize: 13, fontWeight: '700', color: '#FF9F43', marginBottom: 6 },
