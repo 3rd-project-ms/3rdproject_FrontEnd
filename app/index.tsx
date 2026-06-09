@@ -1,7 +1,8 @@
 // 앱 시작 화면
 
 import { useRouter } from 'expo-router';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../components/common/Button';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 

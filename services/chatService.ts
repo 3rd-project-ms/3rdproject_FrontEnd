@@ -1,9 +1,7 @@
 // services/chatService.ts
-// 백엔드 FastAPI와 통신하는 서비스 레이어
 import axios from 'axios';
 
-// TODO: 백엔드 URL 확정 후 변경
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://3rdprojectbackend-production.up.railway.app';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -11,61 +9,103 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ── 텍스트 채팅 요청/응답 타입 ──
-export interface TextChatRequest {
-  character_id: string;
-  gender: string;
-  user_message: string;
-  mode?: 'provoke' | 'mumble' | 'normal';
+// ── 세션 시작 ──
+export interface SessionStartRequest {
+  userId: number;
+  stageId: number;
+  characterId: string;
 }
 
-export interface TextChatResponse {
-  character_reply: string;
-  correction: string;
-  better_expression: string;
-  learning_point: string;
-  affection_change: number;
-  is_read_ssip: boolean;
+export interface SessionStartResponse {
+  sessionId: string;
+  firstMessage: {
+    textContent: string;
+    actionDescription: string;
+    audioUrl: string;
+  };
 }
 
-// ── 음성 채팅 요청/응답 타입 ──
-export interface VoiceChatResponse {
-  stt_result: string;
-  pronunciation_score: number;        // 0~100
-  character_reply: string;
-  tts_audio_url: string;
-  correction: string;
-  affection_change: number;
+// ── 메시지 전송 ──
+export interface ChatMessageRequest {
+  sessionId: string;
+  textContent: string;
+  inputType: 'text' | 'voice';
+  characterId: string;
+  scenarioId: string;       // TODO: 백엔드에 어디서 받는지 확인 필요
+  stageLevel: number;
+  userLevel: string;
+  turnCount: number;        // TODO: 백엔드에 프론트가 카운트해서 올리는지 확인 필요
+  currentAffinity: number;
+  history: any[];           // TODO: 백엔드에 배열 내부 형식 확인 필요
+}
+
+export interface PronunciationScore {
+  accuracy: number;
+  fluency: number;
+  completeness: number;
+  prosody: number;
+  word_details: {
+    word: string;
+    accuracy: number;
+    error_type: string;
+  }[];
+}
+
+export interface ChatMessageResponse {
+  text_content: string;
+  action_description: string;
+  affinity_delta: number;
+  is_active: boolean;
+  audio_url: string;        // voice 모드 시 TTS 결과
+  system_evaluation: {
+    grammar_feedback: string;
+    is_penalty: boolean;
+    pronunciation_score: PronunciationScore;
+  };
+  current_affinity: number;
 }
 
 // ── API 함수 ──
 export const chatService = {
-  /** 텍스트 모드 대화 전송 */
-  sendText: async (req: TextChatRequest): Promise<TextChatResponse> => {
-    const { data } = await api.post<TextChatResponse>('/chat/text', req);
-    return data;
+
+  /** 세션 시작 — 화면 진입 시 호출 */
+  startSession: async (req: SessionStartRequest): Promise<SessionStartResponse> => {
+    const { data } = await api.post('/api/chat/sessions', req);
+    return data.data;
   },
 
-  /** 음성 모드 — 오디오 Blob 전송 */
+  /** 텍스트 메시지 전송 */
+  sendText: async (req: ChatMessageRequest): Promise<ChatMessageResponse> => {
+    const { data } = await api.post('/api/chat/message', {
+      ...req,
+      inputType: 'text',
+    });
+    return data.data;
+  },
+
+  /** 음성 메시지 전송 */
   sendVoice: async (
     audioUri: string,
-    characterId: string,
-    gender: string
-  ): Promise<VoiceChatResponse> => {
+    req: Omit<ChatMessageRequest, 'textContent' | 'inputType'>
+  ): Promise<ChatMessageResponse> => {
     const formData = new FormData();
-
-    // React Native에서 파일을 FormData에 첨부하는 방식
     formData.append('audio', {
       uri: audioUri,
       type: 'audio/m4a',
       name: 'recording.m4a',
     } as any);
-    formData.append('character_id', characterId);
-    formData.append('gender', gender);
+    formData.append('inputType', 'voice');
+    formData.append('sessionId', req.sessionId);
+    formData.append('characterId', req.characterId);
+    formData.append('scenarioId', req.scenarioId);
+    formData.append('stageLevel', String(req.stageLevel));
+    formData.append('userLevel', req.userLevel);
+    formData.append('turnCount', String(req.turnCount));
+    formData.append('currentAffinity', String(req.currentAffinity));
 
-    const { data } = await api.post<VoiceChatResponse>('/chat/voice', formData, {
+    const { data } = await api.post('/api/chat/message', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return data;
+    return data.data;
   },
 };

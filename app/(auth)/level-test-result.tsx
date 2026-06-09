@@ -2,12 +2,12 @@
 
 import { useRouter } from 'expo-router';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/common/Button';
 import RadarChart from '../../components/level-test/RadarChart';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';

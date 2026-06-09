@@ -8,6 +8,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../constants/theme';
 
 export type TutorialStep =
@@ -70,15 +71,22 @@ export default function LevelTestTutorialOverlay({
   const advanceOnTap = step !== 'intro' && step !== 'start';
   const showSkip =
     step === 'controls' || step === 'recording' || step === 'keyboard';
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.overlay}>
+      {/* 딤/블러는 풀스크린 (상태바·내비바 영역까지 덮음) */}
       {advanceOnTap ? (
         <Pressable style={styles.dimLayer} onPress={onNext} />
       ) : (
         <View style={styles.dimLayer} />
       )}
 
+      {/* 주석 요소들은 안전영역만큼 오프셋해 본문과 정렬 */}
+      <View
+        style={[styles.insetLayer, { top: insets.top, bottom: insets.bottom }]}
+        pointerEvents="box-none"
+      >
       {showSkip && (
         <Pressable onPress={onSkip} style={styles.skipButton} hitSlop={8}>
           <Text style={styles.skipText}>튜토리얼 건너뛰기 ›</Text>
@@ -229,6 +237,7 @@ export default function LevelTestTutorialOverlay({
           </Pressable>
         </View>
       )}
+      </View>
     </View>
   );
 }
@@ -249,6 +258,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(47, 47, 47, 0.45)',
+  },
+  // 안전영역만큼 오프셋된 주석 레이어 (top/bottom은 인라인 insets로 지정)
+  insetLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
   },
 
   // --- 건너뛰기 ---
