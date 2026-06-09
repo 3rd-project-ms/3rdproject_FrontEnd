@@ -1,7 +1,7 @@
 // services/chatService.ts
 import axios from 'axios';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://3rdprojectbackend-production.up.railway.app';
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://3rdprojectbackend-production.up.railway.app';
 
 const api = axios.create({
   baseURL: BASE_URL,

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ReviewItem, DateGroup } from '@/utils/mappers';
-import { getMockReviewGroups } from '@/utils/mockSelectors';
+
+import { BASE_URL } from '@/services/chatService';
 
 export type { ReviewItem, DateGroup };
 export type FilterType = '전체' | '문법' | '발음' | '표현' | '저장';
@@ -17,7 +18,13 @@ interface UseReviewFilterResult {
 }
 
 export function useReviewFilter(): UseReviewFilterResult {
-  const [groups, setGroups] = useState<DateGroup[]>(getMockReviewGroups());
+  const [groups, setGroups] = useState<DateGroup[]>([]);
+  // TODO(api): 로그인팀 userId 확보 후 아래 구조로 교체
+  // useEffect(() => {
+  //   fetch(`${BASE_URL}/api/corrections?userId=${userId}&isReviewed=`)
+  //     .then(res => res.json())
+  //     .then(json => setGroups(mapCorrectionsToDateGroups(json.data)));
+  // }, [userId]);
   const [searchText, setSearchText] = useState('');
   const [activeFilter, setActiveFilterState] = useState<FilterType>('전체');
   const [pendingUnstar, setPendingUnstar] = useState<Set<string>>(new Set());
@@ -42,7 +49,7 @@ export function useReviewFilter(): UseReviewFilterResult {
     setActiveFilterState(filter);
   };
 
-  const handleStarToggle = (itemId: string) => {
+  const handleStarToggle = async (itemId: string) => {
     if (activeFilter === '저장') {
       setPendingUnstar((prev) => {
         const next = new Set(prev);
@@ -55,11 +62,18 @@ export function useReviewFilter(): UseReviewFilterResult {
       });
       return;
     }
+    const item = groups.flatMap((g) => g.items).find((i) => i.id === itemId);
+    if (!item) return;
+    await fetch(`${BASE_URL}/api/corrections/${itemId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_reviewed: !item.starred }),
+    });
     setGroups((prev) =>
       prev.map((group) => ({
         ...group,
-        items: group.items.map((item) =>
-          item.id === itemId ? { ...item, starred: !item.starred } : item
+        items: group.items.map((i) =>
+          i.id === itemId ? { ...i, starred: !i.starred } : i
         ),
       }))
     );
@@ -104,8 +118,8 @@ export function useReviewFilter(): UseReviewFilterResult {
               (activeFilter === '저장' ? item.starred : item.type === activeFilter);
             const matchesSearch =
               searchText === '' ||
-              item.english.toLowerCase().includes(searchText.toLowerCase()) ||
-              item.korean.includes(searchText);
+              item.corrected_sentence.toLowerCase().includes(searchText.toLowerCase()) ||
+              item.translation.includes(searchText);
             return matchesFilter && matchesSearch;
           })
           .map((item) => ({

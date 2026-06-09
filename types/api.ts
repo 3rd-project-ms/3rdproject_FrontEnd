@@ -4,10 +4,6 @@ export interface WordDetail {
   word: string;
   accuracy: number;
   error_type: string | null;
-  // TODO(api): word_details.guide / my_pronunciation 최종 필드명 확정 시 동기화
-  // TODO(api): IPA 형식/언어별 표기 규칙 확인
-  guide?: string;
-  my_pronunciation?: string;
 }
 
 export interface PronunciationScore {
@@ -23,6 +19,7 @@ export interface Correction {
   type?: '문법' | '발음' | '표현';
   original_sentence: string;
   corrected_sentence: string;
+  corrected_audio_url?: string;
   translation?: string;               // 유저 직접 작성 해석/코멘트
   is_reviewed?: boolean;              // 복습 완료 여부
   grammar_feedback?: string;          // ReportApiResponse: 각 correction 내 포함
@@ -69,4 +66,23 @@ export interface ReportApiResponse {
   code: string;
   message: string;
   data: ReportResponseData | null;
+}
+
+export interface CharacterItem {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  affinityScore: number;
+  mbti: string;
+  statAffinity: number;
+  statTsundere: number;
+  statWit: number;
+}
+
+export interface CharacterListApiResponse {
+  success: boolean;
+  code: string;
+  message: string;
+  data: CharacterItem[];
 }
