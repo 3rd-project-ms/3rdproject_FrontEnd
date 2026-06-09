@@ -3,8 +3,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   Keyboard,
   Platform,
@@ -20,17 +21,30 @@ import LevelTestTutorialOverlay, {
   TutorialStep,
 } from '../../components/level-test/LevelTestTutorialOverlay';
 import { COLORS, TYPOGRAPHY } from '../../constants/theme';
+import { ApiError } from '../../services/api';
+import {
+  AnswerType,
+  levelTestService,
+  QuestionDto,
+} from '../../services/levelTestService';
+import { useAuthStore } from '../../store/useAuthStore';
 
 type InputMode = 'none' | 'recording' | 'keyboard';
 
-const questions = [
+// 문항 로딩 실패 시 화면이 비지 않도록 쓰는 폴백 문항
+const FALLBACK_QUESTIONS: QuestionDto[] = [
   'Oh, you just arrived?\nWhere did you come from?\nHow long are you planning to stay?',
   'What is your name and where are you from?',
   'What do you usually do on weekends?',
   'Can you describe your hometown?',
   'What is your favorite movie and why?',
   'Tell me about a memorable experience you had recently.',
-];
+].map((text, index) => ({
+  questionId: index + 1,
+  questionText: text,
+  difficultyLevel: '',
+  category: '',
+}));
 
 const tutorialOrder: TutorialStep[] = [
   'intro',
@@ -45,40 +59,83 @@ const instructorImage = require('../../assets/characters/level_test_instructor.p
 
 export default function LevelTestScreen() {
   const router = useRouter();
+  const userId = useAuthStore((state) => state.userId);
+  const [questions, setQuestions] = useState<QuestionDto[]>(FALLBACK_QUESTIONS);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [inputMode, setInputMode] = useState<InputMode>('none');
   const [answer, setAnswer] = useState('');
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTutorialVisible, setIsTutorialVisible] = useState(true);
   const [tutorialStep, setTutorialStep] = useState<TutorialStep>('intro');
 
   const totalQuestions = questions.length;
   const currentProgress = currentQuestionIndex + 1;
 
-  // 답안을 저장하고 곧바로 다음 문항으로 넘어간다. (제출 후 이전 문항 복귀 불가)
-  const submitAndAdvance = (value: string) => {
+  // 백엔드에서 실제 레벨 테스트 문항을 불러온다. 실패하면 폴백 문항 유지.
+  useEffect(() => {
+    let active = true;
+    levelTestService
+      .getQuestions()
+      .then((list) => {
+        if (active && list.length > 0) {
+          setQuestions(list);
+        }
+      })
+      .catch(() => {
+        // 폴백 문항으로 진행
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // 답안을 백엔드에 제출하고 다음 문항으로 넘어간다. (제출 후 이전 문항 복귀 불가)
+  const submitAndAdvance = async (value: string, answerType: AnswerType) => {
     const trimmed = value.trim();
-    if (!trimmed) {
+    if (!trimmed || isSubmitting) {
       return;
     }
 
-    setAnswers((prev) => ({ ...prev, [currentQuestionIndex]: trimmed }));
-    setAnswer('');
-    setInputMode('none');
-    Keyboard.dismiss();
+    const question = questions[currentQuestionIndex];
+    setIsSubmitting(true);
+    try {
+      if (userId != null) {
+        await levelTestService.submitAnswer({
+          userId,
+          questionId: question.questionId,
+          answerText: trimmed,
+          answerType,
+        });
+      }
 
-    if (currentQuestionIndex < totalQuestions - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
-      return;
+      setAnswers((prev) => ({ ...prev, [currentQuestionIndex]: trimmed }));
+      setAnswer('');
+      setInputMode('none');
+      Keyboard.dismiss();
+
+      if (currentQuestionIndex < totalQuestions - 1) {
+        setCurrentQuestionIndex((prev) => prev + 1);
+        return;
+      }
+
+      // 마지막 문항까지 제출 완료 → 결과 화면에서 status로 판정 레벨 조회
+      router.replace('/(auth)/level-test-result');
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : '답변 제출에 실패했습니다. 잠시 후 다시 시도해주세요.';
+      Alert.alert('알림', message);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.replace('/(auth)/level-test-result');
   };
 
   const handlePressMic = () => {
     // 녹음 중이면 정지 → 곧바로 제출 후 다음 문항
     if (inputMode === 'recording') {
-      submitAndAdvance(answer);
+      submitAndAdvance(answer, 'VOICE');
       return;
     }
 
@@ -101,7 +158,7 @@ export default function LevelTestScreen() {
   };
 
   const handleSendKeyboard = () => {
-    submitAndAdvance(answer);
+    submitAndAdvance(answer, 'TEXT');
   };
 
   const resetLevelTest = () => {
@@ -138,7 +195,7 @@ export default function LevelTestScreen() {
             <LevelTestContent
               currentProgress={currentProgress}
               totalQuestions={totalQuestions}
-              currentQuestion={questions[currentQuestionIndex]}
+              currentQuestion={questions[currentQuestionIndex].questionText}
               answer={answer}
               inputMode={inputMode}
               onBack={() => router.back()}
@@ -152,7 +209,7 @@ export default function LevelTestScreen() {
           <LevelTestContent
             currentProgress={currentProgress}
             totalQuestions={totalQuestions}
-            currentQuestion={questions[currentQuestionIndex]}
+            currentQuestion={questions[currentQuestionIndex].questionText}
             answer={answer}
             inputMode={inputMode}
             onBack={() => router.back()}

@@ -3,6 +3,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/common/Button';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { ApiError } from '../../services/api';
+import { levelTestService } from '../../services/levelTestService';
 import { EnglishLevel, useAuthStore } from '../../store/useAuthStore';
 
 const levelCards: {
@@ -29,21 +32,44 @@ const levelCards: {
 export default function LevelSelectScreen() {
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const userId = useAuthStore((state) => state.userId);
   const [selectedLevel, setSelectedLevel] = useState<EnglishLevel | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const hasSelectedLevel = selectedLevel !== null;
+  const hasSelectedLevel = selectedLevel !== null && !isSubmitting;
 
   const handleSelectLevel = (level: EnglishLevel) => {
     setSelectedLevel((prev) => (prev === level ? null : level));
   };
 
-  const handleConfirmLevel = () => {
-    if (!selectedLevel) {
+  const handleConfirmLevel = async () => {
+    if (!selectedLevel || userId == null) {
+      if (userId == null) {
+        Alert.alert('알림', '로그인 정보가 없습니다. 다시 로그인해주세요.');
+      }
       return;
     }
 
-    setAuth({ selectedEnglishLevel: selectedLevel });
-    router.replace('/(main)/home');
+    setIsSubmitting(true);
+    try {
+      // 직접 선택한 레벨 저장 (levelTestType='select', 점수 없음)
+      await levelTestService.saveResult({
+        userId,
+        levelTestType: 'select',
+        cefrLevelType: selectedLevel,
+        testScore: 0,
+      });
+      setAuth({ selectedEnglishLevel: selectedLevel });
+      router.replace('/(main)/home');
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : '레벨 저장에 실패했습니다. 잠시 후 다시 시도해주세요.';
+      Alert.alert('알림', message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleStartLevelTest = () => {
@@ -81,7 +107,7 @@ export default function LevelSelectScreen() {
 
         <View style={styles.buttonSection}>
           <Button
-            title="선택하기"
+            title={isSubmitting ? '저장 중...' : '선택하기'}
             variant="secondary"
             disabled={!hasSelectedLevel}
             onPress={handleConfirmLevel}
