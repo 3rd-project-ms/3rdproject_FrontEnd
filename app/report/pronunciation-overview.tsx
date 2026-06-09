@@ -2,26 +2,34 @@
 // Pronunciation Overview — 발음 점수 요약 및 분석 의견
 
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import PrimaryButton from '@/components/common/PrimaryButton';
 import { mapPronunciationViewModel } from '@/utils/mappers';
-import { getPronunciationResponse } from '@/utils/mockSelectors';
+import { useChatStore } from '@/store/useChatStore';
 import { useScrollVisibility } from '@/hooks/useScrollVisibility';
 import { ROUTES } from '@/constants/routes';
 import { Colors, Typography, Spacing, getHeaderTop } from '@/constants/tokens';
-
-// TODO(api): API 연동 시 컴포넌트 내부 또는 커스텀 훅으로 이동
-const vm = mapPronunciationViewModel(getPronunciationResponse());
 
 export default function PronunciationOverviewScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { scrollRef, showScrollDown, handleScroll, handleContentSizeChange, handleLayout, scrollToEnd } =
     useScrollVisibility();
+  const { reportData } = useChatStore();
+
+  if (!reportData) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={Colors.textPrimary} />
+      </View>
+    );
+  }
+
+  const vm = mapPronunciationViewModel(reportData);
 
   return (
     <View style={styles.container}>

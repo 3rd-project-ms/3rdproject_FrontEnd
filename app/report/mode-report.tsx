@@ -1,50 +1,60 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import ReportSummaryContent from '@/components/report/ReportSummaryContent';
 
-import { getReportResponseByMode } from '@/utils/mockSelectors';
-import { buildReportDisplayViewModel } from '@/utils/reportSelectors';
 import { ROUTES } from '@/constants/routes';
 import { Colors, Typography, Spacing, getHeaderTop } from '@/constants/tokens';
-
-const MOCK_CHARACTERS = [
-  { name: 'Liam', latestDay: 3 },
-  { name: 'June', latestDay: 7 },
-  { name: 'Ian', latestDay: 1 },
-];
+import { BASE_URL } from '@/services/chatService';
+import { CharacterItem, CharacterListApiResponse } from '@/types/api';
 
 export default function ModeReportScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
-  const [currentDay, setCurrentDay] = useState(MOCK_CHARACTERS[0].latestDay);
+  const [currentDay, setCurrentDay] = useState(1);
   const [showDayPicker, setShowDayPicker] = useState(false);
+  const [characters, setCharacters] = useState<CharacterItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const currentCharacter = MOCK_CHARACTERS[currentCharacterIndex];
+  useEffect(() => {
+    fetch(`${BASE_URL}/api/characters/my-list?userId=`)
+      .then((res) => res.json())
+      .then((json: CharacterListApiResponse) => {
+        setCharacters(json.data);
+        setIsLoading(false);
+      });
+  }, []);
+
+  if (isLoading || characters.length === 0) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={Colors.textPrimary} />
+      </View>
+    );
+  }
+
+  const currentCharacter = characters[currentCharacterIndex];
   const isFirstCharacter = currentCharacterIndex === 0;
-  const isLastCharacter = currentCharacterIndex === MOCK_CHARACTERS.length - 1;
+  const isLastCharacter = currentCharacterIndex === characters.length - 1;
 
   const handlePrevCharacter = () => {
     const newIndex = currentCharacterIndex - 1;
     setCurrentCharacterIndex(newIndex);
-    setCurrentDay(MOCK_CHARACTERS[newIndex].latestDay);
+    setCurrentDay(1);
   };
 
   const handleNextCharacter = () => {
     const newIndex = currentCharacterIndex + 1;
     setCurrentCharacterIndex(newIndex);
-    setCurrentDay(MOCK_CHARACTERS[newIndex].latestDay);
+    setCurrentDay(1);
   };
 
-  // TODO(api): currentCharacter.name, currentDay 기준으로 데이터 fetch로 교체
-  const chatVm = buildReportDisplayViewModel(getReportResponseByMode('채팅', currentDay));
-  const voiceVm = buildReportDisplayViewModel(getReportResponseByMode('통화', currentDay));
-
-  const dayOptions = Array.from({ length: currentCharacter.latestDay }, (_, i) => i + 1);
+  // TODO(api): GET /api/characters/{character_id}/sessions 연동 후 실제 day 횟수로 교체
+  const dayOptions = Array.from({ length: 1 }, (_, i) => i + 1);
 
   return (
     <View style={styles.container}>
@@ -76,17 +86,17 @@ export default function ModeReportScreen() {
       </View>
 
       <ReportSummaryContent
-        avgPronScore={voiceVm.avgPronScore}
-        correctionCount={chatVm.correctionCount}
-        isPronNavigable={voiceVm.avgPronScore !== null}
+        avgPronScore={null}
+        correctionCount={0}
+        isPronNavigable={false}
         onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
-        affinityProgress={chatVm.affinityProgress}
-        affinityValue={chatVm.affinityValue}
+        affinityProgress={0}
+        affinityValue={0}
         affinityLabel={`${currentCharacter.name} 호감도`}
-        affinityChange={chatVm.affinityChange ?? undefined}
-        chatCorrections={chatVm.corrections}
-        voiceCorrections={voiceVm.corrections}
-        grammarFeedback={chatVm.grammarFeedback}
+        affinityChange={undefined}
+        chatCorrections={[]}
+        voiceCorrections={[]}
+        grammarFeedback=""
         onReviewPress={() => router.push(ROUTES.REVIEW as any)}
         onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
         primaryLabel="메인으로 돌아가기"

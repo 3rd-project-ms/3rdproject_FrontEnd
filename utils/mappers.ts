@@ -47,14 +47,12 @@ export interface PronunciationViewModel {
   weakWords: WeakWord[];
 }
 
-// TODO: API 명세 확정 후 Correction → ReviewItem 변환 mapper 추가
-// 현재는 mock 구조 그대로 사용; review API 연동 시 이 타입 기준으로 맞춤
 export interface ReviewItem {
   id: string;
   type: "문법" | "발음" | "표현";
-  english: string; // TODO(api): Correction.corrected_sentence로 교체
-  korean: string; // TODO(api): Correction.translation으로 교체
-  starred: boolean; // TODO(api): Correction.is_reviewed에 대응
+  corrected_sentence: string;
+  translation: string;
+  starred: boolean;
 }
 
 export interface DateGroup {

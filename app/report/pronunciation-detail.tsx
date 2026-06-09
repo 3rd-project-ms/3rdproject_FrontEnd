@@ -1,20 +1,18 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 
 import PrimaryButton from '@/components/common/PrimaryButton';
 import SentenceCard from '@/components/common/SentenceCard';
 import WordJudgementCard from '@/components/common/WordJudgementCard';
 import { SharedStyles } from '@/components/common/styles/shared';
 
-import { getPronunciationResponse } from '@/utils/mockSelectors';
 import { mapPronunciationViewModel } from '@/utils/mappers';
+import { useChatStore } from '@/store/useChatStore';
 import { useScrollVisibility } from '@/hooks/useScrollVisibility';
 import { Colors, Typography, Spacing } from '@/constants/tokens';
-
-// TODO(api): API 연동 시 컴포넌트 내부 또는 커스텀 훅으로 이동
-const sentences = mapPronunciationViewModel(getPronunciationResponse()).sentences;
 
 export default function PronunciationDetailScreen() {
   const router = useRouter();
@@ -22,12 +20,30 @@ export default function PronunciationDetailScreen() {
   const [isPlayingNative, setIsPlayingNative] = useState(false);
   const { scrollRef, showScrollDown, handleScroll, handleContentSizeChange, handleLayout, scrollToEnd } =
     useScrollVisibility();
+  const { reportData } = useChatStore();
 
   useFocusEffect(
     useCallback(() => {
       setIsPlayingNative(false);
     }, [])
   );
+
+  if (!reportData) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={Colors.textPrimary} />
+      </View>
+    );
+  }
+
+  const { sentences } = mapPronunciationViewModel(reportData);
+  const corrections = reportData.data?.corrections ?? [];
+  const currentAudioUrl = corrections[currentIndex]?.corrected_audio_url ?? null;
+
+  const playNativeAudio = async (url: string) => {
+    const { sound } = await Audio.Sound.createAsync({ uri: url });
+    await sound.playAsync();
+  };
 
   const current = sentences[currentIndex];
   const isFirst = currentIndex === 0;
@@ -84,7 +100,10 @@ export default function PronunciationDetailScreen() {
         <PrimaryButton
           label="원어민 발음 가이드"
           variant="primary"
-          onPress={() => setIsPlayingNative((v) => !v)}
+          onPress={() => {
+            if (currentAudioUrl) playNativeAudio(currentAudioUrl);
+            setIsPlayingNative((v) => !v);
+          }}
           icon={<Ionicons name={isPlayingNative ? 'pause-circle' : 'play-circle'} size={20} color={Colors.white} />}
         />
       </View>
