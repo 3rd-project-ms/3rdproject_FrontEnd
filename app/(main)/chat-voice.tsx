@@ -1,128 +1,24 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  SafeAreaView,
-  Platform,
-  Animated,
+  StyleSheet, Text, View, TouchableOpacity,
+  SafeAreaView, Platform, Animated,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 
 import MicButton from "@/components/chat/MicButton";
-import PenaltyPopup, {
-  PopupType,
-  usePenaltyPopup,
-} from "@/components/chat/PenaltyPopup";
-import { colors } from "@/constants/theme";
+import PenaltyPopup, { PopupType, usePenaltyPopup } from "@/components/chat/PenaltyPopup";
+import { chatService } from "@/services/chatService";
 
 // ─────────────────────────────────────────
-// 타입
+// penalty_reason → PopupType 매핑
 // ─────────────────────────────────────────
-interface VoiceApiResponse {
-  success: boolean;
-  code: string;
-  message: string;
-  data: {
-    message_id: string;
-    turn_count: number;
-    role: string;
-    text_content: string;
-    user_text?: string;
-    action_description: string;
-    audio_url: string | null;
-    current_affinity: number;
-    remaining_penalties: number;
-    system_evaluation: {
-      grammar_feedback: string;
-      is_penalty: boolean;
-      penalty_reason:
-        | "korean_used"
-        | "duplicate_expr"
-        | "context_deviation"
-        | "abusive_words"
-        | null;
-      pronunciation_score: {
-        accuracy: number;
-        fluency: number;
-        completeness: number;
-        prosody: number;
-        word_details: {
-          word: string;
-          accuracy: number;
-          error_type: string | null;
-        }[];
-      } | null;
-    };
-  } | null;
-}
-
 const PENALTY_REASON_MAP: Record<string, PopupType> = {
   korean_used:       "off_topic",
   duplicate_expr:    "repetitive_phrases",
   context_deviation: "off_topic",
   abusive_words:     "off_topic",
-};
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
-
-// ─────────────────────────────────────────
-// 🧪 목업 데이터
-// ─────────────────────────────────────────
-const MOCK_VOICE_RESPONSES: VoiceApiResponse[] = [
-  {
-    success: true, code: "SUCCESS", message: "",
-    data: {
-      message_id: "voice_mock_1", turn_count: 1, role: "assistant",
-      text_content: "That sounds amazing! Tell me more about your trip.",
-      user_text: "I went to Jeju Island last weekend. It was really fun.",
-      action_description: "눈을 동그랗게 뜨며 감탄한다.",
-      audio_url: null, current_affinity: 45, remaining_penalties: 3,
-      system_evaluation: {
-        grammar_feedback: "자연스러운 문장이에요!",
-        is_penalty: false, penalty_reason: null,
-        pronunciation_score: {
-          accuracy: 90, fluency: 85, completeness: 95, prosody: 88,
-          word_details: [
-            { word: "I",    accuracy: 95, error_type: null },
-            { word: "went", accuracy: 88, error_type: null },
-            { word: "to",   accuracy: 92, error_type: null },
-            { word: "Jeju", accuracy: 85, error_type: null },
-          ],
-        },
-      },
-    },
-  },
-  {
-    success: true, code: "SUCCESS", message: "",
-    data: {
-      message_id: "voice_mock_2", turn_count: 2, role: "assistant",
-      text_content: "Hmm, try saying that in English next time!",
-      user_text: "I drank 물 every day at the beach.",
-      action_description: "살짝 눈썹을 올리며 웃는다.",
-      audio_url: null, current_affinity: 42, remaining_penalties: 2,
-      system_evaluation: {
-        grammar_feedback: "'물'은 영어로 'water'입니다.",
-        is_penalty: true, penalty_reason: "korean_used",
-        pronunciation_score: {
-          accuracy: 65, fluency: 60, completeness: 70, prosody: 55,
-          word_details: [
-            { word: "I",     accuracy: 92, error_type: null },
-            { word: "drank", accuracy: 88, error_type: null },
-            { word: "물",    accuracy: 10, error_type: "Mispronunciation" },
-          ],
-        },
-      },
-    },
-  },
-];
-
-const MOCK_HINT = {
-  english: "I'm feeling a bit under the weather.",
-  korean: "나 오늘 몸 컨디션이 좀 별로야",
 };
 
 const GIFT_MARKERS = [40, 80] as const;
@@ -142,17 +38,16 @@ export default function ChatVoiceScreen() {
     }>();
 
   // ─── 상태 ───────────────────────────────
-  const [affinity, setAffinity] = useState(0);
-  const [lives, setLives]       = useState(3);
-  const [turnCount, setTurnCount] = useState(1);
-  const [micState, setMicState] = useState<"idle" | "recording" | "disabled">("idle");
-
-  const [currentAiText, setCurrentAiText]     = useState("");
+  const [sessionId, setSessionId]         = useState<string>(session_id ?? '');
+  const [affinity, setAffinity]           = useState(0);
+  const [lives, setLives]                 = useState(3);
+  const [turnCount, setTurnCount]         = useState(1);
+  const [micState, setMicState]           = useState<"idle" | "recording" | "disabled">("idle");
+  const [currentAiText, setCurrentAiText] = useState("");
   const [currentUserText, setCurrentUserText] = useState("");
-
   const [showHintModal, setShowHintModal] = useState(false);
   const [showEndModal, setShowEndModal]   = useState(false);
-  const [mockIndex, setMockIndex]         = useState(0);
+  const [hintText, setHintText]           = useState({ english: '', korean: '' });
 
   const recordingRef     = useRef<Audio.Recording | null>(null);
   const soundRef         = useRef<Audio.Sound | null>(null);
@@ -161,9 +56,29 @@ export default function ChatVoiceScreen() {
 
   const popup = usePenaltyPopup();
 
-  // ─── 권한 요청 ──────────────────────────
+  // ─── 세션 시작 ──────────────────────────
   useEffect(() => {
+    const initSession = async () => {
+      try {
+        const res = await chatService.startSession({
+          userId:      Number(user_id) || 1,
+          stageId:     Number(stage_id) || 1,
+          characterId: character_id || 'CH_01_M',
+        });
+        setSessionId(res.sessionId);
+        setCurrentAiText(res.firstMessage.textContent);
+        fadeIn(aiCaptionOpacity);
+        // 첫 TTS 재생
+        if (res.firstMessage.audioUrl) {
+          await playAudio(res.firstMessage.audioUrl);
+        }
+      } catch (e) {
+        console.error('세션 시작 오류:', e);
+      }
+    };
+
     Audio.requestPermissionsAsync();
+    initSession();
     return () => { soundRef.current?.unloadAsync(); };
   }, []);
 
@@ -208,38 +123,41 @@ export default function ChatVoiceScreen() {
   };
 
   // ─── API 전송 ───────────────────────────
-  const sendVoiceMessage = async (audioUri: string | null) => {
+  const sendVoiceMessage = async (audioUri: string) => {
     try {
-      // 🧪 목업
-      await new Promise((r) => setTimeout(r, 800));
-      const json = MOCK_VOICE_RESPONSES[mockIndex % MOCK_VOICE_RESPONSES.length];
-      setMockIndex((prev) => prev + 1);
+      const data = await chatService.sendVoice(audioUri, {
+        sessionId:       sessionId,
+        characterId:     character_id || 'CH_01_M',
+        scenarioId:      scenario_id  || '',   // TODO: 백엔드 확인
+        stageLevel:      Number(stage_id) || 1,
+        userLevel:       'A1',                 // TODO: 백엔드 확인
+        turnCount:       turnCount,
+        currentAffinity: affinity,
+        history:         [],                   // TODO: 백엔드 형식 확인 후 채우기
+      });
 
-      // 🔌 실제 연동 시 주석 해제
-      // const formData = new FormData();
-      // formData.append('audio', { uri: audioUri, type: 'audio/m4a', name: 'recording.m4a' } as any);
-      // ...
-      // const json: VoiceApiResponse = await res.json();
-
-      if (!json.success || !json.data) { setMicState("idle"); return; }
-
-      const { data } = json;
       const eval_ = data.system_evaluation;
 
-      if (data.user_text) { setCurrentUserText(data.user_text); fadeIn(userTextOpacity); }
+      // STT 결과 (user_text 역할 → text_content에 포함될 수도 있으므로 백엔드 확인)
+      // 현재는 응답의 text_content가 AI 답변, audio_url로 STT 결과를 별도로 받는 구조 아님
+      // TODO: 백엔드에 STT 결과 필드 위치 확인
+      setCurrentUserText('');  // 백엔드 응답에 user_text 필드 확인 후 채우기
+      fadeIn(userTextOpacity);
+
       setCurrentAiText(data.text_content);
       fadeIn(aiCaptionOpacity);
 
       if (data.audio_url) await playAudio(data.audio_url);
 
+      const prevAffinity = affinity;
       setAffinity(data.current_affinity);
-      setLives(data.remaining_penalties);
+      if (eval_.is_penalty) setLives((prev) => Math.max(0, prev - 1));
       setTurnCount((prev) => prev + 1);
 
       if (eval_.is_penalty && eval_.penalty_reason) {
         popup.show(PENALTY_REASON_MAP[eval_.penalty_reason] ?? "off_topic", 1);
-      } else if (data.current_affinity > affinity) {
-        const gain = data.current_affinity - affinity;
+      } else if (data.current_affinity > prevAffinity) {
+        const gain = data.current_affinity - prevAffinity;
         popup.show(gain >= 10 ? "affection_perfect" : "affection_good");
       }
     } catch (e) {
@@ -264,13 +182,12 @@ export default function ChatVoiceScreen() {
   // ─── 종료 후 리포트 이동 ────────────────
   const handleGoReport = () => {
     setShowEndModal(false);
-    // ✅ [팀원 요청] params 포함해서 report 이동
     router.push({
       pathname: '/report' as any,
       params: {
-        session_id,
-        character_name: character_id,
-        stage_name:     stage_id,
+        session_id:      sessionId,
+        character_name:  character_id,
+        stage_name:      stage_id,
         continuous_days: '',
         affinity_change: String(affinity),
       },
@@ -284,7 +201,7 @@ export default function ChatVoiceScreen() {
     <SafeAreaView style={styles.container}>
       {/* ── 헤더 ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => setShowEndModal(true)} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={26} color="#0B0B12" />
         </TouchableOpacity>
         <Text style={styles.charName}>
@@ -380,8 +297,8 @@ export default function ChatVoiceScreen() {
               <Ionicons name="bulb" size={20} color="#F6A3A6" />
               <Text style={styles.modalTitleText}>힌트</Text>
             </View>
-            <Text style={styles.hintEnglish}>{MOCK_HINT.english}</Text>
-            <Text style={styles.hintKorean}>{MOCK_HINT.korean}</Text>
+            <Text style={styles.hintEnglish}>{hintText.english || '—'}</Text>
+            <Text style={styles.hintKorean}>{hintText.korean || '—'}</Text>
             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowHintModal(false)}>
               <Text style={styles.modalCloseButtonText}>확인</Text>
             </TouchableOpacity>
@@ -389,7 +306,7 @@ export default function ChatVoiceScreen() {
         </View>
       )}
 
-      {/* ✅ 통화 종료 모달 — params 포함 */}
+      {/* ── 통화 종료 모달 ── */}
       {showEndModal && (
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowEndModal(false)} activeOpacity={1} />
@@ -470,7 +387,6 @@ const styles = StyleSheet.create({
   iconCircleSub: { width: 54, height: 54, borderRadius: 27, backgroundColor: "#F0F0F0", justifyContent: "center", alignItems: "center", marginBottom: 6 },
   buttonLabel:   { fontSize: 12, color: "#888", fontWeight: "500" },
 
-  // ── 공용 모달 ──
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.40)",

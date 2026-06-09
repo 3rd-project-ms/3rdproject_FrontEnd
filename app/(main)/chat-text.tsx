@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ChatBubble from '@/components/chat/ChatBubble';
 import InputBar from '@/components/chat/InputBar';
 import PenaltyPopup, { PopupType, usePenaltyPopup } from '@/components/chat/PenaltyPopup';
+import { chatService } from '@/services/chatService';
 
 // ─────────────────────────────────────────
 // 타입
@@ -22,28 +23,6 @@ interface Message {
   action_description?: string;
   grammar_feedback?: string;
   is_penalty?: boolean;
-}
-
-interface ApiResponse {
-  success: boolean;
-  code: string;
-  message: string;
-  data: {
-    message_id: string;
-    turn_count: number;
-    role: string;
-    text_content: string;
-    action_description: string;
-    audio_url: string | null;
-    current_affinity: number;
-    remaining_penalties: number;
-    system_evaluation: {
-      grammar_feedback: string;
-      is_penalty: boolean;
-      penalty_reason: 'korean_used' | 'duplicate_expr' | 'context_deviation' | 'abusive_words' | null;
-      pronunciation_score: null;
-    };
-  } | null;
 }
 
 // ─────────────────────────────────────────
@@ -67,44 +46,6 @@ const getTimeString = () => {
   return `${ampm} ${h % 12 || 12}:${m}`;
 };
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
-
-// ─────────────────────────────────────────
-// 🧪 목업 데이터
-// ─────────────────────────────────────────
-const MOCK_RESPONSES: ApiResponse[] = [
-  {
-    success: true, code: 'SUCCESS', message: '',
-    data: {
-      message_id: 'mock_1', turn_count: 1, role: 'assistant',
-      text_content: "Morning! Your usual Americano? Coming right up!",
-      action_description: '커피 머신을 닦다가 유저를 발견하고 부드럽게 미소 짓는다.',
-      audio_url: null, current_affinity: 50, remaining_penalties: 3,
-      system_evaluation: { grammar_feedback: '완벽한 문장이에요!', is_penalty: false, penalty_reason: null, pronunciation_score: null },
-    },
-  },
-  {
-    success: true, code: 'SUCCESS', message: '',
-    data: {
-      message_id: 'mock_2', turn_count: 2, role: 'assistant',
-      text_content: "Oh no, you look so exhausted! A slice of cake is on its way! ✨",
-      action_description: '귀엽게 눈을 동그랗게 뜨며 쇼케이스에서 딸기 케이크를 꺼낸다.',
-      audio_url: null, current_affinity: 42, remaining_penalties: 2,
-      system_evaluation: { grammar_feedback: "'너무 피곤해'는 'I am so exhausted'로 표현하는 것이 더 자연스러워요.", is_penalty: true, penalty_reason: 'korean_used', pronunciation_score: null },
-    },
-  },
-  {
-    success: true, code: 'SUCCESS', message: '',
-    data: {
-      message_id: 'mock_3', turn_count: 3, role: 'assistant',
-      text_content: "You always know how to make my heart race. Stay a bit longer today... please?",
-      action_description: '카운터에 턱을 괸 채 나른하고 달콤한 미소를 짓는다.',
-      audio_url: null, current_affinity: 60, remaining_penalties: 2,
-      system_evaluation: { grammar_feedback: '아주 좋은 표현이에요!', is_penalty: false, penalty_reason: null, pronunciation_score: null },
-    },
-  },
-];
-
 // ─────────────────────────────────────────
 // 컴포넌트
 // ─────────────────────────────────────────
@@ -120,30 +61,49 @@ export default function ChatTextScreen() {
     }>();
 
   // ─── 상태 ───────────────────────────────
-  const [affinity, setAffinity]     = useState(42);
-  const [lives, setLives]           = useState(3);
-  const [messages, setMessages]     = useState<Message[]>([]);
-  const [turnCount, setTurnCount]   = useState(1);
-  const [isLoading, setIsLoading]   = useState(false);
-  const [showHint, setShowHint]     = useState(false);
-  const [inputText, setInputText]   = useState('');
-  const [mockIndex, setMockIndex]   = useState(0);
-  const [showEndModal, setShowEndModal] = useState(false); // ✅ 종료 확인 팝업
+  const [sessionId, setSessionId]       = useState<string>(session_id ?? '');
+  const [affinity, setAffinity]         = useState(42);
+  const [lives, setLives]               = useState(3);
+  const [messages, setMessages]         = useState<Message[]>([]);
+  const [turnCount, setTurnCount]       = useState(1);
+  const [isLoading, setIsLoading]       = useState(false);
+  const [showHint, setShowHint]         = useState(false);
+  const [inputText, setInputText]       = useState('');
+  const [showEndModal, setShowEndModal] = useState(false);
 
   const popup = usePenaltyPopup();
-
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<RNTextInput>(null);
 
-  // ─── 초기 AI 인사 ───────────────────────
+  // ─── 세션 시작 + 초기 AI 인사 ──────────
   useEffect(() => {
-    setMessages([{
-      id: 'init',
-      sender: 'ai',
-      text: "Hello! Welcome to the espresso bar 'Lavazza'. How would you like a drink?",
-      time: getTimeString(),
-      action_description: 'Jamie shakes the portafilter of the espresso machine and gives you a sweet smile.',
-    }]);
+    const initSession = async () => {
+      try {
+        const res = await chatService.startSession({
+          userId:      Number(user_id) || 1,
+          stageId:     Number(stage_id) || 1,
+          characterId: character_id || 'CH_01_M',
+        });
+        setSessionId(res.sessionId);
+        setMessages([{
+          id:     'init',
+          sender: 'ai',
+          text:   res.firstMessage.textContent,
+          time:   getTimeString(),
+          action_description: res.firstMessage.actionDescription,
+        }]);
+      } catch (e) {
+        console.error('세션 시작 오류:', e);
+        // 오류 시 fallback
+        setMessages([{
+          id:     'init',
+          sender: 'ai',
+          text:   "Hello! How can I help you today?",
+          time:   getTimeString(),
+        }]);
+      }
+    };
+    initSession();
   }, []);
 
   // ─── 새 메시지 자동 스크롤 ──────────────
@@ -161,44 +121,26 @@ export default function ChatTextScreen() {
     setInputText('');
 
     const userMsgId = `user_${Date.now()}`;
-    const userMsg: Message = { id: userMsgId, sender: 'user', text, time: getTimeString() };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, { id: userMsgId, sender: 'user', text, time: getTimeString() }]);
     setIsLoading(true);
 
     try {
-      // 🧪 목업
-      await new Promise((r) => setTimeout(r, 300));
-      const json: ApiResponse = MOCK_RESPONSES[mockIndex % MOCK_RESPONSES.length];
-      setMockIndex((prev) => prev + 1);
-      // 🔌 실제 연동 시 위 목업 블록 지우고 아래 주석 해제
-      // const res = await fetch(`${API_BASE}/api/chat/message`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     user_id:     Number(user_id) || 1,
-      //     character_id: character_id  || 'CH_01_M',
-      //     session_id:  session_id     || 'sess_dev_001',
-      //     scenario_id: scenario_id    || 'SC_01',
-      //     stage_id:    Number(stage_id) || 1,
-      //     turn_count:  turnCount,
-      //     input_type:  'text',
-      //     text_content: text,
-      //   }),
-      // });
-      // const json: ApiResponse = await res.json();
+      const data = await chatService.sendText({
+        sessionId:       sessionId,
+        textContent:     text,
+        inputType:       'text',
+        characterId:     character_id || 'CH_01_M',
+        scenarioId:      scenario_id  || '',   // TODO: 백엔드 확인
+        stageLevel:      Number(stage_id) || 1,
+        userLevel:       'A1',                 // TODO: 백엔드 확인
+        turnCount:       turnCount,
+        currentAffinity: affinity,
+        history:         [],                   // TODO: 백엔드 형식 확인 후 채우기
+      });
 
-      if (!json.success || !json.data) {
-        if (json.code === 'ERR_NO_LIVES_REMAINING') {
-          popup.show('off_topic');
-        } else if (json.code === 'ERR_ABUSIVE_WORDS') {
-          popup.show('off_topic');
-        }
-        return;
-      }
-
-      const { data } = json;
       const eval_ = data.system_evaluation;
 
+      // 유저 말풍선에 grammar_feedback 붙이기
       setMessages((prev) =>
         prev.map((m) =>
           m.id === userMsgId
@@ -207,29 +149,33 @@ export default function ChatTextScreen() {
         )
       );
 
+      // AI 말풍선 추가
       setMessages((prev) => [...prev, {
-        id:   `${data.message_id}_${Date.now()}`,
+        id:     `ai_${Date.now()}`,
         sender: 'ai',
-        text: data.text_content,
-        time: getTimeString(),
+        text:   data.text_content,
+        time:   getTimeString(),
         action_description: data.action_description,
       }]);
 
       const prevAffinity = affinity;
       setAffinity(data.current_affinity);
-      setLives(data.remaining_penalties);
+      if (eval_.is_penalty) setLives((prev) => Math.max(0, prev - 1));
       setTurnCount((prev) => prev + 1);
 
       if (eval_.is_penalty && eval_.penalty_reason) {
-        const popupType = PENALTY_REASON_MAP[eval_.penalty_reason] ?? 'off_topic';
-        popup.show(popupType, 1);
+        popup.show(PENALTY_REASON_MAP[eval_.penalty_reason] ?? 'off_topic', 1);
       } else if (data.current_affinity > prevAffinity) {
         const gain = data.current_affinity - prevAffinity;
         popup.show(gain >= 10 ? 'affection_perfect' : 'affection_good');
       }
 
-    } catch (e) {
+    } catch (e: any) {
       console.error('API 오류:', e);
+      const code = e?.response?.data?.code;
+      if (code === 'ERR_NO_LIVES_REMAINING' || code === 'ERR_ABUSIVE_WORDS') {
+        popup.show('off_topic');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -241,9 +187,9 @@ export default function ChatTextScreen() {
     router.push({
       pathname: '/report' as any,
       params: {
-        session_id,
-        character_name: character_id,
-        stage_name:     stage_id,
+        session_id:      sessionId,
+        character_name:  character_id,
+        stage_name:      stage_id,
         continuous_days: '',
         affinity_change: String(affinity),
       },
@@ -263,14 +209,12 @@ export default function ChatTextScreen() {
         {/* ── 헤더 ── */}
         <View style={styles.header}>
           <View style={styles.headerTitleRow}>
-            {/* ✅ 백버튼 → 종료 확인 팝업 */}
             <TouchableOpacity onPress={() => setShowEndModal(true)} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={24} color="#0B0B12" />
             </TouchableOpacity>
             <Text style={styles.charName}>Jamie</Text>
             <Text style={styles.charRole}> · 카페 사장님</Text>
           </View>
-          {/* ✅ 우측 상단 하트 제거 */}
         </View>
 
         {/* ── 호감도 바 ── */}
@@ -348,7 +292,7 @@ export default function ChatTextScreen() {
 
       </KeyboardAvoidingView>
 
-      {/* ✅ 종료 확인 팝업 — voice와 동일한 디자인 */}
+      {/* ── 종료 확인 팝업 ── */}
       {showEndModal && (
         <View style={styles.modalOverlay}>
           <TouchableOpacity
@@ -360,16 +304,10 @@ export default function ChatTextScreen() {
             <Text style={styles.modalTitleText}>채팅을 종료하시겠어요?</Text>
             <Text style={styles.modalSubText}>지금까지의 대화가 결과로 저장됩니다.</Text>
             <View style={styles.modalButtonRow}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowEndModal(false)}
-              >
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowEndModal(false)}>
                 <Text style={styles.modalCancelButtonText}>계속하기</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={handleGoReport}
-              >
+              <TouchableOpacity style={styles.modalConfirmButton} onPress={handleGoReport}>
                 <Text style={styles.modalConfirmButtonText}>종료하기</Text>
               </TouchableOpacity>
             </View>
@@ -441,27 +379,17 @@ const styles = StyleSheet.create({
   hintEnglish: { fontSize: 14, color: '#E87C7C', fontWeight: '600' },
   hintKorean: { fontSize: 13, color: '#616161' },
 
-  // ── 종료 확인 팝업 (voice와 동일한 디자인) ──
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.40)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-    paddingHorizontal: 32,
+    justifyContent: 'center', alignItems: 'center',
+    zIndex: 999, paddingHorizontal: 32,
   },
   modalCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 28,
-    alignItems: 'center',
-    gap: 14,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    width: '100%', backgroundColor: '#FFFFFF', borderRadius: 20,
+    padding: 28, alignItems: 'center', gap: 14,
+    elevation: 8, shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12,
   },
   modalTitleText: { fontSize: 17, fontWeight: '700', color: '#0B0B12', textAlign: 'center' },
   modalSubText:   { fontSize: 14, color: '#888888', textAlign: 'center' },
