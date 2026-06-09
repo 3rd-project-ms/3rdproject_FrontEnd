@@ -14,26 +14,26 @@ import { useChatStore } from '@/store/useChatStore';
 export default function ReportHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { sessionId, characterName, stageName, continuousDays, affinityChange } =
+  const { session_id, character_name, stage_name, continuous_days, affinity_change } =
     useLocalSearchParams<{
-      sessionId: string;
-      characterName: string;
-      stageName: string;
-      continuousDays: string;
-      affinityChange: string;
+      session_id: string;
+      character_name: string;
+      stage_name: string;
+      continuous_days: string;
+      affinity_change: string;
     }>();
 
   const [reportData, setReportData] = useState<ReportApiResponse | null>(null);
   const setStoreReportData = useChatStore((s) => s.setReportData);
 
   useEffect(() => {
-    fetch(`${BASE_URL}/api/reports/sessions/${sessionId}`)
+    fetch(`${BASE_URL}/api/reports/sessions/${session_id}`)
       .then((res) => res.json())
       .then((json: ReportApiResponse) => {
         setReportData(json);
         setStoreReportData(json);
       });
-  }, [sessionId]);
+  }, [session_id]);
 
   if (!reportData) {
     return (
@@ -49,7 +49,7 @@ export default function ReportHomeScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: getHeaderTop(insets.top) }]}>
         <Text style={styles.title}>오늘의 대화 종료!</Text>
-        <Text style={styles.subtitle}>{characterName} · {stageName} · {continuousDays}</Text>
+        <Text style={styles.subtitle}>{character_name} · {stage_name} · {continuous_days}</Text>
       </View>
 
       <ReportSummaryContent
@@ -59,12 +59,12 @@ export default function ReportHomeScreen() {
         onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
         affinityProgress={vm.affinityProgress}
         affinityValue={vm.affinityValue}
-        affinityLabel={`${characterName} 호감도`}
-        affinityChange={Number(affinityChange)}
+        affinityLabel={`${character_name} 호감도`}
+        affinityChange={Number(affinity_change)}
         chatCorrections={vm.corrections}
         voiceCorrections={vm.corrections}
         grammarFeedback={vm.grammarFeedback}
-        onReviewPress={() => router.push({ pathname: ROUTES.REVIEW as any, params: { sessionId } })}
+        onReviewPress={() => router.push({ pathname: ROUTES.REVIEW as any, params: { session_id } })}
         onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
         primaryLabel="메인으로 돌아가기"
       />
