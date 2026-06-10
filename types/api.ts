@@ -28,7 +28,7 @@ export interface Correction {
 export interface SystemEvaluation {
   grammar_feedback: string;
   is_penalty: boolean;
-  penalty_reason: string | null;
+  penalty_reason?: string | null; // Swagger 미반영 필드 — 백엔드 실응답 확인 필요
   pronunciation_score: PronunciationScore | null;
   // TODO(api): system_evaluation.corrections는 백엔드 최종 응답 스키마 확인 후 mock과 동기화
   // TODO(api): grammar_feedback 단문 + corrections[] 병행 사용 기준 확인
@@ -42,7 +42,7 @@ export interface ChatResponseData {
   text_content: string;
   action_description: string;
   audio_url: string | null;
-  current_affinity: number;
+  current_total_affinity: number;
   remaining_penalties: number;
   system_evaluation: SystemEvaluation;
 }

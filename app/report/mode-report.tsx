@@ -10,6 +10,7 @@ import { ROUTES } from '@/constants/routes';
 import { Colors, Typography, Spacing, getHeaderTop } from '@/constants/tokens';
 import { BASE_URL } from '@/services/chatService';
 import { CharacterItem, CharacterListApiResponse } from '@/types/api';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function ModeReportScreen() {
   const insets = useSafeAreaInsets();
@@ -19,15 +20,25 @@ export default function ModeReportScreen() {
   const [showDayPicker, setShowDayPicker] = useState(false);
   const [characters, setCharacters] = useState<CharacterItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const userId = useAuthStore((state) => state.userId);
 
   useEffect(() => {
-    fetch(`${BASE_URL}/api/characters/my-list?userId=`)
+    if (userId === null) return;
+
+    setIsLoading(true);
+
+    fetch(`${BASE_URL}/api/characters/my-list?userId=${userId}`)
       .then((res) => res.json())
       .then((json: CharacterListApiResponse) => {
         setCharacters(json.data);
+      })
+      .catch((error) => {
+        console.error('Failed to fetch character list:', error);
+      })
+      .finally(() => {
         setIsLoading(false);
       });
-  }, []);
+  }, [userId]);
 
   if (isLoading || characters.length === 0) {
     return (

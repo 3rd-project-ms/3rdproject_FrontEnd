@@ -1,7 +1,15 @@
 // store/useChatStore.ts
 import { create } from 'zustand';
-import { ChatMessage } from '../components/chat/ChatBubble';
 import { ReportApiResponse } from '@/types/api';
+
+export interface ChatMessage {
+  id: string;
+  role: 'ai' | 'user';
+  text: string;
+  timestamp: string;
+  isTyping?: boolean;
+  showAvatar?: boolean;
+}
 
 // 캐릭터 정의
 export type CharacterId = 'A' | 'B' | 'C';

@@ -1,5 +1,6 @@
 // services/chatService.ts
 import axios from 'axios';
+import { SystemEvaluation } from '@/types/api';
 
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://3rdprojectbackend-production.up.railway.app';
 
@@ -57,11 +58,7 @@ export interface ChatMessageResponse {
   affinity_delta: number;
   is_active: boolean;
   audio_url: string;        // voice 모드 시 TTS 결과
-  system_evaluation: {
-    grammar_feedback: string;
-    is_penalty: boolean;
-    pronunciation_score: PronunciationScore;
-  };
+  system_evaluation: SystemEvaluation;
   current_affinity: number;
 }
 

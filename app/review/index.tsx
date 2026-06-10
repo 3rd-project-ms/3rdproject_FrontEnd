@@ -146,7 +146,7 @@ export default function ReviewScreen() {
                         <Text style={styles.badgeText}>{item.type}</Text>
                       </View>
                       <Text style={styles.cardEnglish}>{item.corrected_sentence}</Text>
-                      <Text style={styles.cardKorean}>{item.translation}</Text>
+                      {item.translation ? <Text style={styles.cardKorean}>{item.translation}</Text> : null}
                     </View>
                     <TouchableOpacity
                       style={styles.starButton}

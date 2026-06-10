@@ -64,6 +64,38 @@ export interface DateGroup {
 // ── 매퍼 함수 ────────────────────────────────
 // TODO: API 연동 시 각 mapper의 TODO 주석 위치만 실데이터 필드로 교체 — 화면 코드는 수정 불필요
 
+// Swagger GET /api/corrections 응답 — 현재 확인된 필드만 사용
+interface CorrectionSummary {
+  correction_id: number;
+  original_sentence: string;
+  corrected_sentence: string;
+  corrected_audio_url: string;
+}
+
+// 현재는 임시 그룹핑 로직입니다. (Map 키 = 날짜 문자열 가정)
+// GET /api/corrections 응답에 session_id가 추가되면
+// session 기준 그룹핑(mapCorrectionsToSessionGroups)으로 전환 예정입니다.
+// 트리거: 백엔드 session_id 필드 추가 확정 후
+//
+// bookmarkedIds: GET /api/corrections/bookmarks 응답에서 추출한 correction_id Set.
+// 전달 시 starred 초기값을 북마크 여부로 설정, 미전달 시 false 유지.
+export function mapCorrectionsToDateGroups(
+  data: { [date: string]: CorrectionSummary[] },
+  bookmarkedIds?: Set<string>
+): DateGroup[] {
+  return Object.entries(data).map(([day, corrections]) => ({
+    day,
+    character: '', // TODO(api): GET /api/corrections에 character_name 없음 — 백엔드 추가 요청 필요
+    items: corrections.map((c) => ({
+      id: String(c.correction_id),
+      type: '문법' as const, // TODO(api): type 필드 GET 응답에 없음 — 백엔드 추가 요청 필요
+      corrected_sentence: c.corrected_sentence,
+      translation: '',       // TODO(api): translation GET 응답에 없음 — 유저 입력 후 PATCH 가드 해제 예정
+      starred: bookmarkedIds ? bookmarkedIds.has(String(c.correction_id)) : false,
+    })),
+  }));
+}
+
 function calcAvgPronScore(pronScore: PronunciationScore): number {
   return Math.round(
     (pronScore.accuracy +
@@ -103,9 +135,10 @@ export function mapReportViewModel(response: AnyReportResponse): ReportViewModel
   let remainingPenalties: number;
 
   if (isReportApiResponse(response)) {
-    pronScore = data.average_pronunciation;
-    corrections = data.corrections;
-    grammarFeedback = data.corrections.find((c) => c.grammar_feedback)?.grammar_feedback ?? '';
+    const reportData = response.data!;
+    pronScore = reportData.average_pronunciation;
+    corrections = reportData.corrections;
+    grammarFeedback = reportData.corrections.find((c) => c.grammar_feedback)?.grammar_feedback ?? '';
     affinityProgress = 0;
     affinityValue = 0;
     isPenalty = false;
@@ -115,8 +148,8 @@ export function mapReportViewModel(response: AnyReportResponse): ReportViewModel
     pronScore = chatData.system_evaluation.pronunciation_score;
     corrections = chatData.system_evaluation.corrections ?? [];
     grammarFeedback = chatData.system_evaluation.grammar_feedback;
-    affinityProgress = chatData.current_affinity / 100;
-    affinityValue = chatData.current_affinity;
+    affinityProgress = chatData.current_total_affinity / 100;
+    affinityValue = chatData.current_total_affinity;
     isPenalty = chatData.system_evaluation.is_penalty;
     remainingPenalties = chatData.remaining_penalties;
   }
@@ -158,7 +191,8 @@ export function mapPronunciationViewModel(
   let sentenceText: string;
 
   if (isReportApiResponse(response)) {
-    pronScore = data.average_pronunciation;
+    const reportData = response.data!;
+    pronScore = reportData.average_pronunciation;
     // TODO(api): ReportApiResponse에 sentence 텍스트 필드 확정 시 교체
     sentenceText = '';
   } else {
