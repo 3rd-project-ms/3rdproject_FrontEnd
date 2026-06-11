@@ -346,7 +346,14 @@ export default function StageScreen() {
                     style={[styles.modalBtn, styles.modalBtnChat]}
                     onPress={() => {
                       setActiveStage(null);
-                      router.push({ pathname: '/(main)/chat-text' as any, params: { name: charName } });
+                      router.push({
+                        pathname: '/(main)/chat-text' as any,
+                        params: {
+                          name: charName,
+                          stage_id: String(activeStage?.id ?? ''),
+                          affinity_score: String(affinity),
+                        },
+                      });
                     }}
                   >
                     <Ionicons name="chatbubble-ellipses" size={15} color="#2C3A5F" style={{ marginRight: 4 }} />
@@ -356,7 +363,14 @@ export default function StageScreen() {
                     style={[styles.modalBtn, styles.modalBtnVoice]}
                     onPress={() => {
                       setActiveStage(null);
-                      router.push({ pathname: '/(main)/chat-voice' as any, params: { name: charName } });
+                      router.push({
+                        pathname: '/(main)/chat-voice' as any,
+                        params: {
+                          name: charName,
+                          stage_id: String(activeStage?.id ?? ''),
+                          affinity_score: String(affinity),
+                        },
+                      });
                     }}
                   >
                     <Ionicons name="videocam" size={15} color="#FFF" style={{ marginRight: 4 }} />

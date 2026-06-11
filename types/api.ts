@@ -42,6 +42,7 @@ export interface ChatResponseData {
   text_content: string;
   action_description: string;
   audio_url: string | null;
+  affinity_delta: number;
   current_total_affinity: number;
   remaining_penalties: number;
   system_evaluation: SystemEvaluation;

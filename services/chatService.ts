@@ -1,6 +1,6 @@
 // services/chatService.ts
 import axios from 'axios';
-import { SystemEvaluation } from '@/types/api';
+import { ChatResponseData } from '@/types/api';
 
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://3rdprojectbackend-production.up.railway.app';
 
@@ -15,6 +15,7 @@ export interface SessionStartRequest {
   userId: number;
   stageId: number;
   characterId: string;
+  scenarioId?: string;
 }
 
 export interface SessionStartResponse {
@@ -40,28 +41,6 @@ export interface ChatMessageRequest {
   history: any[];           // TODO: 백엔드에 배열 내부 형식 확인 필요
 }
 
-export interface PronunciationScore {
-  accuracy: number;
-  fluency: number;
-  completeness: number;
-  prosody: number;
-  word_details: {
-    word: string;
-    accuracy: number;
-    error_type: string;
-  }[];
-}
-
-export interface ChatMessageResponse {
-  text_content: string;
-  action_description: string;
-  affinity_delta: number;
-  is_active: boolean;
-  audio_url: string;        // voice 모드 시 TTS 결과
-  system_evaluation: SystemEvaluation;
-  current_affinity: number;
-}
-
 // ── API 함수 ──
 export const chatService = {
 
@@ -72,7 +51,7 @@ export const chatService = {
   },
 
   /** 텍스트 메시지 전송 */
-  sendText: async (req: ChatMessageRequest): Promise<ChatMessageResponse> => {
+  sendText: async (req: ChatMessageRequest): Promise<ChatResponseData> => {
     const { data } = await api.post('/api/chat/message', {
       ...req,
       inputType: 'text',
@@ -84,7 +63,7 @@ export const chatService = {
   sendVoice: async (
     audioUri: string,
     req: Omit<ChatMessageRequest, 'textContent' | 'inputType'>
-  ): Promise<ChatMessageResponse> => {
+  ): Promise<ChatResponseData> => {
     const formData = new FormData();
     formData.append('audio', {
       uri: audioUri,
