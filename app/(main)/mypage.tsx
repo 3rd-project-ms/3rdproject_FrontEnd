@@ -9,33 +9,33 @@ import { Ionicons } from '@expo/vector-icons';
 // ─── 목업 데이터 (백엔드 연동 후 교체) ───
 const MOCK_USER = {
   nickname: '시현',
-  level: '초급',
 };
-
-const MOCK_CHARACTERS = [
-  { id: 1, name: '서태양', nameEn: 'Ian',  affinity: 85 },
-  { id: 2, name: '리암',   nameEn: 'Liam', affinity: 42 },
-  { id: 3, name: '이하준', nameEn: 'June', affinity: 60 },
-];
 
 const MOCK_STATS = {
   totalConversations: 12,
   avgPronunciation: 78,
 };
 
-// ─── 호감도 바 ───────────────────────────
-function AffinityBar({ value }: { value: number }) {
-  return (
-    <View style={styles.affinityTrack}>
-      <View style={[styles.affinityFill, { width: `${value}%` }]} />
-    </View>
-  );
-}
+// ─── 레벨 정의 ───────────────────────────
+const LEVELS = [
+  { code: 'A1', label: '입문',  desc: '영어가 처음이에요' },
+  { code: 'A2', label: '초급',  desc: '기초 표현을 알아요' },
+  { code: 'B1', label: '중급',  desc: '일상 대화 가능해요' },
+  { code: 'B2', label: '중상급', desc: '자연스러운 편이에요' },
+  { code: 'C1', label: '고급',  desc: '격식 표현도 OK' },
+  { code: 'C2', label: '최고급', desc: '원어민 수준이에요' },
+] as const;
+
+type LevelCode = typeof LEVELS[number]['code'];
 
 // ─────────────────────────────────────────
 export default function MyPageScreen() {
   const router = useRouter();
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditModal, setShowEditModal]   = useState(false);
+  const [showLevelModal, setShowLevelModal] = useState(false);
+  const [selectedCode, setSelectedCode]     = useState<LevelCode>('A2');
+
+  const currentLevel = LEVELS.find(l => l.code === selectedCode)!;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -58,18 +58,12 @@ export default function MyPageScreen() {
         {/* ── 프로필 카드 ── */}
         <View style={styles.card}>
           <View style={styles.profileRow}>
-            {/* 아바타 */}
             <View style={styles.avatar}>
               <Ionicons name="person" size={28} color="#FFFFFF" />
             </View>
-
             <View style={styles.profileInfo}>
               <Text style={styles.nickname}>{MOCK_USER.nickname}</Text>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>Lv. {MOCK_USER.level}</Text>
-              </View>
             </View>
-
             <TouchableOpacity
               style={styles.editBtn}
               onPress={() => setShowEditModal(true)}
@@ -95,30 +89,42 @@ export default function MyPageScreen() {
           </View>
         </View>
 
-        {/* ── 내 캐릭터 ── */}
+        {/* ── 나의 레벨 ── */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>내 캐릭터</Text>
-          {MOCK_CHARACTERS.map((char, index) => (
-            <View
-              key={char.id}
-              style={[
-                styles.charRow,
-                index < MOCK_CHARACTERS.length - 1 && styles.charRowBorder,
-              ]}
+          <View style={styles.levelHeader}>
+            <Text style={styles.sectionTitle}>나의 레벨</Text>
+            <TouchableOpacity
+              style={styles.levelChangeBtn}
+              onPress={() => setShowLevelModal(true)}
             >
-              <View style={styles.charAvatar}>
-                <Ionicons name="person-outline" size={16} color="#AEAEB2" />
-              </View>
-              <View style={styles.charInfo}>
-                <Text style={styles.charName}>
-                  {char.name}
-                  <Text style={styles.charNameEn}> ({char.nameEn})</Text>
-                </Text>
-                <AffinityBar value={char.affinity} />
-              </View>
-              <Text style={styles.charAffinity}>{char.affinity}%</Text>
-            </View>
-          ))}
+              <Text style={styles.levelChangeBtnText}>변경</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 2열 그리드 */}
+          <View style={styles.levelGrid}>
+            {LEVELS.map((lv) => {
+              const isSelected = lv.code === selectedCode;
+              return (
+                <TouchableOpacity
+                  key={lv.code}
+                  style={[styles.levelCell, isSelected && styles.levelCellActive]}
+                  onPress={() => setSelectedCode(lv.code)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.levelCellCode, isSelected && styles.levelCellCodeActive]}>
+                    {lv.code}
+                  </Text>
+                  <Text style={[styles.levelCellLabel, isSelected && styles.levelCellLabelActive]}>
+                    {lv.label}
+                  </Text>
+                  <Text style={[styles.levelCellDesc, isSelected && styles.levelCellDescActive]}>
+                    {lv.desc}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {/* ── 메뉴 ── */}
@@ -144,7 +150,54 @@ export default function MyPageScreen() {
 
       </ScrollView>
 
-      {/* ── 편집 모달 (로그아웃 포함) ── */}
+      {/* ── 레벨 변경 바텀시트 ── */}
+      {showLevelModal && (
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setShowLevelModal(false)}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>레벨 선택</Text>
+
+            <View style={styles.levelGrid}>
+              {LEVELS.map((lv) => {
+                const isSelected = lv.code === selectedCode;
+                return (
+                  <TouchableOpacity
+                    key={lv.code}
+                    style={[styles.levelCell, isSelected && styles.levelCellActive]}
+                    onPress={() => {
+                      setSelectedCode(lv.code);
+                      setShowLevelModal(false);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.levelCellCode, isSelected && styles.levelCellCodeActive]}>
+                      {lv.code}
+                    </Text>
+                    <Text style={[styles.levelCellLabel, isSelected && styles.levelCellLabelActive]}>
+                      {lv.label}
+                    </Text>
+                    <Text style={[styles.levelCellDesc, isSelected && styles.levelCellDescActive]}>
+                      {lv.desc}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setShowLevelModal(false)}
+            >
+              <Text style={styles.modalCancelText}>닫기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── 편집 모달 ── */}
       {showEditModal && (
         <View style={styles.modalOverlay}>
           <TouchableOpacity
@@ -190,7 +243,6 @@ export default function MyPageScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F8F8' },
 
-  // 헤더
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -203,11 +255,9 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#0B0B12' },
 
-  // 스크롤
   scroll: { flex: 1 },
   scrollContent: { padding: 16, gap: 12, paddingBottom: 40 },
 
-  // 카드
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -217,7 +267,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#AEAEB2',
-    marginBottom: 12,
+    marginBottom: 0,
   },
 
   // 프로필
@@ -229,14 +279,6 @@ const styles = StyleSheet.create({
   },
   profileInfo: { flex: 1 },
   nickname: { fontSize: 18, fontWeight: '700', color: '#0B0B12' },
-  levelBadge: {
-    marginTop: 4,
-    alignSelf: 'flex-start',
-    backgroundColor: '#F0F0F5',
-    borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 2,
-  },
-  levelText: { fontSize: 11, fontWeight: '600', color: '#616161' },
   editBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#F0F0F5', borderRadius: 8,
@@ -247,32 +289,62 @@ const styles = StyleSheet.create({
   // 통계
   statsGrid: { flexDirection: 'row' },
   statItem: { flex: 1, alignItems: 'center', paddingVertical: 8 },
-  statItemRight: {
-    borderLeftWidth: 1, borderLeftColor: '#F0F0F0',
-  },
+  statItemRight: { borderLeftWidth: 1, borderLeftColor: '#F0F0F0' },
   statValue: { fontSize: 24, fontWeight: '700', color: '#0B0B12' },
   statLabel: { fontSize: 11, color: '#AEAEB2', marginTop: 4 },
 
-  // 캐릭터
-  charRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 10,
+  // 레벨 카드
+  levelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
-  charRowBorder: { borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
-  charAvatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#F0F0F5',
-    alignItems: 'center', justifyContent: 'center',
+  levelChangeBtn: {
+    backgroundColor: '#F6A3A6',
+    borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 5,
   },
-  charInfo: { flex: 1 },
-  charName: { fontSize: 13, fontWeight: '600', color: '#0B0B12' },
-  charNameEn: { fontSize: 12, fontWeight: '400', color: '#AEAEB2' },
-  affinityTrack: {
-    height: 4, backgroundColor: '#F0F0F5',
-    borderRadius: 2, marginTop: 6, overflow: 'hidden',
+  levelChangeBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+
+  // 2열 그리드
+  levelGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  affinityFill: { height: '100%', backgroundColor: '#F6A3A6', borderRadius: 2 },
-  charAffinity: { fontSize: 12, color: '#AEAEB2', fontWeight: '500' },
+  levelCell: {
+    width: '47.5%',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#F0F0F0',
+    backgroundColor: '#FAFAFA',
+    padding: 14,
+  },
+  levelCellActive: {
+    borderColor: '#F6A3A6',
+    backgroundColor: '#FFF5F5',
+  },
+  levelCellCode: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#AEAEB2',
+    marginBottom: 2,
+  },
+  levelCellCodeActive: { color: '#F6A3A6' },
+  levelCellLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0B0B12',
+    marginBottom: 4,
+  },
+  levelCellLabelActive: { color: '#0B0B12' },
+  levelCellDesc: {
+    fontSize: 11,
+    color: '#AEAEB2',
+    lineHeight: 15,
+  },
+  levelCellDescActive: { color: '#C9787A' },
 
   // 메뉴
   menuItem: {
@@ -282,7 +354,7 @@ const styles = StyleSheet.create({
   menuItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
   menuItemText: { fontSize: 15, color: '#0B0B12', fontWeight: '500' },
 
-  // 편집 모달
+  // 모달 공통
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -298,14 +370,14 @@ const styles = StyleSheet.create({
     fontSize: 16, fontWeight: '700', color: '#0B0B12',
     marginBottom: 16, textAlign: 'center',
   },
+  modalDivider: { height: 1, backgroundColor: '#F0F0F0' },
   modalItem: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 14,
   },
   modalItemText: { fontSize: 15, color: '#0B0B12', fontWeight: '500' },
-  modalDivider: { height: 1, backgroundColor: '#F0F0F0' },
   modalCancelBtn: {
-    marginTop: 12, paddingVertical: 14,
+    marginTop: 16, paddingVertical: 14,
     backgroundColor: '#F0F0F5', borderRadius: 12, alignItems: 'center',
   },
   modalCancelText: { fontSize: 15, fontWeight: '600', color: '#616161' },
