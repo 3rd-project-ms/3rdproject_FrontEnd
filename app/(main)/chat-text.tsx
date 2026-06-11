@@ -51,18 +51,20 @@ const getTimeString = () => {
 // ─────────────────────────────────────────
 export default function ChatTextScreen() {
   const router = useRouter();
-  const { character_id, session_id, scenario_id, stage_id, user_id } =
+  const { character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
     useLocalSearchParams<{
       character_id: string;
       session_id: string;
       scenario_id: string;
       stage_id: string;
       user_id: string;
+      affinity_score: string;
     }>();
 
   // ─── 상태 ───────────────────────────────
-  const [sessionId, setSessionId]       = useState<string>(session_id ?? '');
-  const [affinity, setAffinity]         = useState(42);
+  const [sessionId, setSessionId]             = useState<string>(session_id ?? '');
+  const [affinity, setAffinity]               = useState(Number(affinity_score) || 0);
+  const [affinityDeltaTotal, setAffinityDeltaTotal] = useState(0);
   const [lives, setLives]               = useState(3);
   const [messages, setMessages]         = useState<Message[]>([]);
   const [turnCount, setTurnCount]       = useState(1);
@@ -159,14 +161,15 @@ export default function ChatTextScreen() {
       }]);
 
       const prevAffinity = affinity;
-      setAffinity(data.current_affinity);
+      setAffinity(data.current_total_affinity);
+      setAffinityDeltaTotal((prev) => prev + (data.affinity_delta ?? 0));
       if (eval_.is_penalty) setLives((prev) => Math.max(0, prev - 1));
       setTurnCount((prev) => prev + 1);
 
       if (eval_.is_penalty && eval_.penalty_reason) {
         popup.show(PENALTY_REASON_MAP[eval_.penalty_reason] ?? 'off_topic', 1);
-      } else if (data.current_affinity > prevAffinity) {
-        const gain = data.current_affinity - prevAffinity;
+      } else if (data.current_total_affinity > prevAffinity) {
+        const gain = data.current_total_affinity - prevAffinity;
         popup.show(gain >= 10 ? 'affection_perfect' : 'affection_good');
       }
 
@@ -191,7 +194,7 @@ export default function ChatTextScreen() {
         character_name:  character_id,
         stage_name:      stage_id,
         continuous_days: '',
-        affinity_change: String(affinity),
+        affinity_change: String(affinityDeltaTotal),
       },
     });
   };
