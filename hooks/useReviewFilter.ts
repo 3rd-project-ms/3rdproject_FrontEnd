@@ -79,9 +79,6 @@ export function useReviewFilter(): UseReviewFilterResult {
     }
     const item = groups.flatMap((g) => g.items).find((i) => i.id === itemId);
     if (!item) return;
-    // PATCH 가드: translation은 GET 응답에 없는 유저 입력 필드.
-    // 백엔드가 translation 없이 is_reviewed만 허용하거나 UI 입력이 추가될 때 제거.
-    if (!item.translation) return;
     await fetch(`${BASE_URL}/api/corrections/${itemId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

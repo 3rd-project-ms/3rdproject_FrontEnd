@@ -10,6 +10,7 @@ import { Colors, Typography, Spacing, getHeaderTop } from '@/constants/tokens';
 import { BASE_URL } from '@/services/chatService';
 import { ReportApiResponse } from '@/types/api';
 import { useChatStore } from '@/store/useChatStore';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function ReportHomeScreen() {
   const router = useRouter();
@@ -25,15 +26,17 @@ export default function ReportHomeScreen() {
 
   const [reportData, setReportData] = useState<ReportApiResponse | null>(null);
   const setStoreReportData = useChatStore((s) => s.setReportData);
+  const userId = useAuthStore((s) => s.userId);
 
   useEffect(() => {
-    fetch(`${BASE_URL}/api/reports/sessions/${session_id}`)
+    if (userId === null) return;
+    fetch(`${BASE_URL}/api/reports/sessions/${session_id}?userId=${userId}`)
       .then((res) => res.json())
       .then((json: ReportApiResponse) => {
         setReportData(json);
         setStoreReportData(json);
       });
-  }, [session_id]);
+  }, [session_id, userId]);
 
   if (!reportData) {
     return (
