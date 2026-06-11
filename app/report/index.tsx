@@ -1,44 +1,70 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import ReportSummaryContent from '@/components/report/ReportSummaryContent';
-import { getChatReportResponse, getVoiceReportResponse } from '@/utils/mockSelectors';
 import { buildReportDisplayViewModel } from '@/utils/reportSelectors';
 import { ROUTES } from '@/constants/routes';
 import { Colors, Typography, Spacing, getHeaderTop } from '@/constants/tokens';
-
-// TODO(api): 채팅팀 머지 후 useLocalSearchParams로 아래 파라미터 수신
-// session_id, character_name, stage_name, continuous_days, affinity_change
-// affinity_change는 Number()로 변환 후 ReportSummaryContent affinityChange prop에 전달
+import { BASE_URL } from '@/services/chatService';
+import { ReportApiResponse } from '@/types/api';
+import { useChatStore } from '@/store/useChatStore';
 
 export default function ReportHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const chatVm = buildReportDisplayViewModel(getChatReportResponse());
-  const voiceVm = buildReportDisplayViewModel(getVoiceReportResponse());
+  const { session_id, character_name, stage_name, continuous_days, affinity_change } =
+    useLocalSearchParams<{
+      session_id: string;
+      character_name: string;
+      stage_name: string;
+      continuous_days: string;
+      affinity_change: string;
+    }>();
+
+  const [reportData, setReportData] = useState<ReportApiResponse | null>(null);
+  const setStoreReportData = useChatStore((s) => s.setReportData);
+
+  useEffect(() => {
+    fetch(`${BASE_URL}/api/reports/sessions/${session_id}`)
+      .then((res) => res.json())
+      .then((json: ReportApiResponse) => {
+        setReportData(json);
+        setStoreReportData(json);
+      });
+  }, [session_id]);
+
+  if (!reportData) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator color={Colors.textPrimary} />
+      </View>
+    );
+  }
+
+  const vm = buildReportDisplayViewModel(reportData);
 
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: getHeaderTop(insets.top) }]}>
         <Text style={styles.title}>오늘의 대화 종료!</Text>
-        <Text style={styles.subtitle}>{chatVm.characterId} · {chatVm.stageName} · {chatVm.streakLabel}</Text>
+        <Text style={styles.subtitle}>{character_name} · {stage_name} · {continuous_days}</Text>
       </View>
 
       <ReportSummaryContent
-        avgPronScore={voiceVm.avgPronScore}
-        correctionCount={chatVm.correctionCount}
-        isPronNavigable={voiceVm.avgPronScore !== null}
+        avgPronScore={vm.avgPronScore}
+        correctionCount={vm.correctionCount}
+        isPronNavigable={vm.avgPronScore !== null}
         onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
-        affinityProgress={chatVm.affinityProgress}
-        affinityValue={chatVm.affinityValue}
-        affinityLabel={`${chatVm.characterId} 호감도`}
-        affinityChange={chatVm.affinityChange ?? undefined}
-        chatCorrections={chatVm.corrections}
-        voiceCorrections={voiceVm.corrections}
-        grammarFeedback={chatVm.grammarFeedback}
-        onReviewPress={() => router.push(ROUTES.REVIEW as any)}
+        affinityProgress={vm.affinityProgress}
+        affinityValue={vm.affinityValue}
+        affinityLabel={`${character_name} 호감도`}
+        affinityChange={Number(affinity_change)}
+        chatCorrections={vm.corrections}
+        voiceCorrections={vm.corrections}
+        grammarFeedback={vm.grammarFeedback}
+        onReviewPress={() => router.push({ pathname: ROUTES.REVIEW as any, params: { session_id } })}
         onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
         primaryLabel="메인으로 돌아가기"
       />
@@ -50,6 +76,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     paddingHorizontal: Spacing.screenHorizontal,

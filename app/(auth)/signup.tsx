@@ -3,6 +3,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -13,12 +14,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AuthHeader from '../../components/common/AuthHeader';
 import Button from '../../components/common/Button';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { ApiError } from '../../services/api';
+import { authService } from '../../services/authService';
 import { useAuthStore } from '../../store/useAuthStore';
 
 type Gender = 'male' | 'female' | null;
 type IdCheckStatus = 'idle' | 'available' | 'duplicated';
 
-const duplicatedIds = ['team4', 'test', 'admin'];
 const passwordRegex =
   /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,20}$/;
 
@@ -35,6 +37,7 @@ export default function SignupScreen() {
   const [idCheckStatus, setIdCheckStatus] = useState<IdCheckStatus>('idle');
   const [nickname, setNickname] = useState('');
   const [selectedGender, setSelectedGender] = useState<Gender>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canCheckId = email.trim().length > 0;
   const isPasswordValid = passwordRegex.test(password);
@@ -45,23 +48,20 @@ export default function SignupScreen() {
     idCheckStatus === 'available' &&
     isPasswordValid &&
     isPasswordConfirmValid;
-  const canSubmit = nickname.trim().length > 0 && selectedGender !== null;
+  const canSubmit =
+    nickname.trim().length > 0 && selectedGender !== null && !isSubmitting;
 
   const handleChangeEmail = (value: string) => {
     setEmail(value);
     setIdCheckStatus('idle');
   };
 
+  // 백엔드에 아이디 중복확인 전용 엔드포인트가 없어, 형식만 통과시키고
+  // 실제 중복 여부는 회원가입(signup) 시점의 에러로 처리한다.
+  // TODO(api): 중복확인 엔드포인트가 추가되면 여기서 호출하도록 변경
   const handleCheckId = () => {
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (!normalizedEmail) {
-      setIdCheckStatus('idle');
-      return;
-    }
-
-    const isDuplicated = duplicatedIds.includes(normalizedEmail);
-    setIdCheckStatus(isDuplicated ? 'duplicated' : 'available');
+    const normalizedEmail = email.trim();
+    setIdCheckStatus(normalizedEmail ? 'available' : 'idle');
   };
 
   const handleBack = () => {
@@ -74,14 +74,50 @@ export default function SignupScreen() {
     setStep(1);
   };
 
-  const handleSubmit = () => {
-    setAuth({
-      isLoggedIn: true,
-      email: isGuest ? '' : email.trim().toLowerCase(),
-      nickname: nickname.trim(),
-      selectedGender,
-    });
-    router.replace('/(auth)/level-select');
+  const handleSubmit = async () => {
+    if (!canSubmit || selectedGender === null) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (isGuest) {
+        // 게스트: guest_id를 생성해 게스트 로그인으로 user_id 발급
+        const guestId = `guest-${Date.now()}`;
+        const res = await authService.guestLogin(guestId);
+        setAuth({
+          isLoggedIn: true,
+          userId: res.user_id,
+          email: '',
+          // 닉네임은 로컬 입력값 우선, 없으면 서버 발급값 사용
+          nickname: nickname.trim() || res.nickname,
+          selectedGender,
+        });
+      } else {
+        const res = await authService.signup({
+          login_id: email.trim(),
+          password,
+          nickname: nickname.trim(),
+          preferred_partner_gender: selectedGender,
+        });
+        setAuth({
+          isLoggedIn: true,
+          userId: res.user_id,
+          email: res.login_id,
+          nickname: res.nickname,
+          selectedGender,
+        });
+      }
+      router.replace('/(auth)/level-select');
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : '회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.';
+      Alert.alert('알림', message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -218,7 +254,7 @@ export default function SignupScreen() {
               </Pressable>
             </View>
             <Button
-              title="설정완료하기"
+              title={isSubmitting ? '처리 중...' : '설정완료하기'}
               disabled={!canSubmit}
               onPress={handleSubmit}
               style={styles.signupButton}

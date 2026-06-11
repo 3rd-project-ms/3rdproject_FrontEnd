@@ -14,12 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AuthHeader from '../../components/common/AuthHeader';
 import Button from '../../components/common/Button';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { ApiError } from '../../services/api';
+import { authService } from '../../services/authService';
 import { useAuthStore } from '../../store/useAuthStore';
-
-const mockAccounts = [
-  { id: 'team4', password: 'team4123!' },
-  { id: 'user1', password: 'user1234!' },
-];
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -27,9 +24,12 @@ export default function LoginScreen() {
   const [loginId, setLoginId] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canLogin =
-    loginId.trim().length > 0 && loginPassword.trim().length > 0;
+    loginId.trim().length > 0 &&
+    loginPassword.trim().length > 0 &&
+    !isSubmitting;
 
   const handleChangeLoginId = (value: string) => {
     setLoginId(value);
@@ -41,21 +41,34 @@ export default function LoginScreen() {
     setLoginError('');
   };
 
-  const handleLogin = () => {
-    const normalizedId = loginId.trim().toLowerCase();
-    const matched = mockAccounts.find(
-      (account) =>
-        account.id === normalizedId && account.password === loginPassword
-    );
+  const handleLogin = async () => {
+    const normalizedId = loginId.trim();
+    setLoginError('');
+    setIsSubmitting(true);
 
-    if (matched) {
-      setLoginError('');
-      setAuth({ isLoggedIn: true, email: matched.id });
+    try {
+      const res = await authService.login({
+        login_id: normalizedId,
+        password: loginPassword,
+      });
+      setAuth({
+        isLoggedIn: true,
+        userId: res.user_id,
+        nickname: res.nickname,
+        email: normalizedId,
+      });
       router.replace('/(main)/home');
-      return;
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : '*아이디 또는 비밀번호가 일치하지 않습니다.';
+      setLoginError(
+        message.startsWith('*') ? message : `*${message}`
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setLoginError('*아이디 또는 비밀번호가 일치하지 않습니다.');
   };
 
   return (
@@ -86,7 +99,7 @@ export default function LoginScreen() {
             ) : null}
           </View>
           <Button
-            title="로그인"
+            title={isSubmitting ? '로그인 중...' : '로그인'}
             disabled={!canLogin}
             onPress={handleLogin}
             style={styles.submitButton}

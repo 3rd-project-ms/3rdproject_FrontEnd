@@ -1,6 +1,15 @@
 // store/useChatStore.ts
 import { create } from 'zustand';
-import { ChatMessage } from '../components/chat/ChatBubble';
+import { ReportApiResponse } from '@/types/api';
+
+export interface ChatMessage {
+  id: string;
+  role: 'ai' | 'user';
+  text: string;
+  timestamp: string;
+  isTyping?: boolean;
+  showAvatar?: boolean;
+}
 
 // 캐릭터 정의
 export type CharacterId = 'A' | 'B' | 'C';
@@ -70,8 +79,12 @@ interface ChatState {
   // 로딩 상태
   isLoading: boolean;
 
+  // 리포트 데이터
+  reportData: ReportApiResponse | null;
+
   // Actions
   setCharacter: (id: CharacterId, gender: CharacterGender) => void;
+  setReportData: (data: ReportApiResponse | null) => void;
   addMessage: (msg: ChatMessage) => void;
   addAITyping: () => void;        // 타이핑 중 버블 추가
   removeAITyping: () => void;     // 타이핑 버블 제거
@@ -98,8 +111,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     learningPoint: '',
   },
   isLoading: false,
+  reportData: null,
 
   setCharacter: (id, gender) => set({ characterId: id, characterGender: gender }),
+  setReportData: (data) => set({ reportData: data }),
 
   addMessage: (msg) =>
     set((state) => ({
