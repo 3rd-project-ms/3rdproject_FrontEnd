@@ -50,6 +50,17 @@ export const chatService = {
     return data.data;
   },
 
+  /** 세션 종료 */
+  endSession: async (sessionId: string): Promise<void> => {
+    await api.post(`/api/sessions/${sessionId}/end`);
+  },
+
+  /** 세션 히스토리 조회 (이어하기용) */
+  getSessionLogs: async (sessionId: string): Promise<any[]> => {
+    const { data } = await api.get(`/api/chat/sessions/${sessionId}/logs`);
+    return data.data ?? [];
+  },
+
   /** 텍스트 메시지 전송 */
   sendText: async (req: ChatMessageRequest): Promise<ChatResponseData> => {
     const { data } = await api.post('/api/chat/message', {

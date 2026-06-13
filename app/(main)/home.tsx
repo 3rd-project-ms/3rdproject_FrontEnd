@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
   SafeAreaView, Platform, ScrollView, Image, Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '@/store/useAuthStore';
+import { api } from '@/services/api';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 
+// characterId: 백엔드 캐릭터 ID
 const CHARACTER_DATA = [
   {
-    id: 1, name: '서태양', nameEn: 'Ian', age: '23세', role: '서핑 강사', affinity: 85,
+    id: 1, characterId: 'CH_01_M', name: '서태양', nameEn: 'Ian', age: '23세', role: '서핑 강사', affinity: 0,
     tags: ['#능글맞은_유죄인간', '#캘리포니아_바이브', '#인싸_서핑강사', '#은근한_소유욕'],
     desc: '거침없이 다가오는 능글맞은 미국 서부 출신 소꿉친구 서핑 강사',
     slang: 'You know / Like / Chill / Damn',
@@ -22,7 +25,7 @@ const CHARACTER_DATA = [
     image: require('../../assets/characters/ian.png'),
   },
   {
-    id: 2, name: '유나', nameEn: 'Chloe', age: '23세', role: '서핑 강사', affinity: 42,
+    id: 2, characterId: 'CH_01_F', name: '유나', nameEn: 'Chloe', age: '23세', role: '서핑 강사', affinity: 0,
     tags: ['#왈가닥_갭모에', '#털털하지만_뚝딱이', '#자각_후_순수폭발', '#소꿉친구'],
     desc: '평소엔 털털하다가 자각 순간 감정을 숨기지 못하는 순수 갭모에 소꿉친구',
     slang: 'Like / Oh my god / Totally / Unfair',
@@ -34,7 +37,7 @@ const CHARACTER_DATA = [
     image: null,
   },
   {
-    id: 3, name: '이하준', nameEn: 'Jun', age: '25세', role: '대학원 선배', affinity: 60,
+    id: 3, characterId: 'CH_02_M', name: '이하준', nameEn: 'Jun', age: '25세', role: '대학원 선배', affinity: 0,
     tags: ['#츤데레', '#겉무속촉', '#호주_로컬', '#석사과정', '#허당_폭발'],
     desc: '무심한 척 뒤에서 몰래 챙기는 호주 교포 츤데레 대학원 선배',
     slang: 'Crikey / Far out / Arvo / Mate / Ya',
@@ -46,7 +49,7 @@ const CHARACTER_DATA = [
     image: null,
   },
   {
-    id: 4, name: '한윤서', nameEn: 'Yoon', age: '25세', role: '대학원 선배', affinity: 30,
+    id: 4, characterId: 'CH_02_F', name: '한윤서', nameEn: 'Yoon', age: '25세', role: '대학원 선배', affinity: 0,
     tags: ['#츤데레_걸크러시', '#차가운_고양이_눈빛', '#겉무속촉', '#고학번'],
     desc: '차갑고 도도해 보이지만 속으론 따뜻하게 챙기는 호주 교포 츤데레 선배',
     slang: 'Crikey / Far out / Arvo / Mate / Ya',
@@ -58,7 +61,7 @@ const CHARACTER_DATA = [
     image: null,
   },
   {
-    id: 5, name: '리암', nameEn: 'Liam', age: '29세', role: '카페 사장님', affinity: 75,
+    id: 5, characterId: 'CH_03_M', name: '리암', nameEn: 'Liam', age: '29세', role: '카페 사장님', affinity: 0,
     tags: ['#능글맞은_섹시직진남', '#성숙한_어른의_여유', '#영국_위트', '#아슬아슬_플러팅'],
     desc: '성숙한 여유로움으로 선을 아슬아슬하게 넘나드는 영국 출신 카페 사장님',
     slang: 'Bloody hell / Cheers / Innit / Cheeky',
@@ -70,7 +73,7 @@ const CHARACTER_DATA = [
     image: null,
   },
   {
-    id: 6, name: '시엔나', nameEn: 'Sienna', age: '29세', role: '카페 사장님', affinity: 50,
+    id: 6, characterId: 'CH_03_F', name: '시엔나', nameEn: 'Sienna', age: '29세', role: '카페 사장님', affinity: 0,
     tags: ['#햇살같은_다정함', '#섬세한_배려', '#눈웃음', '#단골_취향_기억'],
     desc: '사소한 기분 변화와 취향까지 섬세하게 기억해 챙겨주는 햇살 같은 사장님',
     slang: 'How lovely! / Brilliant! / Cuppa / Knackered',
@@ -103,17 +106,39 @@ const st = StyleSheet.create({
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { userId } = useAuthStore();
   const [idx, setIdx] = useState(0);
-  const char = CHARACTER_DATA[idx];
+  const [characters, setCharacters] = useState(CHARACTER_DATA);
+  const char = characters[idx];
 
-  const prev = () => setIdx((p) => (p === 0 ? CHARACTER_DATA.length - 1 : p - 1));
-  const next = () => setIdx((p) => (p === CHARACTER_DATA.length - 1 ? 0 : p + 1));
+  useEffect(() => {
+    if (!userId) return;
+    api.get(`/api/characters/status?userId=${userId}`)
+      .then((res) => {
+        const list: { characterId: string; affinityScore: number }[] = res.data?.data ?? [];
+        if (!list.length) return;
+        setCharacters((prev) =>
+          prev.map((c) => {
+            const found = list.find((a) => a.characterId === c.characterId);
+            return found ? { ...c, affinity: found.affinityScore } : c;
+          })
+        );
+      })
+      .catch(() => {});
+  }, [userId]);
 
-  const goStage = () =>
+  const prev = () => setIdx((p) => (p === 0 ? characters.length - 1 : p - 1));
+  const next = () => setIdx((p) => (p === characters.length - 1 ? 0 : p + 1));
+
+  const goStage = () => {
+    if (userId) {
+      api.patch('/api/users/last-character', { userId, characterId: char.characterId }).catch(() => {});
+    }
     router.push({
       pathname: '/(main)/stage' as any,
-      params: { name: char.name, role: char.role, affinity: char.affinity },
+      params: { name: char.name, role: char.role, affinity: char.affinity, character_id: char.characterId },
     });
+  };
 
   return (
     <SafeAreaView style={s.container}>

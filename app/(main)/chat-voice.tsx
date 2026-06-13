@@ -10,6 +10,7 @@ import { Audio } from "expo-av";
 import MicButton from "@/components/chat/MicButton";
 import PenaltyPopup, { PopupType, usePenaltyPopup } from "@/components/chat/PenaltyPopup";
 import { chatService } from "@/services/chatService";
+import { useAuthStore } from "@/store/useAuthStore";
 
 // ─────────────────────────────────────────
 // penalty_reason → PopupType 매핑
@@ -57,13 +58,14 @@ export default function ChatVoiceScreen() {
   const userTextOpacity  = useRef(new Animated.Value(0)).current;
 
   const popup = usePenaltyPopup();
+  const { userId: storeUserId } = useAuthStore();
 
   // ─── 세션 시작 ──────────────────────────
   useEffect(() => {
     const initSession = async () => {
       try {
         const res = await chatService.startSession({
-          userId:      Number(user_id) || 1,
+          userId:      Number(user_id) || storeUserId || 1,
           stageId:     Number(stage_id) || 1,
           characterId: character_id || 'CH_01_M',
         });
@@ -183,8 +185,11 @@ export default function ChatVoiceScreen() {
   };
 
   // ─── 종료 후 리포트 이동 ────────────────
-  const handleGoReport = () => {
+  const handleGoReport = async () => {
     setShowEndModal(false);
+    if (sessionId) {
+      try { await chatService.endSession(sessionId); } catch {}
+    }
     router.push({
       pathname: '/report' as any,
       params: {

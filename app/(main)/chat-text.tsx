@@ -11,6 +11,7 @@ import ChatBubble from '@/components/chat/ChatBubble';
 import InputBar from '@/components/chat/InputBar';
 import PenaltyPopup, { PopupType, usePenaltyPopup } from '@/components/chat/PenaltyPopup';
 import { chatService } from '@/services/chatService';
+import { useAuthStore } from '@/store/useAuthStore';
 
 // ─────────────────────────────────────────
 // 타입
@@ -76,13 +77,14 @@ export default function ChatTextScreen() {
   const popup = usePenaltyPopup();
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<RNTextInput>(null);
+  const { userId: storeUserId } = useAuthStore();
 
   // ─── 세션 시작 + 초기 AI 인사 ──────────
   useEffect(() => {
     const initSession = async () => {
       try {
         const res = await chatService.startSession({
-          userId:      Number(user_id) || 1,
+          userId:      Number(user_id) || storeUserId || 1,
           stageId:     Number(stage_id) || 1,
           characterId: character_id || 'CH_01_M',
         });
@@ -185,8 +187,11 @@ export default function ChatTextScreen() {
   };
 
   // ─── 종료 후 리포트 이동 ────────────────
-  const handleGoReport = () => {
+  const handleGoReport = async () => {
     setShowEndModal(false);
+    if (sessionId) {
+      try { await chatService.endSession(sessionId); } catch {}
+    }
     router.push({
       pathname: '/report' as any,
       params: {

@@ -6,6 +6,8 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { api } from '@/services/api';
+import { StageItem } from '@/types/api';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -42,6 +44,21 @@ type AnyStage = (typeof MAIN_STAGES[0] | typeof SPECIAL_STAGES[0]) & {
   isLocked: boolean;
   affinityRequired?: number;
 };
+
+function mergeApiStages(apiStages: StageItem[], affinity: number): AnyStage[] {
+  const main = apiStages.filter((s) => !s.isSpecial).map((s, i) => ({
+    ...s,
+    stageLabel: s.stageLabel || `Stage ${i + 1}`,
+    isLocked: s.isLocked ?? affinity < i * AFFINITY_PER_STAGE,
+  }));
+  const special = apiStages.filter((s) => s.isSpecial).map((s) => ({
+    ...s,
+    stageLabel: s.stageLabel || `Special`,
+    isLocked: s.isLocked ?? (s.unlockAt != null ? affinity < s.unlockAt : true),
+    affinityRequired: s.unlockAt,
+  }));
+  return [...main, ...special];
+}
 
 // ─── 레이아웃 상수 ────────────────────────────────────────────────────────
 const X_RATIOS  = [0.35, 0.65, 0.25, 0.70, 0.35, 0.65, 0.25, 0.70];
@@ -228,19 +245,30 @@ function AffinityBar({ affinity }: { affinity: number }) {
 
 // ─── 메인 스크린 ──────────────────────────────────────────────────────────
 export default function StageScreen() {
-  const router   = useRouter();
-  const params   = useLocalSearchParams();
-  const charName = (params.name as string) || '서태양';
-  const charRole = (params.role as string) || '서핑 강사';
+  const router      = useRouter();
+  const params      = useLocalSearchParams();
+  const charName    = (params.name as string) || '서태양';
+  const charRole    = (params.role as string) || '서핑 강사';
+  const characterId = (params.character_id as string) || '';
 
-  // 배경 이미지 — role 기준 분기, 매핑 없으면 beach 기본
   const bgImage = STAGE_BACKGROUNDS[charRole] ?? STAGE_BACKGROUNDS['서핑 강사'];
 
-  // TODO: Zustand에서 실제 호감도 주입
-  const [affinity, setAffinity] = useState<number>(50);
+  const [affinity, setAffinity]       = useState<number>(Number(params.affinity) || 0);
   const [activeStage, setActiveStage] = useState<AnyStage | null>(null);
+  const [stageList, setStageList]     = useState<AnyStage[]>(() => buildStageList(Number(params.affinity) || 0));
 
-  const stageList    = buildStageList(affinity);
+  useEffect(() => {
+    if (!characterId) return;
+    api.get(`/api/characters/${characterId}/stages`)
+      .then((res) => {
+        const apiStages: StageItem[] = res.data?.data ?? [];
+        if (apiStages.length) {
+          setStageList(mergeApiStages(apiStages, affinity));
+        }
+      })
+      .catch(() => {});
+  }, [characterId]);
+
   const mainNodes    = stageList.slice(0, 8);
   const specialNodes = stageList.slice(8);
 
@@ -350,6 +378,7 @@ export default function StageScreen() {
                         pathname: '/(main)/chat-text' as any,
                         params: {
                           name: charName,
+                          character_id: characterId,
                           stage_id: String(activeStage?.id ?? ''),
                           affinity_score: String(affinity),
                         },
@@ -367,6 +396,7 @@ export default function StageScreen() {
                         pathname: '/(main)/chat-voice' as any,
                         params: {
                           name: charName,
+                          character_id: characterId,
                           stage_id: String(activeStage?.id ?? ''),
                           affinity_score: String(affinity),
                         },

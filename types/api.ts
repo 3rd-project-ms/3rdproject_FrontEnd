@@ -87,3 +87,35 @@ export interface CharacterListApiResponse {
   message: string;
   data: CharacterItem[];
 }
+
+export interface CharacterStatusItem {
+  characterId: string;
+  name: string;
+  imageUrl?: string;
+  affinityScore: number;
+  isUnlocked: boolean;
+}
+
+export interface CharacterStatusResponse {
+  success: boolean;
+  code: string;
+  message: string;
+  data: CharacterStatusItem[];
+}
+
+export interface StageItem {
+  id: number;
+  stageLabel: string;
+  title: string;
+  hint: string;
+  isSpecial: boolean;
+  unlockAt?: number;
+  isLocked: boolean;
+}
+
+export interface StageListResponse {
+  success: boolean;
+  code: string;
+  message: string;
+  data: StageItem[];
+}
