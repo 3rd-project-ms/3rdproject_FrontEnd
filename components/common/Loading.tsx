@@ -1,5 +1,20 @@
-// components/common/Loading.tsx
-//
-// API 연동 시 구현 예정인 로딩 UI 컴포넌트.
-// 전체 화면을 덮는 풀스크린 로딩과, 콘텐츠 영역 내에서 사용하는 인라인 스켈레톤 UI 두 가지 형태를 제공한다.
-// 사용처: 각 화면의 데이터 fetch 대기 상태.
+import React from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { Colors } from '@/constants/tokens';
+
+export default function Loading() {
+  return (
+    <View style={styles.container}>
+      <ActivityIndicator color={Colors.textPrimary} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+});

@@ -11,6 +11,7 @@ import MicButton from "@/components/chat/MicButton";
 import PenaltyPopup, { PopupType, usePenaltyPopup } from "@/components/chat/PenaltyPopup";
 import { chatService } from "@/services/chatService";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useChatStore } from "@/store/useChatStore";
 
 // ─────────────────────────────────────────
 // penalty_reason → PopupType 매핑
@@ -29,8 +30,9 @@ const GIFT_MARKERS = [40, 80] as const;
 // ─────────────────────────────────────────
 export default function ChatVoiceScreen() {
   const router = useRouter();
-  const { character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
+  const { name, character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
     useLocalSearchParams<{
+      name: string;
       character_id: string;
       session_id: string;
       scenario_id: string;
@@ -48,6 +50,8 @@ export default function ChatVoiceScreen() {
   const [micState, setMicState]           = useState<"idle" | "recording" | "disabled">("idle");
   const [currentAiText, setCurrentAiText] = useState("");
   const [currentUserText, setCurrentUserText] = useState("");
+  const [lastAudioUri, setLastAudioUri]   = useState<string | null>(null);
+  const [lastActionDescription, setLastActionDescription] = useState('');
   const [showHintModal, setShowHintModal] = useState(false);
   const [showEndModal, setShowEndModal]   = useState(false);
   const [hintText, setHintText]           = useState({ english: '', korean: '' });
@@ -59,6 +63,7 @@ export default function ChatVoiceScreen() {
 
   const popup = usePenaltyPopup();
   const { userId: storeUserId } = useAuthStore();
+  const setPronounceContext = useChatStore((s) => s.setPronounceContext);
 
   // ─── 세션 시작 ──────────────────────────
   useEffect(() => {
@@ -119,6 +124,7 @@ export default function ChatVoiceScreen() {
       await rec.stopAndUnloadAsync();
       const uri = rec.getURI();
       if (!uri) { setMicState("idle"); return; }
+      setLastAudioUri(uri);
       await sendVoiceMessage(uri);
     } catch (e) {
       console.error("녹음 종료 오류:", e);
@@ -149,6 +155,7 @@ export default function ChatVoiceScreen() {
       fadeIn(userTextOpacity);
 
       setCurrentAiText(data.text_content);
+      setLastActionDescription(data.action_description ?? '');
       fadeIn(aiCaptionOpacity);
 
       if (data.audio_url) await playAudio(data.audio_url);
@@ -187,6 +194,15 @@ export default function ChatVoiceScreen() {
   // ─── 종료 후 리포트 이동 ────────────────
   const handleGoReport = async () => {
     setShowEndModal(false);
+    setPronounceContext({
+      characterId:       character_id ?? '',
+      stageId:           Number(stage_id),
+      localAudioUri:     lastAudioUri,
+      text:              currentUserText,
+      isVideoCall:       true,
+      actionDescription: lastActionDescription,
+      userAudioUrl:      '',
+    });
     if (sessionId) {
       try { await chatService.endSession(sessionId); } catch {}
     }
@@ -194,10 +210,11 @@ export default function ChatVoiceScreen() {
       pathname: '/report' as any,
       params: {
         session_id:      sessionId,
-        character_name:  character_id,
+        character_name:  name,
         stage_name:      stage_id,
         continuous_days: '',
         affinity_change: String(affinityDeltaTotal),
+        affinity_score:  String(affinity),
       },
     });
   };

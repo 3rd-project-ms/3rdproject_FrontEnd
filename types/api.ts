@@ -119,3 +119,27 @@ export interface StageListResponse {
   message: string;
   data: StageItem[];
 }
+
+export interface AiRequestDto {
+  text: string;
+  videoCall: boolean;
+  user_id: number;
+  character_id: string;
+  is_video_call: boolean;
+  user_audio_url: string;
+  stage_id: number;
+  action_description: string;
+}
+
+export interface AiPronunciationData {
+  pronunciation_score: PronunciationScore;
+  text_content?: string;
+  action_description?: string;
+}
+
+export interface AiResponseDto {
+  success: boolean;
+  code?: string;
+  message?: string;
+  data: AiPronunciationData | null;
+}

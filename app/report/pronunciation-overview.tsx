@@ -1,35 +1,63 @@
 // app/report/pronunciation-overview.tsx
 // Pronunciation Overview — 발음 점수 요약 및 분석 의견
 
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import Loading from '@/components/common/Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import PrimaryButton from '@/components/common/PrimaryButton';
-import { mapPronunciationViewModel } from '@/utils/mappers';
+import { mapPronunciationViewModel, mapAiPronunciationViewModel } from '@/utils/mappers';
 import { useChatStore } from '@/store/useChatStore';
 import { useScrollVisibility } from '@/hooks/useScrollVisibility';
+import { useAuthStore } from '@/store/useAuthStore';
 import { ROUTES } from '@/constants/routes';
 import { Colors, Typography, Spacing, getHeaderTop } from '@/constants/tokens';
+import { AiRequestDto } from '@/types/api';
+import { analyzePronunciation } from '@/services/pronunciationService';
 
 export default function PronunciationOverviewScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { scrollRef, showScrollDown, handleScroll, handleContentSizeChange, handleLayout, scrollToEnd } =
     useScrollVisibility();
-  const { reportData } = useChatStore();
+  const { reportData, pronounceContext, pronunciationResult, setPronunciationResult } = useChatStore();
+  const userId = useAuthStore((s) => s.userId);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  if (!reportData) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator color={Colors.textPrimary} />
-      </View>
-    );
-  }
+  useEffect(() => {
+    if (!pronounceContext || userId === null || pronunciationResult) return;
 
-  const vm = mapPronunciationViewModel(reportData);
+    let active = true;
+    setIsAnalyzing(true);
+
+    const dto: AiRequestDto = {
+      text: pronounceContext.text,
+      videoCall: pronounceContext.isVideoCall,
+      user_id: userId,
+      character_id: pronounceContext.characterId,
+      is_video_call: pronounceContext.isVideoCall,
+      user_audio_url: pronounceContext.userAudioUrl,
+      stage_id: pronounceContext.stageId,
+      action_description: pronounceContext.actionDescription,
+    };
+
+    analyzePronunciation(dto, pronounceContext.localAudioUri)
+      .then((result) => { if (active) setPronunciationResult(result); })
+      .catch(() => {})
+      .finally(() => { if (active) setIsAnalyzing(false); });
+
+    return () => { active = false; };
+  }, [pronounceContext, userId]);
+
+  if (!reportData && !pronunciationResult) return <Loading />;
+  if (isAnalyzing) return <Loading />;
+
+  const vm = pronunciationResult
+    ? mapAiPronunciationViewModel(pronunciationResult)
+    : mapPronunciationViewModel(reportData!);
 
   return (
     <View style={styles.container}>

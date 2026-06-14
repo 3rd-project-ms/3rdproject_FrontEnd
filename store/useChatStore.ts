@@ -1,6 +1,16 @@
 // store/useChatStore.ts
 import { create } from 'zustand';
-import { ReportApiResponse } from '@/types/api';
+import { ReportApiResponse, AiResponseDto } from '@/types/api';
+
+export interface PronounceContext {
+  characterId: string;
+  stageId: number;
+  localAudioUri: string | null;
+  userAudioUrl: string;
+  actionDescription: string;
+  text: string;
+  isVideoCall: boolean;
+}
 
 export interface ChatMessage {
   id: string;
@@ -82,9 +92,17 @@ interface ChatState {
   // 리포트 데이터
   reportData: ReportApiResponse | null;
 
+  // 발음 분석 컨텍스트 (채팅 종료 시 세팅)
+  pronounceContext: PronounceContext | null;
+
+  // POST /api/analysis/pronunciation 응답 캐시
+  pronunciationResult: AiResponseDto | null;
+
   // Actions
   setCharacter: (id: CharacterId, gender: CharacterGender) => void;
   setReportData: (data: ReportApiResponse | null) => void;
+  setPronounceContext: (ctx: PronounceContext | null) => void;
+  setPronunciationResult: (result: AiResponseDto | null) => void;
   addMessage: (msg: ChatMessage) => void;
   addAITyping: () => void;        // 타이핑 중 버블 추가
   removeAITyping: () => void;     // 타이핑 버블 제거
@@ -112,9 +130,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   isLoading: false,
   reportData: null,
+  pronounceContext: null,
+  pronunciationResult: null,
 
   setCharacter: (id, gender) => set({ characterId: id, characterGender: gender }),
   setReportData: (data) => set({ reportData: data }),
+  setPronounceContext: (ctx) => set({ pronounceContext: ctx }),
+  setPronunciationResult: (result) => set({ pronunciationResult: result }),
 
   addMessage: (msg) =>
     set((state) => ({

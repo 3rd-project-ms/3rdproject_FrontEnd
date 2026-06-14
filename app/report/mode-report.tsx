@@ -4,75 +4,126 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import Loading from '@/components/common/Loading';
 import ReportSummaryContent from '@/components/report/ReportSummaryContent';
 
 import { ROUTES } from '@/constants/routes';
 import { Colors, Typography, Spacing, getHeaderTop } from '@/constants/tokens';
 import { BASE_URL } from '@/services/chatService';
-import { CharacterItem, CharacterListApiResponse } from '@/types/api';
+import { CharacterItem, CharacterListApiResponse, ReportApiResponse } from '@/types/api';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useChatStore } from '@/store/useChatStore';
+import { buildReportDisplayViewModel } from '@/utils/reportSelectors';
+
+interface SessionItem {
+  session_id: string;
+  day_number: number;
+  latest_day: number;
+}
+
+interface DayOption {
+  day_number: number;
+  session_id: string;
+}
 
 export default function ModeReportScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
-  const [currentDay, setCurrentDay] = useState(1);
+  const [currentDay, setCurrentDay] = useState<number | null>(null);
   const [showDayPicker, setShowDayPicker] = useState(false);
   const [characters, setCharacters] = useState<CharacterItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [dayOptions, setDayOptions] = useState<DayOption[]>([]);
+  const [isDaysLoading, setIsDaysLoading] = useState(false);
+  const [reportData, setReportData] = useState<ReportApiResponse | null>(null);
+  const [isReportLoading, setIsReportLoading] = useState(false);
   const userId = useAuthStore((state) => state.userId);
+  const setStoreReportData = useChatStore((s) => s.setReportData);
 
+  // 캐릭터 목록 로드
   useEffect(() => {
     if (userId === null) return;
-
     setIsLoading(true);
-
     fetch(`${BASE_URL}/api/characters/my-list?userId=${userId}`)
       .then((res) => res.json())
-      .then((json: CharacterListApiResponse) => {
-        setCharacters(json.data);
-      })
-      .catch((error) => {
-        console.error('Failed to fetch character list:', error);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+      .then((json: CharacterListApiResponse) => { setCharacters(json.data); })
+      .catch((error) => { console.error('Failed to fetch character list:', error); })
+      .finally(() => { setIsLoading(false); });
   }, [userId]);
 
+  // 세션 목록 로드 (캐릭터 변경 시)
+  useEffect(() => {
+    const characterId = characters[currentCharacterIndex]?.id;
+    if (!characterId || userId === null) return;
+
+    let active = true;
+    setIsDaysLoading(true);
+    setCurrentDay(null);
+    setDayOptions([]);
+    setReportData(null);
+
+    fetch(`${BASE_URL}/api/characters/${characterId}/sessions?userId=${userId}`)
+      .then((res) => res.json())
+      .then((json: { data: SessionItem[] }) => {
+        if (!active) return;
+        const opts: DayOption[] = (json.data ?? []).map((s) => ({
+          day_number: s.day_number,
+          session_id: s.session_id,
+        }));
+        setDayOptions(opts);
+        if (opts.length > 0) setCurrentDay(opts[0].day_number);
+      })
+      .catch(() => {
+        if (active) setDayOptions([]);
+      })
+      .finally(() => {
+        if (active) setIsDaysLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [characters[currentCharacterIndex]?.id, userId]);
+
+  // 리포트 로드 (day 선택 시)
+  const currentSessionId = dayOptions.find((o) => o.day_number === currentDay)?.session_id ?? null;
+
+  useEffect(() => {
+    if (!currentSessionId || userId === null) return;
+
+    let active = true;
+    setIsReportLoading(true);
+
+    fetch(`${BASE_URL}/api/reports/sessions/${currentSessionId}?userId=${userId}`)
+      .then((res) => res.json())
+      .then((json: ReportApiResponse) => {
+        if (!active) return;
+        setReportData(json);
+        setStoreReportData(json);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setIsReportLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [currentSessionId, userId]);
+
   if (isLoading || characters.length === 0) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator color={Colors.textPrimary} />
-      </View>
-    );
+    return <Loading />;
   }
 
   const currentCharacter = characters[currentCharacterIndex];
   const isFirstCharacter = currentCharacterIndex === 0;
   const isLastCharacter = currentCharacterIndex === characters.length - 1;
-
-  const handlePrevCharacter = () => {
-    const newIndex = currentCharacterIndex - 1;
-    setCurrentCharacterIndex(newIndex);
-    setCurrentDay(1);
-  };
-
-  const handleNextCharacter = () => {
-    const newIndex = currentCharacterIndex + 1;
-    setCurrentCharacterIndex(newIndex);
-    setCurrentDay(1);
-  };
-
-  // TODO(api): GET /api/characters/{character_id}/sessions 연동 후 실제 day 횟수로 교체
-  const dayOptions = Array.from({ length: 1 }, (_, i) => i + 1);
+  const hasSessions = dayOptions.length > 0;
+  const vm = reportData ? buildReportDisplayViewModel(reportData) : null;
 
   return (
     <View style={styles.container}>
       {/* 캐릭터 네비게이션 */}
       <View style={[styles.navSection, { paddingTop: getHeaderTop(insets.top) }]}>
         <TouchableOpacity
-          onPress={handlePrevCharacter}
+          onPress={() => setCurrentCharacterIndex((i) => i - 1)}
           disabled={isFirstCharacter}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
@@ -81,7 +132,7 @@ export default function ModeReportScreen() {
         </TouchableOpacity>
         <Text style={styles.characterName}>{currentCharacter.name}</Text>
         <TouchableOpacity
-          onPress={handleNextCharacter}
+          onPress={() => setCurrentCharacterIndex((i) => i + 1)}
           disabled={isLastCharacter}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
@@ -91,27 +142,41 @@ export default function ModeReportScreen() {
       </View>
 
       <View style={styles.calendarRow}>
-        <TouchableOpacity onPress={() => setShowDayPicker(true)} activeOpacity={0.7}>
-          <Ionicons name="calendar-outline" size={22} color={Colors.textPrimary} />
+        <TouchableOpacity
+          onPress={() => setShowDayPicker(true)}
+          disabled={isDaysLoading}
+          activeOpacity={0.7}
+        >
+          {isDaysLoading
+            ? <ActivityIndicator size="small" color={Colors.textPrimary} />
+            : <Ionicons name="calendar-outline" size={22} color={hasSessions ? Colors.textPrimary : Colors.textMuted} />
+          }
         </TouchableOpacity>
+        {!isDaysLoading && !hasSessions && (
+          <Text style={styles.noSessionText}>기록 없음</Text>
+        )}
       </View>
 
-      <ReportSummaryContent
-        avgPronScore={null}
-        correctionCount={0}
-        isPronNavigable={false}
-        onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
-        affinityProgress={0}
-        affinityValue={0}
-        affinityLabel={`${currentCharacter.name} 호감도`}
-        affinityChange={undefined}
-        chatCorrections={[]}
-        voiceCorrections={[]}
-        grammarFeedback=""
-        onReviewPress={() => router.push(ROUTES.REVIEW as any)}
-        onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
-        primaryLabel="메인으로 돌아가기"
-      />
+      {isReportLoading ? (
+        <Loading />
+      ) : (
+        <ReportSummaryContent
+          avgPronScore={vm?.avgPronScore ?? null}
+          correctionCount={vm?.correctionCount ?? 0}
+          isPronNavigable={vm != null && vm.avgPronScore !== null}
+          onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
+          affinityProgress={vm?.affinityProgress ?? 0}
+          affinityValue={vm?.affinityValue ?? 0}
+          affinityLabel={`${currentCharacter.name} 호감도`}
+          affinityChange={undefined}
+          chatCorrections={vm?.corrections ?? []}
+          voiceCorrections={vm?.corrections ?? []}
+          grammarFeedback={vm?.grammarFeedback ?? ''}
+          onReviewPress={() => router.push(ROUTES.REVIEW as any)}
+          onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
+          primaryLabel="메인으로 돌아가기"
+        />
+      )}
 
       {/* Day 선택 팝업 */}
       <Modal
@@ -126,18 +191,24 @@ export default function ModeReportScreen() {
           onPress={() => setShowDayPicker(false)}
         >
           <View style={[styles.dayPickerCard, { top: getHeaderTop(insets.top) + 36, right: Spacing.screenHorizontal }]}>
-            {dayOptions.map((day) => (
-              <TouchableOpacity
-                key={day}
-                style={[styles.dayOption, day === currentDay && styles.dayOptionActive]}
-                onPress={() => { setCurrentDay(day); setShowDayPicker(false); }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.dayOptionText, day === currentDay && styles.dayOptionTextActive]}>
-                  Day {day}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {!hasSessions ? (
+              <View style={styles.dayOption}>
+                <Text style={styles.noSessionText}>학습 기록이 없습니다</Text>
+              </View>
+            ) : (
+              dayOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.day_number}
+                  style={[styles.dayOption, opt.day_number === currentDay && styles.dayOptionActive]}
+                  onPress={() => { setCurrentDay(opt.day_number); setShowDayPicker(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.dayOptionText, opt.day_number === currentDay && styles.dayOptionTextActive]}>
+                    Day {opt.day_number}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -166,9 +237,16 @@ const styles = StyleSheet.create({
   },
   calendarRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'flex-end',
+    gap: 6,
     paddingHorizontal: Spacing.screenHorizontal,
     paddingBottom: 8,
+  },
+  noSessionText: {
+    fontSize: Typography.size.xs,
+    fontFamily: Typography.family.regular,
+    color: Colors.textMuted,
   },
   modalOverlay: {
     flex: 1,
@@ -180,7 +258,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     paddingVertical: 4,
-    minWidth: 100,
+    minWidth: 120,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,

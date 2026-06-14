@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import Loading from '@/components/common/Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
@@ -25,6 +26,7 @@ export default function ReportHomeScreen() {
     }>();
 
   const [reportData, setReportData] = useState<ReportApiResponse | null>(null);
+  const [error, setError] = useState(false);
   const setStoreReportData = useChatStore((s) => s.setReportData);
   const userId = useAuthStore((s) => s.userId);
 
@@ -35,15 +37,20 @@ export default function ReportHomeScreen() {
       .then((json: ReportApiResponse) => {
         setReportData(json);
         setStoreReportData(json);
-      });
+      })
+      .catch(() => setError(true));
   }, [session_id, userId]);
 
-  if (!reportData) {
+  if (error) {
     return (
       <View style={[styles.container, styles.center]}>
-        <ActivityIndicator color={Colors.textPrimary} />
+        <Text style={styles.errorText}>데이터를 불러오지 못했습니다</Text>
       </View>
     );
+  }
+
+  if (!reportData) {
+    return <Loading />;
   }
 
   const vm = buildReportDisplayViewModel(reportData);
@@ -83,6 +90,11 @@ const styles = StyleSheet.create({
   center: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  errorText: {
+    fontSize: Typography.size.md,
+    fontFamily: Typography.family.regular,
+    color: Colors.textSecondary,
   },
   header: {
     paddingHorizontal: Spacing.screenHorizontal,

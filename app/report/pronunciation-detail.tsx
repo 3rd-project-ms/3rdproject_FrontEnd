@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import Loading from '@/components/common/Loading';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
@@ -9,7 +10,7 @@ import SentenceCard from '@/components/common/SentenceCard';
 import WordJudgementCard from '@/components/common/WordJudgementCard';
 import { SharedStyles } from '@/components/common/styles/shared';
 
-import { mapPronunciationViewModel } from '@/utils/mappers';
+import { mapPronunciationViewModel, mapAiPronunciationViewModel } from '@/utils/mappers';
 import { useChatStore } from '@/store/useChatStore';
 import { useScrollVisibility } from '@/hooks/useScrollVisibility';
 import { Colors, Typography, Spacing } from '@/constants/tokens';
@@ -20,7 +21,7 @@ export default function PronunciationDetailScreen() {
   const [isPlayingNative, setIsPlayingNative] = useState(false);
   const { scrollRef, showScrollDown, handleScroll, handleContentSizeChange, handleLayout, scrollToEnd } =
     useScrollVisibility();
-  const { reportData } = useChatStore();
+  const { reportData, pronunciationResult } = useChatStore();
 
   useFocusEffect(
     useCallback(() => {
@@ -28,16 +29,12 @@ export default function PronunciationDetailScreen() {
     }, [])
   );
 
-  if (!reportData) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator color={Colors.textPrimary} />
-      </View>
-    );
-  }
+  if (!reportData && !pronunciationResult) return <Loading />;
 
-  const { sentences } = mapPronunciationViewModel(reportData);
-  const corrections = reportData.data?.corrections ?? [];
+  const { sentences } = pronunciationResult
+    ? mapAiPronunciationViewModel(pronunciationResult)
+    : mapPronunciationViewModel(reportData!);
+  const corrections = reportData?.data?.corrections ?? [];
   const currentAudioUrl = corrections[currentIndex]?.corrected_audio_url ?? null;
 
   const playNativeAudio = async (url: string) => {

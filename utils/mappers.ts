@@ -1,4 +1,4 @@
-import { ChatApiResponse, ReportApiResponse, Correction, PronunciationScore } from "@/types/api";
+import { ChatApiResponse, ReportApiResponse, Correction, PronunciationScore, AiResponseDto } from "@/types/api";
 
 type AnyReportResponse = ChatApiResponse | ReportApiResponse;
 
@@ -231,6 +231,35 @@ export function mapPronunciationViewModel(
       word: w.word,
       error_type: w.error_type as string,
     }));
+
+  return { avgScore, scoreItems, sentences, weakWords };
+}
+
+export function mapAiPronunciationViewModel(response: AiResponseDto): PronunciationViewModel {
+  const pronScore = response.data?.pronunciation_score ?? null;
+  if (!pronScore) return { avgScore: 0, scoreItems: [], sentences: [], weakWords: [] };
+
+  const avgScore = calcAvgPronScore(pronScore);
+
+  const scoreItems: ScoreItem[] = [
+    { label: '정확도 (Accuracy)', value: pronScore.accuracy },
+    { label: '유창성 (Fluency)', value: pronScore.fluency },
+    { label: '완성도 (Completeness)', value: pronScore.completeness },
+    { label: '운율 (Prosody)', value: pronScore.prosody },
+  ];
+
+  const sentenceText = response.data?.text_content ?? '';
+  const sentences: PronunciationSentence[] = [
+    {
+      sentence: sentenceText,
+      allWords: mapWordDetails(pronScore.word_details),
+      words: mapWordDetails(pronScore.word_details).filter((w) => w.status === 'warning'),
+    },
+  ];
+
+  const weakWords: WeakWord[] = pronScore.word_details
+    .filter((w) => w.error_type !== null)
+    .map((w) => ({ word: w.word, error_type: w.error_type as string }));
 
   return { avgScore, scoreItems, sentences, weakWords };
 }

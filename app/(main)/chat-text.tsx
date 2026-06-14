@@ -12,6 +12,7 @@ import InputBar from '@/components/chat/InputBar';
 import PenaltyPopup, { PopupType, usePenaltyPopup } from '@/components/chat/PenaltyPopup';
 import { chatService } from '@/services/chatService';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useChatStore } from '@/store/useChatStore';
 
 // ─────────────────────────────────────────
 // 타입
@@ -52,8 +53,9 @@ const getTimeString = () => {
 // ─────────────────────────────────────────
 export default function ChatTextScreen() {
   const router = useRouter();
-  const { character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
+  const { name, character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
     useLocalSearchParams<{
+      name: string;
       character_id: string;
       session_id: string;
       scenario_id: string;
@@ -78,6 +80,7 @@ export default function ChatTextScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<RNTextInput>(null);
   const { userId: storeUserId } = useAuthStore();
+  const setPronounceContext = useChatStore((s) => s.setPronounceContext);
 
   // ─── 세션 시작 + 초기 AI 인사 ──────────
   useEffect(() => {
@@ -189,6 +192,15 @@ export default function ChatTextScreen() {
   // ─── 종료 후 리포트 이동 ────────────────
   const handleGoReport = async () => {
     setShowEndModal(false);
+    setPronounceContext({
+      characterId:       character_id ?? '',
+      stageId:           Number(stage_id),
+      localAudioUri:     null,
+      text:              messages.filter((m) => m.sender === 'user').at(-1)?.text ?? '',
+      isVideoCall:       false,
+      actionDescription: messages.filter((m) => m.sender === 'ai').at(-1)?.action_description ?? '',
+      userAudioUrl:      '',
+    });
     if (sessionId) {
       try { await chatService.endSession(sessionId); } catch {}
     }
@@ -196,10 +208,11 @@ export default function ChatTextScreen() {
       pathname: '/report' as any,
       params: {
         session_id:      sessionId,
-        character_name:  character_id,
+        character_name:  name,
         stage_name:      stage_id,
         continuous_days: '',
         affinity_change: String(affinityDeltaTotal),
+        affinity_score:  String(affinity),
       },
     });
   };
