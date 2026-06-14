@@ -259,14 +259,17 @@ export default function StageScreen() {
 
   useEffect(() => {
     if (!characterId) return;
+    let isMounted = true;
     api.get(`/api/characters/${characterId}/stages`)
       .then((res) => {
+        if (!isMounted) return;
         const apiStages: StageItem[] = res.data?.data ?? [];
         if (apiStages.length) {
           setStageList(mergeApiStages(apiStages, affinity));
         }
       })
       .catch(() => {});
+    return () => { isMounted = false; };
   }, [characterId]);
 
   const mainNodes    = stageList.slice(0, 8);

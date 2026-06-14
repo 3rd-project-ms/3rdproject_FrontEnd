@@ -113,8 +113,10 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!userId) return;
+    let isMounted = true;
     api.get(`/api/characters/status?userId=${userId}`)
       .then((res) => {
+        if (!isMounted) return;
         const list: { characterId: string; affinityScore: number }[] = res.data?.data ?? [];
         if (!list.length) return;
         setCharacters((prev) =>
@@ -125,6 +127,7 @@ export default function HomeScreen() {
         );
       })
       .catch(() => {});
+    return () => { isMounted = false; };
   }, [userId]);
 
   const prev = () => setIdx((p) => (p === 0 ? characters.length - 1 : p - 1));
