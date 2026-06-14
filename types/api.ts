@@ -120,6 +120,25 @@ export interface StageListResponse {
   data: StageItem[];
 }
 
+export interface ProgressUpdateRequest {
+  userId: number;
+  currentStageId: number;
+  score: number;
+  isPassed: boolean;
+}
+
+export interface ProgressUpdateData {
+  isCurrentStageCompleted: boolean;
+  isNextStageUnlocked: boolean;
+  nextStageId: number | null;
+}
+
+export interface ProgressUpdateResponse {
+  code: number;
+  message: string;
+  data: ProgressUpdateData | null;
+}
+
 export interface AiRequestDto {
   text: string;
   videoCall: boolean;

@@ -1,6 +1,6 @@
 // services/chatService.ts
 import axios from 'axios';
-import { ChatResponseData } from '@/types/api';
+import { ChatResponseData, ProgressUpdateRequest, ProgressUpdateData } from '@/types/api';
 
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://3rdprojectbackend-production.up.railway.app';
 
@@ -53,6 +53,12 @@ export const chatService = {
   /** 세션 종료 */
   endSession: async (sessionId: string): Promise<void> => {
     await api.post(`/api/sessions/${sessionId}/end`);
+  },
+
+  /** 스테이지 진행도 업데이트 및 다음 단계 해금 */
+  updateProgress: async (req: ProgressUpdateRequest): Promise<ProgressUpdateData | null> => {
+    const { data } = await api.post('/api/characters/progress', req);
+    return data.data ?? null;
   },
 
   /** 세션 히스토리 조회 (이어하기용) */

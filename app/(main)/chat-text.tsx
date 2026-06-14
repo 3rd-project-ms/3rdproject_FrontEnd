@@ -204,15 +204,33 @@ export default function ChatTextScreen() {
     if (sessionId) {
       try { await chatService.endSession(sessionId); } catch {}
     }
+    // 스테이지 진행도 업데이트
+    let nextStageId: number | null = null;
+    let isNextStageUnlocked = false;
+    try {
+      const isPassed = lives > 0;
+      const score = Math.min(100, Math.max(0, affinity));
+      const progressResult = await chatService.updateProgress({
+        userId:         storeUserId ?? Number(user_id) ?? 1,
+        currentStageId: Number(stage_id) || 1,
+        score,
+        isPassed,
+      });
+      nextStageId = progressResult?.nextStageId ?? null;
+      isNextStageUnlocked = progressResult?.isNextStageUnlocked ?? false;
+    } catch {}
+
     router.push({
       pathname: '/report' as any,
       params: {
-        session_id:      sessionId,
-        character_name:  name,
-        stage_name:      stage_id,
-        continuous_days: '',
-        affinity_change: String(affinityDeltaTotal),
-        affinity_score:  String(affinity),
+        session_id:            sessionId,
+        character_name:        name,
+        stage_name:            stage_id,
+        continuous_days:       '',
+        affinity_change:       String(affinityDeltaTotal),
+        affinity_score:        String(affinity),
+        next_stage_id:         String(nextStageId ?? ''),
+        is_next_stage_unlocked: String(isNextStageUnlocked),
       },
     });
   };
