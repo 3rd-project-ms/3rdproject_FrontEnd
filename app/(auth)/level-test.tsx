@@ -135,7 +135,7 @@ export default function LevelTestScreen() {
   const handlePressMic = () => {
     // 녹음 중이면 정지 → 곧바로 제출 후 다음 문항
     if (inputMode === 'recording') {
-      submitAndAdvance(answer, 'VOICE');
+      submitAndAdvance(answer, 'voice');
       return;
     }
 
@@ -158,7 +158,7 @@ export default function LevelTestScreen() {
   };
 
   const handleSendKeyboard = () => {
-    submitAndAdvance(answer, 'TEXT');
+    submitAndAdvance(answer, 'text');
   };
 
   const resetLevelTest = () => {
