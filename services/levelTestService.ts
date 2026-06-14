@@ -4,8 +4,8 @@ import { api, unwrap, CommonResponse } from './api';
 
 export type CefrLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 export type LevelTestType = 'select' | 'test';
-// 백엔드 예시 요청 기준 대문자 사용 (VOICE / TEXT)
-export type AnswerType = 'VOICE' | 'TEXT';
+// Swagger 기준 소문자 enum 사용 (voice / text)
+export type AnswerType = 'voice' | 'text';
 
 // ── 응답/요청 타입 (swagger 기준, camelCase) ──
 export interface QuestionDto {
