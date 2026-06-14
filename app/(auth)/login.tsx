@@ -59,13 +59,15 @@ export default function LoginScreen() {
       });
       router.replace('/(main)/home');
     } catch (error) {
-      const message =
-        error instanceof ApiError
-          ? error.message
-          : '*아이디 또는 비밀번호가 일치하지 않습니다.';
-      setLoginError(
-        message.startsWith('*') ? message : `*${message}`
-      );
+      // 로그인 실패(401/403)는 백엔드가 빈 body를 내려도 자격 증명 안내로 표시
+      let message = '아이디 또는 비밀번호가 일치하지 않습니다.';
+      if (error instanceof ApiError) {
+        message =
+          error.status === 401 || error.status === 403
+            ? '아이디 또는 비밀번호가 일치하지 않습니다.'
+            : error.message;
+      }
+      setLoginError(message.startsWith('*') ? message : `*${message}`);
     } finally {
       setIsSubmitting(false);
     }

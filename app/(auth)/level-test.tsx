@@ -61,6 +61,9 @@ export default function LevelTestScreen() {
   const router = useRouter();
   const userId = useAuthStore((state) => state.userId);
   const [questions, setQuestions] = useState<QuestionDto[]>(FALLBACK_QUESTIONS);
+  // 서버에서 실제 문항을 받아왔는지 여부. false면 fallback 문항이므로
+  // DB에 없는 questionId로 답변을 제출하지 않는다.
+  const [hasServerQuestions, setHasServerQuestions] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [inputMode, setInputMode] = useState<InputMode>('none');
   const [answer, setAnswer] = useState('');
@@ -80,6 +83,7 @@ export default function LevelTestScreen() {
       .then((list) => {
         if (active && list.length > 0) {
           setQuestions(list);
+          setHasServerQuestions(true);
         }
       })
       .catch(() => {
@@ -100,7 +104,9 @@ export default function LevelTestScreen() {
     const question = questions[currentQuestionIndex];
     setIsSubmitting(true);
     try {
-      if (userId != null) {
+      // 서버 문항을 받은 경우에만 제출한다. fallback 문항은 DB에 없는
+      // questionId라 제출하면 오류가 나므로 로컬 진행만 한다.
+      if (userId != null && hasServerQuestions) {
         await levelTestService.submitAnswer({
           userId,
           questionId: question.questionId,
