@@ -239,9 +239,8 @@ export default function ChatVoiceScreen() {
     }
   };
 
-  // ─── 종료 후 리포트 이동 ────────────────
-  const handleGoReport = async () => {
-    setShowEndModal(false);
+  // ─── 공통: 세션 종료 + 진행도 저장 ────────
+  const endSessionAndSave = async () => {
     setPronounceContext({
       characterId:       character_id ?? '',
       stageId:           Number(stage_id),
@@ -254,23 +253,42 @@ export default function ChatVoiceScreen() {
     if (sessionId) {
       try { await chatService.endSession(sessionId); } catch {}
     }
-    // 스테이지 진행도 업데이트
-    let nextStageId: number | null = null;
-    let isNextStageUnlocked = false;
     try {
       const isPassed = lives > 0;
       const score = Math.min(100, Math.max(0, affinity));
-      const progressResult = await chatService.updateProgress({
+      await chatService.updateProgress({
         userId:         storeUserId ?? Number(user_id) ?? 1,
         currentStageId: Number(stage_id) || 1,
         score,
         isPassed,
       });
-      nextStageId = progressResult?.nextStageId ?? null;
-      isNextStageUnlocked = progressResult?.isNextStageUnlocked ?? false;
     } catch {}
+  };
 
-    router.replace('/(main)/home' as any);
+  // ─── 미션 전체 클리어 → 리포트 이동 ────────
+  const handleGoReport = async () => {
+    await endSessionAndSave();
+    router.push({
+      pathname: '/report' as any,
+      params: {
+        session_id:      sessionId,
+        character_name:  name,
+        stage_name:      stage_id,
+        continuous_days: '',
+        affinity_change: String(affinityDeltaTotal),
+        affinity_score:  String(affinity),
+      },
+    });
+  };
+
+  // ─── 중간 종료 → 스테이지로 이동 ────────────
+  const handleEarlyExit = async () => {
+    setShowEndModal(false);
+    await endSessionAndSave();
+    router.replace({
+      pathname: '/(main)/stage' as any,
+      params: { name, role, character_id },
+    });
   };
 
   // ─────────────────────────────────────────
@@ -399,7 +417,7 @@ export default function ChatVoiceScreen() {
               <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowEndModal(false)}>
                 <Text style={styles.modalCancelButtonText}>계속하기</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalConfirmButton} onPress={handleGoReport}>
+              <TouchableOpacity style={styles.modalConfirmButton} onPress={handleEarlyExit}>
                 <Text style={styles.modalConfirmButtonText}>종료하기</Text>
               </TouchableOpacity>
             </View>
