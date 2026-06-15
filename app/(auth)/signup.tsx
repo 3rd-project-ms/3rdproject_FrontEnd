@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AuthHeader from '../../components/common/AuthHeader';
 import Button from '../../components/common/Button';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
-import { ApiError } from '../../services/api';
+import { api, ApiError } from '../../services/api';
 import { authService } from '../../services/authService';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -89,10 +89,16 @@ export default function SignupScreen() {
           isLoggedIn: true,
           userId: res.user_id,
           email: '',
-          // 닉네임은 로컬 입력값 우선, 없으면 서버 발급값 사용
           nickname: nickname.trim() || res.nickname,
           selectedGender,
         });
+        // 닉네임·성별 프로필 업데이트 (실패해도 로그인 자체는 진행)
+        try {
+          await api.put(`/api/auth/${res.user_id}/profile`, {
+            nickname: nickname.trim(),
+            preferred_partner_gender: selectedGender ?? 'male',
+          });
+        } catch {}
       } else {
         const res = await authService.signup({
           login_id: email.trim(),

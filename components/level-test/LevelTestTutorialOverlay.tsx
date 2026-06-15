@@ -70,7 +70,7 @@ export default function LevelTestTutorialOverlay({
   // intro와 start(마지막)는 버튼으로만 진행, 그 사이 단계는 화면 터치로 진행.
   const advanceOnTap = step !== 'intro' && step !== 'start';
   const showSkip =
-    step === 'controls' || step === 'recording' || step === 'keyboard';
+    step === 'intro' || step === 'controls' || step === 'recording' || step === 'keyboard';
   const insets = useSafeAreaInsets();
 
   return (
