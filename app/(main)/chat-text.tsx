@@ -9,8 +9,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 import ChatBubble from '@/components/chat/ChatBubble';
 import InputBar from '@/components/chat/InputBar';
+import MissionDrawer from '@/components/chat/MissionDrawer';
 import PenaltyPopup, { PopupType, usePenaltyPopup } from '@/components/chat/PenaltyPopup';
 import { chatService } from '@/services/chatService';
+import { getStageMissions, evaluateMissions, MissionCounters } from '@/constants/missionData';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useChatStore } from '@/store/useChatStore';
 
@@ -53,9 +55,10 @@ const getTimeString = () => {
 // ─────────────────────────────────────────
 export default function ChatTextScreen() {
   const router = useRouter();
-  const { name, character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
+  const { name, role, character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
     useLocalSearchParams<{
       name: string;
+      role: string;
       character_id: string;
       session_id: string;
       scenario_id: string;
@@ -63,6 +66,10 @@ export default function ChatTextScreen() {
       user_id: string;
       affinity_score: string;
     }>();
+
+  // ─── 미션 데이터 ─────────────────────────
+  const stageNum = Number(stage_id) || 1;
+  const { stageName, missions: missionDefs } = getStageMissions(stageNum);
 
   // ─── 상태 ───────────────────────────────
   const [sessionId, setSessionId]             = useState<string>(session_id ?? '');
@@ -75,6 +82,18 @@ export default function ChatTextScreen() {
   const [showHint, setShowHint]         = useState(false);
   const [inputText, setInputText]       = useState('');
   const [showEndModal, setShowEndModal] = useState(false);
+  const [showMission, setShowMission]   = useState(false);
+  const [missions, setMissions] = useState(
+    missionDefs.map((m) => ({ ...m, cleared: false }))
+  );
+
+  // 미션 누적 카운터 (렌더 트리거 불필요 → useRef)
+  const counters = useRef<MissionCounters>({
+    perfectSentenceCount: 0,
+    highScoreCount: 0,
+    highScoreThreshold: 80,
+    totalAffinityGained: 0,
+  });
 
   const popup = usePenaltyPopup();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -119,6 +138,14 @@ export default function ChatTextScreen() {
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }, [messages]);
+
+  // ─── 미션 전체 클리어 시 자동 리포트 이동 ─
+  useEffect(() => {
+    if (missions.length > 0 && missions.every((m) => m.cleared)) {
+      const timer = setTimeout(() => handleGoReport(), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [missions]);
 
   // ─── 메시지 전송 & API 호출 ─────────────
   const handleSend = async () => {
@@ -167,9 +194,31 @@ export default function ChatTextScreen() {
 
       const prevAffinity = affinity;
       setAffinity(data.current_total_affinity);
-      setAffinityDeltaTotal((prev) => prev + (data.affinity_delta ?? 0));
+      const delta = data.affinity_delta ?? 0;
+      setAffinityDeltaTotal((prev) => prev + delta);
       if (eval_.is_penalty) setLives((prev) => Math.max(0, prev - 1));
       setTurnCount((prev) => prev + 1);
+
+      // ─── 미션 카운터 업데이트 ──────────────
+      if (!eval_.is_penalty) counters.current.perfectSentenceCount += 1;
+      counters.current.totalAffinityGained += delta;
+      const score = eval_.pronunciation_score ?? 0;
+
+      // ─── 미션 클리어 평가 ──────────────────
+      setMissions((prev) => {
+        const clearedIds = new Set(prev.filter((m) => m.cleared).map((m) => m.id));
+        const newlyCleared = evaluateMissions(stageNum, clearedIds, {
+          userText:          text,
+          isPenalty:         eval_.is_penalty ?? false,
+          pronunciationScore: score,
+          affinityDelta:     delta,
+          counters:          counters.current,
+        });
+        if (newlyCleared.length === 0) return prev;
+        return prev.map((m) =>
+          newlyCleared.includes(m.id) ? { ...m, cleared: true } : m
+        );
+      });
 
       if (eval_.is_penalty && eval_.penalty_reason) {
         popup.show(PENALTY_REASON_MAP[eval_.penalty_reason] ?? 'off_topic', 1);
@@ -251,9 +300,12 @@ export default function ChatTextScreen() {
             <TouchableOpacity onPress={() => setShowEndModal(true)} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={24} color="#0B0B12" />
             </TouchableOpacity>
-            <Text style={styles.charName}>Jamie</Text>
-            <Text style={styles.charRole}> · 카페 사장님</Text>
+            <Text style={styles.charName}>{name || 'Jamie'}</Text>
+            {role ? <Text style={styles.charRole}> · {role}</Text> : null}
           </View>
+          <TouchableOpacity onPress={() => setShowMission(true)} hitSlop={12}>
+            <Ionicons name="menu" size={26} color="#0B0B12" />
+          </TouchableOpacity>
         </View>
 
         {/* ── 호감도 바 ── */}
@@ -363,6 +415,14 @@ export default function ChatTextScreen() {
           popup.hide();
           setTimeout(() => { inputRef.current?.focus(); }, 200);
         }}
+      />
+
+      {/* 미션 드로어 */}
+      <MissionDrawer
+        visible={showMission}
+        onClose={() => setShowMission(false)}
+        stageName={stageName}
+        missions={missions}
       />
     </SafeAreaView>
   );

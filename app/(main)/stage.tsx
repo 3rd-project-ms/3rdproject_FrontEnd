@@ -381,6 +381,7 @@ export default function StageScreen() {
                         pathname: '/(main)/chat-text' as any,
                         params: {
                           name: charName,
+                          role: charRole,
                           character_id: characterId,
                           stage_id: String(activeStage?.id ?? ''),
                           affinity_score: String(affinity),
@@ -399,6 +400,7 @@ export default function StageScreen() {
                         pathname: '/(main)/chat-voice' as any,
                         params: {
                           name: charName,
+                          role: charRole,
                           character_id: characterId,
                           stage_id: String(activeStage?.id ?? ''),
                           affinity_score: String(affinity),

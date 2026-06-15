@@ -5,9 +5,16 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../components/common/Button';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { useAuthStore } from '../store/useAuthStore';
 
 export default function StartScreen() {
   const router = useRouter();
+  const setAuth = useAuthStore((state) => state.setAuth);
+
+  const handleDevLogin = () => {
+    setAuth({ isLoggedIn: true, userId: 9999, nickname: '개발자', email: 'dev@test.com' });
+    router.replace('/(main)/home');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -34,6 +41,10 @@ export default function StartScreen() {
             <Text style={styles.guestText}>
               계정 없이 <Text style={styles.underlineText}>게스트로 시작하기</Text>
             </Text>
+          </Pressable>
+          {/* DEV ONLY */}
+          <Pressable onPress={handleDevLogin} style={styles.devLink}>
+            <Text style={styles.devText}>[DEV] 로그인 없이 홈으로</Text>
           </Pressable>
         </View>
       </View>
@@ -88,6 +99,16 @@ const styles = StyleSheet.create({
     color: COLORS.gray0,
   },
   underlineText: {
+    textDecorationLine: 'underline',
+  },
+  devLink: {
+    marginTop: 16,
+    alignItems: 'center',
+    padding: 8,
+  },
+  devText: {
+    ...TYPOGRAPHY.regular10,
+    color: '#999',
     textDecorationLine: 'underline',
   },
 });

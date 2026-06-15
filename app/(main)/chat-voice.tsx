@@ -8,8 +8,10 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 
 import MicButton from "@/components/chat/MicButton";
+import MissionDrawer from "@/components/chat/MissionDrawer";
 import PenaltyPopup, { PopupType, usePenaltyPopup } from "@/components/chat/PenaltyPopup";
 import { chatService } from "@/services/chatService";
+import { getStageMissions, evaluateMissions, MissionCounters } from "@/constants/missionData";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useChatStore } from "@/store/useChatStore";
 
@@ -30,9 +32,10 @@ const GIFT_MARKERS = [40, 80] as const;
 // ─────────────────────────────────────────
 export default function ChatVoiceScreen() {
   const router = useRouter();
-  const { name, character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
+  const { name, role, character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
     useLocalSearchParams<{
       name: string;
+      role: string;
       character_id: string;
       session_id: string;
       scenario_id: string;
@@ -40,6 +43,10 @@ export default function ChatVoiceScreen() {
       user_id: string;
       affinity_score: string;
     }>();
+
+  // ─── 미션 데이터 ─────────────────────────
+  const stageNum = Number(stage_id) || 1;
+  const { stageName, missions: missionDefs } = getStageMissions(stageNum);
 
   // ─── 상태 ───────────────────────────────
   const [sessionId, setSessionId]             = useState<string>(session_id ?? '');
@@ -54,7 +61,19 @@ export default function ChatVoiceScreen() {
   const [lastActionDescription, setLastActionDescription] = useState('');
   const [showHintModal, setShowHintModal] = useState(false);
   const [showEndModal, setShowEndModal]   = useState(false);
+  const [showMission, setShowMission]     = useState(false);
   const [hintText, setHintText]           = useState({ english: '', korean: '' });
+  const [missions, setMissions] = useState(
+    missionDefs.map((m) => ({ ...m, cleared: false }))
+  );
+
+  // 미션 누적 카운터
+  const counters = useRef<MissionCounters>({
+    perfectSentenceCount: 0,
+    highScoreCount: 0,
+    highScoreThreshold: 80,
+    totalAffinityGained: 0,
+  });
 
   const recordingRef     = useRef<Audio.Recording | null>(null);
   const soundRef         = useRef<Audio.Sound | null>(null);
@@ -90,6 +109,14 @@ export default function ChatVoiceScreen() {
     initSession();
     return () => { soundRef.current?.unloadAsync(); };
   }, []);
+
+  // ─── 미션 전체 클리어 시 자동 리포트 이동 ─
+  useEffect(() => {
+    if (missions.length > 0 && missions.every((m) => m.cleared)) {
+      const timer = setTimeout(() => handleGoReport(), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [missions]);
 
   // ─── 텍스트 페이드인 ────────────────────
   const fadeIn = (animVal: Animated.Value) => {
@@ -162,9 +189,30 @@ export default function ChatVoiceScreen() {
 
       const prevAffinity = affinity;
       setAffinity(data.current_total_affinity);
-      setAffinityDeltaTotal((prev) => prev + (data.affinity_delta ?? 0));
+      const delta = data.affinity_delta ?? 0;
+      setAffinityDeltaTotal((prev) => prev + delta);
       if (eval_.is_penalty) setLives((prev) => Math.max(0, prev - 1));
       setTurnCount((prev) => prev + 1);
+
+      // ─── 미션 카운터 + 평가 ────────────────
+      if (!eval_.is_penalty) counters.current.perfectSentenceCount += 1;
+      counters.current.totalAffinityGained += delta;
+      const score = eval_.pronunciation_score ?? 0;
+
+      setMissions((prev) => {
+        const clearedIds = new Set(prev.filter((m) => m.cleared).map((m) => m.id));
+        const newlyCleared = evaluateMissions(stageNum, clearedIds, {
+          userText:           currentUserText,
+          isPenalty:          eval_.is_penalty ?? false,
+          pronunciationScore: score,
+          affinityDelta:      delta,
+          counters:           counters.current,
+        });
+        if (newlyCleared.length === 0) return prev;
+        return prev.map((m) =>
+          newlyCleared.includes(m.id) ? { ...m, cleared: true } : m
+        );
+      });
 
       if (eval_.is_penalty && eval_.penalty_reason) {
         popup.show(PENALTY_REASON_MAP[eval_.penalty_reason] ?? "off_topic", 1);
@@ -222,19 +270,7 @@ export default function ChatVoiceScreen() {
       isNextStageUnlocked = progressResult?.isNextStageUnlocked ?? false;
     } catch {}
 
-    router.push({
-      pathname: '/report' as any,
-      params: {
-        session_id:             sessionId,
-        character_name:         name,
-        stage_name:             stage_id,
-        continuous_days:        '',
-        affinity_change:        String(affinityDeltaTotal),
-        affinity_score:         String(affinity),
-        next_stage_id:          String(nextStageId ?? ''),
-        is_next_stage_unlocked: String(isNextStageUnlocked),
-      },
-    });
+    router.replace('/(main)/home' as any);
   };
 
   // ─────────────────────────────────────────
@@ -248,8 +284,11 @@ export default function ChatVoiceScreen() {
           <Ionicons name="chevron-back" size={26} color="#0B0B12" />
         </TouchableOpacity>
         <Text style={styles.charName}>
-          Jamie<Text style={styles.charRole}> · 카페 사장님</Text>
+          {name || 'Jamie'}{role ? <Text style={styles.charRole}> · {role}</Text> : null}
         </Text>
+        <TouchableOpacity onPress={() => setShowMission(true)} hitSlop={12}>
+          <Ionicons name="menu" size={26} color="#0B0B12" />
+        </TouchableOpacity>
       </View>
 
       {/* ── 호감도 바 + 선물 마커 ── */}
@@ -374,6 +413,14 @@ export default function ChatVoiceScreen() {
         popupType={popup.currentType}
         penaltyPoints={popup.penaltyPoints}
         onClose={popup.hide}
+      />
+
+      {/* ── 미션 드로어 ── */}
+      <MissionDrawer
+        visible={showMission}
+        onClose={() => setShowMission(false)}
+        stageName={stageName}
+        missions={missions}
       />
     </SafeAreaView>
   );
