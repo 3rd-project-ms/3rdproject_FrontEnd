@@ -1,16 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
-  SafeAreaView, ScrollView, Platform,
+  SafeAreaView, ScrollView, Platform, TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '@/store/useAuthStore';
+import { api } from '@/services/api';
 
-// ─── 목업 데이터 (백엔드 연동 후 교체) ───
-const MOCK_USER = {
-  nickname: '시현',
-};
-
+// ─── 목업 데이터 (API 미제공 필드) ──────────
 const MOCK_STATS = {
   totalConversations: 12,
   avgPronunciation: 78,
@@ -18,11 +16,11 @@ const MOCK_STATS = {
 
 // ─── 레벨 정의 ───────────────────────────
 const LEVELS = [
-  { code: 'A1', label: '입문',  desc: '영어가 처음이에요' },
-  { code: 'A2', label: '초급',  desc: '기초 표현을 알아요' },
-  { code: 'B1', label: '중급',  desc: '일상 대화 가능해요' },
+  { code: 'A1', label: '입문',   desc: '영어가 처음이에요' },
+  { code: 'A2', label: '초급',   desc: '기초 표현을 알아요' },
+  { code: 'B1', label: '중급',   desc: '일상 대화 가능해요' },
   { code: 'B2', label: '중상급', desc: '자연스러운 편이에요' },
-  { code: 'C1', label: '고급',  desc: '격식 표현도 OK' },
+  { code: 'C1', label: '고급',   desc: '격식 표현도 OK' },
   { code: 'C2', label: '최고급', desc: '원어민 수준이에요' },
 ] as const;
 
@@ -31,11 +29,57 @@ type LevelCode = typeof LEVELS[number]['code'];
 // ─────────────────────────────────────────
 export default function MyPageScreen() {
   const router = useRouter();
-  const [showEditModal, setShowEditModal]   = useState(false);
-  const [showLevelModal, setShowLevelModal] = useState(false);
-  const [selectedCode, setSelectedCode]     = useState<LevelCode>('A2');
+  const { userId, nickname, selectedGender, selectedEnglishLevel, setAuth, logout } = useAuthStore();
 
-  const currentLevel = LEVELS.find(l => l.code === selectedCode)!;
+  const [showEditModal, setShowEditModal]         = useState(false);
+  const [showLevelModal, setShowLevelModal]       = useState(false);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [selectedCode, setSelectedCode]           = useState<LevelCode>((selectedEnglishLevel as LevelCode) ?? 'A2');
+  const [nicknameInput, setNicknameInput]         = useState('');
+  const [isUpdating, setIsUpdating]               = useState(false);
+
+  // 마이페이지 진입 시 최신 프로필 로드
+  useEffect(() => {
+    if (!userId) return;
+    api.get(`/api/auth/${userId}/profile`)
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        if (data?.nickname) setAuth({ nickname: data.nickname });
+        if (data?.preferred_partner_gender) setAuth({ selectedGender: data.preferred_partner_gender });
+      })
+      .catch(() => {});
+  }, [userId]);
+
+  const handleOpenNicknameModal = () => {
+    setNicknameInput(nickname);
+    setShowEditModal(false);
+    setShowNicknameModal(true);
+  };
+
+  const handleNicknameSave = async () => {
+    const trimmed = nicknameInput.trim();
+    if (!trimmed || !userId) return;
+    setIsUpdating(true);
+    try {
+      const res = await api.put(`/api/auth/${userId}/profile`, {
+        nickname: trimmed,
+        preferred_partner_gender: selectedGender ?? 'male',
+      });
+      const data = res.data?.data ?? res.data;
+      setAuth({ nickname: data?.nickname ?? trimmed });
+      setShowNicknameModal(false);
+    } catch (error) {
+      Alert.alert('알림', '닉네임 변경에 실패했습니다.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setShowEditModal(false);
+    logout();
+    router.replace('/(auth)/login' as any);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -62,7 +106,7 @@ export default function MyPageScreen() {
               <Ionicons name="person" size={28} color="#FFFFFF" />
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.nickname}>{MOCK_USER.nickname}</Text>
+              <Text style={styles.nickname}>{nickname}</Text>
             </View>
             <TouchableOpacity
               style={styles.editBtn}
@@ -101,7 +145,6 @@ export default function MyPageScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* 2열 그리드 */}
           <View style={styles.levelGrid}>
             {LEVELS.map((lv) => {
               const isSelected = lv.code === selectedCode;
@@ -167,10 +210,7 @@ export default function MyPageScreen() {
                   <TouchableOpacity
                     key={lv.code}
                     style={[styles.levelCell, isSelected && styles.levelCellActive]}
-                    onPress={() => {
-                      setSelectedCode(lv.code);
-                      setShowLevelModal(false);
-                    }}
+                    onPress={() => { setSelectedCode(lv.code); setShowLevelModal(false); }}
                     activeOpacity={0.75}
                   >
                     <Text style={[styles.levelCellCode, isSelected && styles.levelCellCodeActive]}>
@@ -207,20 +247,14 @@ export default function MyPageScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>계정 관리</Text>
 
-            <TouchableOpacity style={styles.modalItem}>
+            <TouchableOpacity style={styles.modalItem} onPress={handleOpenNicknameModal}>
               <Ionicons name="pencil-outline" size={18} color="#0B0B12" />
               <Text style={styles.modalItemText}>닉네임 변경</Text>
             </TouchableOpacity>
 
             <View style={styles.modalDivider} />
 
-            <TouchableOpacity
-              style={styles.modalItem}
-              onPress={() => {
-                setShowEditModal(false);
-                router.replace('/(auth)/login' as any);
-              }}
-            >
+            <TouchableOpacity style={styles.modalItem} onPress={handleLogout}>
               <Ionicons name="log-out-outline" size={18} color="#FF453A" />
               <Text style={[styles.modalItemText, { color: '#FF453A' }]}>로그아웃</Text>
             </TouchableOpacity>
@@ -230,6 +264,47 @@ export default function MyPageScreen() {
               onPress={() => setShowEditModal(false)}
             >
               <Text style={styles.modalCancelText}>닫기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── 닉네임 변경 모달 ── */}
+      {showNicknameModal && (
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setShowNicknameModal(false)}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>닉네임 변경</Text>
+
+            <TextInput
+              style={styles.nicknameInput}
+              value={nicknameInput}
+              onChangeText={setNicknameInput}
+              placeholder="새 닉네임 입력"
+              placeholderTextColor="#AEAEB2"
+              maxLength={20}
+              autoFocus
+            />
+
+            <TouchableOpacity
+              style={[styles.modalSaveBtn, (!nicknameInput.trim() || isUpdating) && styles.modalSaveBtnDisabled]}
+              onPress={handleNicknameSave}
+              disabled={!nicknameInput.trim() || isUpdating}
+            >
+              {isUpdating
+                ? <ActivityIndicator size="small" color="#FFFFFF" />
+                : <Text style={styles.modalSaveBtnText}>저장</Text>
+              }
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setShowNicknameModal(false)}
+            >
+              <Text style={styles.modalCancelText}>취소</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -307,12 +382,7 @@ const styles = StyleSheet.create({
   },
   levelChangeBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
 
-  // 2열 그리드
-  levelGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
+  levelGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   levelCell: {
     width: '47.5%',
     borderRadius: 12,
@@ -321,36 +391,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
     padding: 14,
   },
-  levelCellActive: {
-    borderColor: '#F6A3A6',
-    backgroundColor: '#FFF5F5',
-  },
-  levelCellCode: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#AEAEB2',
-    marginBottom: 2,
-  },
-  levelCellCodeActive: { color: '#F6A3A6' },
-  levelCellLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0B0B12',
-    marginBottom: 4,
-  },
+  levelCellActive:      { borderColor: '#F6A3A6', backgroundColor: '#FFF5F5' },
+  levelCellCode:        { fontSize: 18, fontWeight: '800', color: '#AEAEB2', marginBottom: 2 },
+  levelCellCodeActive:  { color: '#F6A3A6' },
+  levelCellLabel:       { fontSize: 14, fontWeight: '700', color: '#0B0B12', marginBottom: 4 },
   levelCellLabelActive: { color: '#0B0B12' },
-  levelCellDesc: {
-    fontSize: 11,
-    color: '#AEAEB2',
-    lineHeight: 15,
-  },
-  levelCellDescActive: { color: '#C9787A' },
+  levelCellDesc:        { fontSize: 11, color: '#AEAEB2', lineHeight: 15 },
+  levelCellDescActive:  { color: '#C9787A' },
 
   // 메뉴
-  menuItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 13,
-  },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13 },
   menuItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
   menuItemText: { fontSize: 15, color: '#0B0B12', fontWeight: '500' },
 
@@ -371,14 +421,32 @@ const styles = StyleSheet.create({
     marginBottom: 16, textAlign: 'center',
   },
   modalDivider: { height: 1, backgroundColor: '#F0F0F0' },
-  modalItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 14,
-  },
+  modalItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   modalItemText: { fontSize: 15, color: '#0B0B12', fontWeight: '500' },
   modalCancelBtn: {
     marginTop: 16, paddingVertical: 14,
     backgroundColor: '#F0F0F5', borderRadius: 12, alignItems: 'center',
   },
   modalCancelText: { fontSize: 15, fontWeight: '600', color: '#616161' },
+
+  // 닉네임 입력
+  nicknameInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#0B0B12',
+    marginBottom: 12,
+  },
+  modalSaveBtn: {
+    paddingVertical: 14,
+    backgroundColor: '#F6A3A6',
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalSaveBtnDisabled: { backgroundColor: '#F0F0F0' },
+  modalSaveBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });

@@ -52,12 +52,13 @@ export default function PronunciationOverviewScreen() {
     return () => { active = false; };
   }, [pronounceContext, userId]);
 
-  if (!reportData && !pronunciationResult) return <Loading />;
   if (isAnalyzing) return <Loading />;
 
   const vm = pronunciationResult
     ? mapAiPronunciationViewModel(pronunciationResult)
-    : mapPronunciationViewModel(reportData!);
+    : reportData
+      ? mapPronunciationViewModel(reportData)
+      : null;
 
   return (
     <View style={styles.container}>
@@ -70,75 +71,81 @@ export default function PronunciationOverviewScreen() {
       </View>
 
       {/* 메인 컨텐츠 */}
-      <View style={[styles.content, { paddingTop: getHeaderTop(insets.top) }]}>
-        {/* 평균 발음 점수 */}
-        <View style={styles.scoreSection}>
-          <Text style={styles.scoreLabel}>평균 발음 점수</Text>
-          <Text style={styles.scoreValue}>
-            {vm.avgScore}
-            <Text style={styles.scoreUnit}>점</Text>
-          </Text>
-        </View>
-
-        {/* 발음 음소별 상세 분포 카드 */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>발음 음소별 상세 분포</Text>
-          <View style={styles.progressList}>
-            {vm.scoreItems.map((item) => (
-              <View key={item.label} style={styles.progressItem}>
-                <View style={styles.progressHeader}>
-                  <Text style={styles.progressLabel}>{item.label}</Text>
-                  <Text style={styles.progressValue}>{item.value}%</Text>
-                </View>
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${item.value}%` }]} />
-                </View>
-              </View>
-            ))}
+      {vm ? (
+        <View style={[styles.content, { paddingTop: getHeaderTop(insets.top) }]}>
+          {/* 평균 발음 점수 */}
+          <View style={styles.scoreSection}>
+            <Text style={styles.scoreLabel}>평균 발음 점수</Text>
+            <Text style={styles.scoreValue}>
+              {vm.avgScore}
+              <Text style={styles.scoreUnit}>점</Text>
+            </Text>
           </View>
-          <Text style={styles.cardFootnote}>본 점수는 Microsoft Azure Speech Service의{'\n'}음성 인식 기술을 기반으로 산출됩니다</Text>
-        </View>
 
-        {/* 발음 종합 분석 의견 카드 */}
-        <View style={[styles.card, styles.analysisCard]} onLayout={handleLayout}>
-          <Text style={styles.analysisCardTitle}>발음 종합 분석 의견</Text>
-          <ScrollView
-            ref={scrollRef}
-            showsVerticalScrollIndicator={false}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            onContentSizeChange={handleContentSizeChange}
-          >
-            {vm.weakWords.length === 0 ? (
-              <Text style={styles.analysisEmpty}>모든 단어 발음이 양호합니다.</Text>
-            ) : (
-              vm.weakWords.map((item, index) => (
-                <Text key={index} style={styles.analysisWarning}>
-                  ⚠ [{item.word}] {item.error_type}
-                </Text>
-              ))
-            )}
-          </ScrollView>
-          {showScrollDown && (
-            <TouchableOpacity
-              style={styles.scrollDownButton}
-              onPress={scrollToEnd}
-              activeOpacity={0.8}
+          {/* 발음 음소별 상세 분포 카드 */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>발음 음소별 상세 분포</Text>
+            <View style={styles.progressList}>
+              {vm.scoreItems.map((item) => (
+                <View key={item.label} style={styles.progressItem}>
+                  <View style={styles.progressHeader}>
+                    <Text style={styles.progressLabel}>{item.label}</Text>
+                    <Text style={styles.progressValue}>{item.value}%</Text>
+                  </View>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${item.value}%` }]} />
+                  </View>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.cardFootnote}>본 점수는 Microsoft Azure Speech Service의{'\n'}음성 인식 기술을 기반으로 산출됩니다</Text>
+          </View>
+
+          {/* 발음 종합 분석 의견 카드 */}
+          <View style={[styles.card, styles.analysisCard]} onLayout={handleLayout}>
+            <Text style={styles.analysisCardTitle}>발음 종합 분석 의견</Text>
+            <ScrollView
+              ref={scrollRef}
+              showsVerticalScrollIndicator={false}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              onContentSizeChange={handleContentSizeChange}
             >
-              <Ionicons name="chevron-down" size={20} color={Colors.white} />
-            </TouchableOpacity>
-          )}
-        </View>
+              {vm.weakWords.length === 0 ? (
+                <Text style={styles.analysisEmpty}>모든 단어 발음이 양호합니다.</Text>
+              ) : (
+                vm.weakWords.map((item, index) => (
+                  <Text key={index} style={styles.analysisWarning}>
+                    ⚠ [{item.word}] {item.error_type}
+                  </Text>
+                ))
+              )}
+            </ScrollView>
+            {showScrollDown && (
+              <TouchableOpacity
+                style={styles.scrollDownButton}
+                onPress={scrollToEnd}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-down" size={20} color={Colors.white} />
+              </TouchableOpacity>
+            )}
+          </View>
 
-        {/* 하단 버튼 */}
-        <View style={styles.buttonWrapper}>
-          <PrimaryButton
-            label="더 자세히 보기"
-            variant="primary"
-            onPress={() => router.push(ROUTES.PRON_DETAIL as any)}
-          />
+          {/* 하단 버튼 */}
+          <View style={styles.buttonWrapper}>
+            <PrimaryButton
+              label="더 자세히 보기"
+              variant="primary"
+              onPress={() => router.push(ROUTES.PRON_DETAIL as any)}
+            />
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={[styles.content, { paddingTop: getHeaderTop(insets.top), justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={styles.analysisEmpty}>아직 기록이 없습니다.</Text>
+        </View>
+      )}
     </View>
   );
 }

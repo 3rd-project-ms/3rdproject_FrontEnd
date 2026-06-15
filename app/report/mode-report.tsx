@@ -46,9 +46,12 @@ export default function ModeReportScreen() {
     if (userId === null) return;
     setIsLoading(true);
     fetch(`${BASE_URL}/api/characters/my-list?userId=${userId}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error('server');
+        return res.json();
+      })
       .then((json: CharacterListApiResponse) => { setCharacters(json.data); })
-      .catch((error) => { console.error('Failed to fetch character list:', error); })
+      .catch(() => { setIsLoading(false); })
       .finally(() => { setIsLoading(false); });
   }, [userId]);
 
@@ -108,8 +111,13 @@ export default function ModeReportScreen() {
     return () => { active = false; };
   }, [currentSessionId, userId]);
 
-  if (isLoading || characters.length === 0) {
-    return <Loading />;
+  if (isLoading) return <Loading />;
+  if (characters.length === 0) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.noSessionText}>아직 기록이 없습니다.</Text>
+      </View>
+    );
   }
 
   const currentCharacter = characters[currentCharacterIndex];

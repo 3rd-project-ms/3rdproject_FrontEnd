@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Loading from '@/components/common/Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
@@ -26,34 +25,21 @@ export default function ReportHomeScreen() {
     }>();
 
   const [reportData, setReportData] = useState<ReportApiResponse | null>(null);
-  const [error, setError] = useState(false);
   const setStoreReportData = useChatStore((s) => s.setReportData);
   const userId = useAuthStore((s) => s.userId);
 
   useEffect(() => {
-    if (userId === null) return;
+    if (userId === null || !session_id) return;
     fetch(`${BASE_URL}/api/reports/sessions/${session_id}?userId=${userId}`)
       .then((res) => res.json())
       .then((json: ReportApiResponse) => {
         setReportData(json);
         setStoreReportData(json);
       })
-      .catch(() => setError(true));
+      .catch(() => {});
   }, [session_id, userId]);
 
-  if (error) {
-    return (
-      <View style={[styles.container, styles.center]}>
-        <Text style={styles.errorText}>데이터를 불러오지 못했습니다</Text>
-      </View>
-    );
-  }
-
-  if (!reportData) {
-    return <Loading />;
-  }
-
-  const vm = buildReportDisplayViewModel(reportData);
+  const vm = reportData ? buildReportDisplayViewModel(reportData) : null;
 
   return (
     <View style={styles.container}>
@@ -62,22 +48,28 @@ export default function ReportHomeScreen() {
         <Text style={styles.subtitle}>{character_name} · {stage_name} · {continuous_days}</Text>
       </View>
 
-      <ReportSummaryContent
-        avgPronScore={vm.avgPronScore}
-        correctionCount={vm.correctionCount}
-        isPronNavigable={vm.avgPronScore !== null}
-        onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
-        affinityProgress={vm.affinityProgress}
-        affinityValue={vm.affinityValue}
-        affinityLabel={`${character_name} 호감도`}
-        affinityChange={Number(affinity_change)}
-        chatCorrections={vm.corrections}
-        voiceCorrections={vm.corrections}
-        grammarFeedback={vm.grammarFeedback}
-        onReviewPress={() => router.push({ pathname: ROUTES.REVIEW as any, params: { session_id } })}
-        onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
-        primaryLabel="메인으로 돌아가기"
-      />
+      {vm ? (
+        <ReportSummaryContent
+          avgPronScore={vm.avgPronScore}
+          correctionCount={vm.correctionCount}
+          isPronNavigable={vm.avgPronScore !== null}
+          onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
+          affinityProgress={vm.affinityProgress}
+          affinityValue={vm.affinityValue}
+          affinityLabel={`${character_name} 호감도`}
+          affinityChange={Number(affinity_change)}
+          chatCorrections={vm.corrections}
+          voiceCorrections={vm.corrections}
+          grammarFeedback={vm.grammarFeedback}
+          onReviewPress={() => router.push({ pathname: ROUTES.REVIEW as any, params: { session_id } })}
+          onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
+          primaryLabel="메인으로 돌아가기"
+        />
+      ) : (
+        <View style={[styles.center, { flex: 1 }]}>
+          <Text style={styles.errorText}>아직 기록이 없습니다.</Text>
+        </View>
+      )}
     </View>
   );
 }
