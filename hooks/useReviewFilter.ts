@@ -25,20 +25,22 @@ export function useReviewFilter(): UseReviewFilterResult {
   useEffect(() => {
     if (userId === null) return;
     Promise.all([
-      fetch(`${BASE_URL}/api/corrections?userId=${userId}`).then((r) => r.json()),
-      fetch(`${BASE_URL}/api/corrections/bookmarks?userId=${userId}`).then((r) => r.json()),
+      fetch(`${BASE_URL}/api/corrections?userId=${userId}`)
+        .then((r) => r.ok ? r.json().catch(() => null) : null),
+      fetch(`${BASE_URL}/api/corrections/bookmarks?userId=${userId}`)
+        .then((r) => r.ok ? r.json().catch(() => null) : null),
     ]).then(([correctionsJson, bookmarksJson]) => {
       // bookmarksJson.data: Map<string, { correction_id: number }[]> 구조
       // correction_id를 Set<string>으로 추출해 starred 초기값에 사용
       const bookmarkedIds = new Set<string>(
         Object.values(
-          (bookmarksJson.data ?? {}) as { [key: string]: { correction_id: number }[] }
+          ((bookmarksJson?.data ?? {}) as { [key: string]: { correction_id: number }[] })
         )
           .flat()
           .map((c) => String(c.correction_id))
       );
-      setGroups(mapCorrectionsToDateGroups(correctionsJson.data, bookmarkedIds));
-    });
+      setGroups(mapCorrectionsToDateGroups(correctionsJson?.data ?? [], bookmarkedIds));
+    }).catch(() => {});
   }, [userId]);
   const [searchText, setSearchText] = useState('');
   const [activeFilter, setActiveFilterState] = useState<FilterType>('전체');

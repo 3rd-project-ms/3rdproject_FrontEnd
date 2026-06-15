@@ -1,4 +1,4 @@
-import { BASE_URL } from './chatService';
+import { api } from './api';
 import { AiRequestDto, AiResponseDto } from '@/types/api';
 
 export async function analyzePronunciation(
@@ -17,11 +17,9 @@ export async function analyzePronunciation(
 
   formData.append('request', JSON.stringify(dto));
 
-  const res = await fetch(`${BASE_URL}/api/analysis/pronunciation`, {
-    method: 'POST',
-    body: formData,
+  const res = await api.post<AiResponseDto>('/api/analysis/pronunciation', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
 
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json() as Promise<AiResponseDto>;
+  return res.data;
 }
