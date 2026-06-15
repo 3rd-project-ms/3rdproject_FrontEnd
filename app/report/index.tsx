@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
@@ -66,14 +66,8 @@ export default function ReportHomeScreen() {
           primaryLabel="메인으로 돌아가기"
         />
       ) : (
-        <View style={[styles.center, { flex: 1, gap: 20 }]}>
+        <View style={[styles.center, { flex: 1 }]}>
           <Text style={styles.errorText}>아직 기록이 없습니다.</Text>
-          <Pressable
-            onPress={() => router.replace(ROUTES.CHAR_HOME as any)}
-            style={styles.homeButton}
-          >
-            <Text style={styles.homeButtonText}>홈으로 돌아가기</Text>
-          </Pressable>
         </View>
       )}
     </View>
@@ -93,17 +87,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.size.md,
     fontFamily: Typography.family.regular,
     color: Colors.textSecondary,
-  },
-  homeButton: {
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    backgroundColor: '#F6A3A6',
-    borderRadius: 14,
-  },
-  homeButtonText: {
-    fontSize: Typography.size.md,
-    fontFamily: Typography.family.semiBold,
-    color: '#FFFFFF',
   },
   header: {
     paddingHorizontal: Spacing.screenHorizontal,
