@@ -12,7 +12,7 @@ import { Correction } from '@/types/api';
 export interface ReportCorrectionSectionProps {
   chatCorrections: Correction[];
   voiceCorrections: Correction[];
-  grammarFeedback: string;
+  grammarFeedback: string | null;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -52,7 +52,7 @@ export default function ReportCorrectionSection({
               <CorrectionItem key={item.id ?? index} original={item.original_sentence} corrected={item.corrected_sentence} />
             ))
           )}
-          {grammarFeedback !== '' && (
+          {!!grammarFeedback && (
             <View style={styles.grammarFeedbackRow}>
               <Ionicons name="bulb-outline" size={Typography.size.sm} color={Colors.textSecondary} />
               <Text style={styles.grammarFeedback}>{grammarFeedback}</Text>

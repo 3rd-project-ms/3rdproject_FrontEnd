@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
@@ -44,32 +45,29 @@ export default function ReportHomeScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: getHeaderTop(insets.top) }]}>
-        <Text style={styles.title}>오늘의 대화 종료!</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.titleRow}>
+          <Ionicons name="chevron-back" size={20} color={Colors.textPrimary} />
+          <Text style={styles.title}>오늘의 대화 종료!</Text>
+        </TouchableOpacity>
         <Text style={styles.subtitle}>{character_name} · {stage_name} · {continuous_days}</Text>
       </View>
 
-      {vm ? (
-        <ReportSummaryContent
-          avgPronScore={vm.avgPronScore}
-          correctionCount={vm.correctionCount}
-          isPronNavigable={vm.avgPronScore !== null}
-          onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
-          affinityProgress={vm.affinityProgress}
-          affinityValue={vm.affinityValue}
-          affinityLabel={`${character_name} 호감도`}
-          affinityChange={Number(affinity_change)}
-          chatCorrections={vm.corrections}
-          voiceCorrections={vm.corrections}
-          grammarFeedback={vm.grammarFeedback}
-          onReviewPress={() => router.push({ pathname: ROUTES.REVIEW as any, params: { session_id } })}
-          onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
-          primaryLabel="메인으로 돌아가기"
-        />
-      ) : (
-        <View style={[styles.center, { flex: 1 }]}>
-          <Text style={styles.errorText}>아직 기록이 없습니다.</Text>
-        </View>
-      )}
+      <ReportSummaryContent
+        avgPronScore={vm?.avgPronScore ?? null}
+        correctionCount={vm?.correctionCount ?? 0}
+        isPronNavigable={vm != null && vm.avgPronScore !== null}
+        onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
+        affinityProgress={vm?.affinityProgress ?? 0}
+        affinityValue={vm?.affinityValue ?? 0}
+        affinityLabel={`${character_name} 호감도`}
+        affinityChange={Number(affinity_change)}
+        chatCorrections={vm?.corrections ?? []}
+        voiceCorrections={vm?.corrections ?? []}
+        grammarFeedback={vm?.grammarFeedback ?? null}
+        onReviewPress={() => router.push({ pathname: ROUTES.REVIEW as any, params: { session_id } })}
+        onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
+        primaryLabel="메인으로 돌아가기"
+      />
     </View>
   );
 }
@@ -79,19 +77,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  center: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: Typography.size.md,
-    fontFamily: Typography.family.regular,
-    color: Colors.textSecondary,
-  },
   header: {
     paddingHorizontal: Spacing.screenHorizontal,
     paddingBottom: 12,
     gap: 6,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   title: {
     fontSize: Typography.size.lg,

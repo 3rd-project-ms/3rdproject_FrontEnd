@@ -18,7 +18,7 @@ export interface ReportSummaryContentProps {
   affinityValue: number;
   chatCorrections: Correction[];
   voiceCorrections: Correction[];
-  grammarFeedback: string;
+  grammarFeedback: string | null;
   affinityLabel: string;
   affinityChange?: number;
   onReviewPress: () => void;
