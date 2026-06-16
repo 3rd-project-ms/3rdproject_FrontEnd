@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +15,7 @@ import { MissionItem } from '@/constants/missionData';
 interface Props {
   visible: boolean;
   onClose: () => void;
+  onGoReport?: () => void;
   stageName: string;
   missions: (MissionItem & { cleared: boolean })[];
 }
@@ -21,48 +23,37 @@ interface Props {
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DRAWER_WIDTH = (SCREEN_WIDTH * 4) / 5;
 
-export default function MissionDrawer({ visible, onClose, stageName, missions }: Props) {
+export default function MissionDrawer({ visible, onClose, onGoReport, stageName, missions }: Props) {
   const translateX = useRef(new Animated.Value(DRAWER_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [rendered, setRendered] = useState(false);
 
   useEffect(() => {
     if (visible) {
+      setRendered(true);
       Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: 0,
-          duration: 260,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayOpacity, {
-          toValue: 1,
-          duration: 260,
-          useNativeDriver: true,
-        }),
+        Animated.timing(translateX, { toValue: 0, duration: 260, useNativeDriver: true }),
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: DRAWER_WIDTH,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayOpacity, {
-          toValue: 0,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-      ]).start();
+        Animated.timing(translateX, { toValue: DRAWER_WIDTH, duration: 220, useNativeDriver: true }),
+        Animated.timing(overlayOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+      ]).start(() => setRendered(false));
     }
   }, [visible]);
 
-  if (!visible && translateX._value === DRAWER_WIDTH) return null;
+  if (!rendered) return null;
 
   const allCleared = missions.every((m) => m.cleared);
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {/* 반투명 오버레이 */}
-      <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+      {/* 반투명 오버레이 — visible=false 시 pointerEvents="none"으로 터치 차단 해제 */}
+      <Animated.View
+        style={[styles.overlay, { opacity: overlayOpacity }]}
+        pointerEvents={visible ? 'auto' : 'none'}
+      >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
@@ -103,11 +94,19 @@ export default function MissionDrawer({ visible, onClose, stageName, missions }:
         </ScrollView>
 
         {/* 하단 안내 */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
+        <TouchableOpacity
+          style={styles.footer}
+          onPress={onGoReport}
+          activeOpacity={onGoReport ? 0.6 : 1}
+          disabled={!onGoReport}
+        >
+          <Text style={[styles.footerText, onGoReport && styles.footerTextTappable]}>
             미션 3개를 모두 완료하면{'\n'}자동으로 리포트로 이동해요 ✨
           </Text>
-        </View>
+          {onGoReport && (
+            <Text style={styles.footerTapHint}>탭하여 지금 이동 →</Text>
+          )}
+        </TouchableOpacity>
       </Animated.View>
     </View>
   );
@@ -206,5 +205,15 @@ const styles = StyleSheet.create({
     color: '#AAAAAA',
     lineHeight: 18,
     textAlign: 'center',
+  },
+  footerTextTappable: {
+    color: '#F6A3A6',
+  },
+  footerTapHint: {
+    fontSize: 11,
+    color: '#F6A3A6',
+    textAlign: 'center',
+    marginTop: 6,
+    fontWeight: '600',
   },
 });
