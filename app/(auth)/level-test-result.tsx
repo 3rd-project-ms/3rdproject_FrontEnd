@@ -117,14 +117,14 @@ export default function LevelTestResultScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   container: {
     flex: 1,
     paddingHorizontal: LAYOUT.screenPadding,
     paddingTop: 72,
     paddingBottom: 40,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   resultHeader: {
     alignItems: 'center',

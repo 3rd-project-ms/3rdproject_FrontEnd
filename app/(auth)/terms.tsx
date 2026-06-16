@@ -116,12 +116,12 @@ export default function TermsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   container: {
     flex: 1,
     paddingHorizontal: LAYOUT.screenPadding,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   content: {
     paddingTop: 44,

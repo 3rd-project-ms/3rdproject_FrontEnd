@@ -135,12 +135,12 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   content: {
     flex: 1,
     paddingHorizontal: LAYOUT.screenPadding,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   formSection: {
     flex: 1,

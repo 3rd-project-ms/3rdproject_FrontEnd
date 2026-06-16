@@ -114,7 +114,7 @@ export default function TutorialScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   skipText: {
     ...TYPOGRAPHY.semibold12,
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: LAYOUT.screenPadding,
     paddingBottom: 24,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   tutorialPanel: {
     flex: 1,

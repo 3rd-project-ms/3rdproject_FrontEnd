@@ -275,12 +275,12 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   content: {
     flex: 1,
     paddingHorizontal: LAYOUT.screenPadding,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   form: {
     flex: 1,

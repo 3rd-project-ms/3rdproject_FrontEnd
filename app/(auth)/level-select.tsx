@@ -129,14 +129,14 @@ export default function LevelSelectScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   container: {
     flex: 1,
     paddingHorizontal: LAYOUT.screenPadding,
     paddingTop: 56,
     paddingBottom: 40,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   titleSection: {
     marginBottom: 18,

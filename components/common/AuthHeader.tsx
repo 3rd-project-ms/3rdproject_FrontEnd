@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   backButton: {
     width: 28,

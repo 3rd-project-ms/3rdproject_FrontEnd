@@ -433,12 +433,12 @@ function KeyboardInputRow({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   screen: {
     flex: 1,
     position: 'relative',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   contentBlur: {
     flex: 1,
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 8,
     gap: 12,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   cardShadow: {
     shadowColor: '#000',
