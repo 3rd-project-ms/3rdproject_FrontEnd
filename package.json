@@ -15,6 +15,7 @@
     "axios": "^1.16.1",
     "expo": "~55.0.25",
     "expo-av": "^16.0.8",
+    "expo-blur": "~55.0.14",
     "expo-dev-client": "~55.0.35",
     "expo-font": "~55.0.8",
     "expo-router": "~55.0.15",
@@ -30,8 +31,7 @@
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
     "react-native-svg": "15.15.3",
-    "zustand": "^5.0.13",
-    "expo-blur": "~55.0.14"
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@types/react": "~19.2.10",

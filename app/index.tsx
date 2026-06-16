@@ -13,7 +13,7 @@ export default function StartScreen() {
       <View style={styles.container}>
         <View style={styles.logoSection}>
           <Image
-            source={require('../assets/images/logo.jpg')}
+            source={require('../assets/images/logo.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />

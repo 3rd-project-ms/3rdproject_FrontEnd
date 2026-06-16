@@ -6,10 +6,15 @@
     "scheme": "simspeak",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/images/icon.png",
     "plugins": ["expo-router", "expo-secure-store", "expo-font"],
     "android": {
       "permissions": ["RECORD_AUDIO", "INTERNET"],
-      "package": "com.ms3rdproject_frontend"
+      "package": "com.ms3rdproject_frontend",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#FBE9E7"
+      }
     },
     "ios": {
       "infoPlist": {
