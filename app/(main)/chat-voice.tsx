@@ -437,6 +437,7 @@ export default function ChatVoiceScreen() {
       <MissionDrawer
         visible={showMission}
         onClose={() => setShowMission(false)}
+        onGoReport={() => { setShowMission(false); handleGoReport(); }}
         stageName={stageName}
         missions={missions}
       />
