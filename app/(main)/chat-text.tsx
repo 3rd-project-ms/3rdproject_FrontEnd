@@ -103,6 +103,7 @@ export default function ChatTextScreen() {
 
   // ─── 세션 시작 + 초기 AI 인사 ──────────
   useEffect(() => {
+    let isMounted = true;
     const initSession = async () => {
       try {
         const res = await chatService.startSession({
@@ -110,6 +111,8 @@ export default function ChatTextScreen() {
           stageId:     Number(stage_id) || 1,
           characterId: character_id || 'CH_01_M',
         });
+        console.log('🔍 [TEST] chat/sessions 응답 전체:', JSON.stringify(res, null, 2));
+        if (!isMounted) return;
         setSessionId(res.sessionId);
         setMessages([{
           id:     'init',
@@ -118,9 +121,9 @@ export default function ChatTextScreen() {
           time:   getTimeString(),
           action_description: res.firstMessage.actionDescription,
         }]);
-      } catch (e) {
-        console.error('세션 시작 오류:', e);
-        // 오류 시 fallback
+      } catch (e: any) {
+        console.warn('세션 시작 오류:', e?.message, '| code:', e?.code, '| status:', e?.response?.status);
+        if (!isMounted) return;
         setMessages([{
           id:     'init',
           sender: 'ai',
@@ -130,6 +133,7 @@ export default function ChatTextScreen() {
       }
     };
     initSession();
+    return () => { isMounted = false; };
   }, []);
 
   // ─── 새 메시지 자동 스크롤 ──────────────
@@ -172,13 +176,14 @@ export default function ChatTextScreen() {
         history:         [],                   // TODO: 백엔드 형식 확인 후 채우기
       });
 
+      console.log('🔍 [TEST] chat/message 응답 전체:', JSON.stringify(data, null, 2));
       const eval_ = data.system_evaluation;
 
       // 유저 말풍선에 grammar_feedback 붙이기
       setMessages((prev) =>
         prev.map((m) =>
           m.id === userMsgId
-            ? { ...m, grammar_feedback: eval_.grammar_feedback, is_penalty: eval_.is_penalty }
+            ? { ...m, grammar_feedback: eval_.grammar_feedback, is_penalty: eval_.penalty }
             : m
         )
       );
@@ -196,21 +201,20 @@ export default function ChatTextScreen() {
       setAffinity(data.current_total_affinity);
       const delta = data.affinity_delta ?? 0;
       setAffinityDeltaTotal((prev) => prev + delta);
-      if (eval_.is_penalty) setLives((prev) => Math.max(0, prev - 1));
+      if (eval_.penalty) setLives((prev) => Math.max(0, prev - 1));
       setTurnCount((prev) => prev + 1);
 
       // ─── 미션 카운터 업데이트 ──────────────
-      if (!eval_.is_penalty) counters.current.perfectSentenceCount += 1;
+      if (!eval_.penalty) counters.current.perfectSentenceCount += 1;
       counters.current.totalAffinityGained += delta;
-      const score = eval_.pronunciation_score ?? 0;
 
       // ─── 미션 클리어 평가 ──────────────────
       setMissions((prev) => {
         const clearedIds = new Set(prev.filter((m) => m.cleared).map((m) => m.id));
         const newlyCleared = evaluateMissions(stageNum, clearedIds, {
           userText:          text,
-          isPenalty:         eval_.is_penalty ?? false,
-          pronunciationScore: score,
+          isPenalty:         eval_.penalty ?? false,
+          pronunciationScore: 0,
           affinityDelta:     delta,
           counters:          counters.current,
         });
@@ -220,7 +224,7 @@ export default function ChatTextScreen() {
         );
       });
 
-      if (eval_.is_penalty && eval_.penalty_reason) {
+      if (eval_.penalty && eval_.penalty_reason) {
         popup.show(PENALTY_REASON_MAP[eval_.penalty_reason] ?? 'off_topic', 1);
       } else if (data.current_total_affinity > prevAffinity) {
         const gain = data.current_total_affinity - prevAffinity;
@@ -228,7 +232,7 @@ export default function ChatTextScreen() {
       }
 
     } catch (e: any) {
-      console.error('API 오류:', e);
+      console.warn('API 오류:', e?.message, '| status:', e?.response?.status);
       const code = e?.response?.data?.code;
       if (code === 'ERR_NO_LIVES_REMAINING' || code === 'ERR_ABUSIVE_WORDS') {
         popup.show('off_topic');
@@ -297,7 +301,7 @@ export default function ChatTextScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={{ flex: 1, backgroundColor: '#FFFFFF' }}
-        behavior="padding"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 30}
       >
         {/* ── 헤더 ── */}

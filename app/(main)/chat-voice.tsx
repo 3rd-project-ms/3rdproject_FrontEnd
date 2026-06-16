@@ -86,6 +86,7 @@ export default function ChatVoiceScreen() {
 
   // ─── 세션 시작 ──────────────────────────
   useEffect(() => {
+    let isMounted = true;
     const initSession = async () => {
       try {
         const res = await chatService.startSession({
@@ -93,21 +94,24 @@ export default function ChatVoiceScreen() {
           stageId:     Number(stage_id) || 1,
           characterId: character_id || 'CH_01_M',
         });
+        if (!isMounted) return;
         setSessionId(res.sessionId);
         setCurrentAiText(res.firstMessage.textContent);
         fadeIn(aiCaptionOpacity);
-        // 첫 TTS 재생
         if (res.firstMessage.audioUrl) {
           await playAudio(res.firstMessage.audioUrl);
         }
       } catch (e) {
-        console.error('세션 시작 오류:', e);
+        console.warn('세션 시작 오류:', e);
       }
     };
 
     Audio.requestPermissionsAsync();
     initSession();
-    return () => { soundRef.current?.unloadAsync(); };
+    return () => {
+      isMounted = false;
+      soundRef.current?.unloadAsync();
+    };
   }, []);
 
   // ─── 미션 전체 클리어 시 자동 리포트 이동 ─
@@ -191,20 +195,19 @@ export default function ChatVoiceScreen() {
       setAffinity(data.current_total_affinity);
       const delta = data.affinity_delta ?? 0;
       setAffinityDeltaTotal((prev) => prev + delta);
-      if (eval_.is_penalty) setLives((prev) => Math.max(0, prev - 1));
+      if (eval_.penalty) setLives((prev) => Math.max(0, prev - 1));
       setTurnCount((prev) => prev + 1);
 
       // ─── 미션 카운터 + 평가 ────────────────
-      if (!eval_.is_penalty) counters.current.perfectSentenceCount += 1;
+      if (!eval_.penalty) counters.current.perfectSentenceCount += 1;
       counters.current.totalAffinityGained += delta;
-      const score = eval_.pronunciation_score ?? 0;
 
       setMissions((prev) => {
         const clearedIds = new Set(prev.filter((m) => m.cleared).map((m) => m.id));
         const newlyCleared = evaluateMissions(stageNum, clearedIds, {
           userText:           currentUserText,
-          isPenalty:          eval_.is_penalty ?? false,
-          pronunciationScore: score,
+          isPenalty:          eval_.penalty ?? false,
+          pronunciationScore: 0,
           affinityDelta:      delta,
           counters:           counters.current,
         });
@@ -214,7 +217,7 @@ export default function ChatVoiceScreen() {
         );
       });
 
-      if (eval_.is_penalty && eval_.penalty_reason) {
+      if (eval_.penalty && eval_.penalty_reason) {
         popup.show(PENALTY_REASON_MAP[eval_.penalty_reason] ?? "off_topic", 1);
       } else if (data.current_total_affinity > prevAffinity) {
         const gain = data.current_total_affinity - prevAffinity;
