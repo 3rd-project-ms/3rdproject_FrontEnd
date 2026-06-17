@@ -106,9 +106,17 @@ const st = StyleSheet.create({
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { userId } = useAuthStore();
+  const { userId, selectedGender } = useAuthStore();
+
+  // 성별 미설정(게스트 등)이면 전체 표시, 설정된 경우 해당 성별만
+  const filteredCharacters = selectedGender
+    ? CHARACTER_DATA.filter((c) =>
+        selectedGender === 'male' ? c.characterId.endsWith('_M') : c.characterId.endsWith('_F')
+      )
+    : CHARACTER_DATA;
+
   const [idx, setIdx] = useState(0);
-  const [characters, setCharacters] = useState(CHARACTER_DATA);
+  const [characters, setCharacters] = useState(filteredCharacters);
   const char = characters[idx];
 
   useEffect(() => {

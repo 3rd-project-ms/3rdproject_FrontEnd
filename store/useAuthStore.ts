@@ -4,7 +4,8 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 
-const USER_ID_KEY = 'auth.userId';
+const USER_ID_KEY    = 'auth.userId';
+const GENDER_KEY     = 'auth.gender';
 
 type Gender = 'male' | 'female' | null;
 export type EnglishLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
@@ -35,17 +36,26 @@ export const useAuthStore = create<AuthState>((set) => ({
   selectedGender: null,
   selectedEnglishLevel: null,
   setAuth: (data) => {
-    // user_id가 들어오면 SecureStore에도 저장한다.
     if (data.userId != null) {
       SecureStore.setItemAsync(USER_ID_KEY, String(data.userId)).catch(() => {});
+    }
+    if (data.selectedGender != null) {
+      SecureStore.setItemAsync(GENDER_KEY, data.selectedGender).catch(() => {});
     }
     set((state) => ({ ...state, ...data }));
   },
   restoreSession: async () => {
     try {
-      const stored = await SecureStore.getItemAsync(USER_ID_KEY);
-      if (stored) {
-        set({ userId: Number(stored), isLoggedIn: true });
+      const [storedId, storedGender] = await Promise.all([
+        SecureStore.getItemAsync(USER_ID_KEY),
+        SecureStore.getItemAsync(GENDER_KEY),
+      ]);
+      if (storedId) {
+        set({
+          userId: Number(storedId),
+          isLoggedIn: true,
+          selectedGender: (storedGender as Gender) ?? null,
+        });
       }
     } catch {
       // 복원 실패는 무시하고 비로그인 상태로 시작
@@ -59,6 +69,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }),
   logout: () => {
     SecureStore.deleteItemAsync(USER_ID_KEY).catch(() => {});
+    SecureStore.deleteItemAsync(GENDER_KEY).catch(() => {});
     set({
       userId: null,
       isLoggedIn: false,
