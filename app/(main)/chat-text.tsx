@@ -111,7 +111,6 @@ export default function ChatTextScreen() {
           stageId:     Number(stage_id) || 1,
           characterId: character_id || 'CH_01_M',
         });
-        console.log('🔍 [TEST] chat/sessions 응답 전체:', JSON.stringify(res, null, 2));
         if (!isMounted) return;
         setSessionId(res.sessionId);
         setMessages([{
@@ -176,7 +175,6 @@ export default function ChatTextScreen() {
         history:         [],                   // TODO: 백엔드 형식 확인 후 채우기
       });
 
-      console.log('🔍 [TEST] chat/message 응답 전체:', JSON.stringify(data, null, 2));
       const eval_ = data.system_evaluation;
 
       // 유저 말풍선에 grammar_feedback 붙이기

@@ -41,8 +41,28 @@ export interface ChatMessageRequest {
   history: any[];           // TODO: 백엔드에 배열 내부 형식 확인 필요
 }
 
+// ── 활성 세션 조회 ──
+export interface ActiveSessionResponse {
+  sessionId: string;
+  stageId: number;
+  characterId: string;
+  turnCount: number;
+  currentAffinity: number;
+  isActive: boolean;
+}
+
 // ── API 함수 ──
 export const chatService = {
+
+  /** 활성 세션 조회 — 이어하기 플로우용 (없으면 null 반환) */
+  getActiveSession: async (userId: number, stageId: number): Promise<ActiveSessionResponse | null> => {
+    try {
+      const { data } = await api.get('/api/chat/sessions/active', { params: { userId, stageId } });
+      return data.data ?? null;
+    } catch {
+      return null;
+    }
+  },
 
   /** 세션 시작 — 화면 진입 시 호출 */
   startSession: async (req: SessionStartRequest): Promise<SessionStartResponse> => {

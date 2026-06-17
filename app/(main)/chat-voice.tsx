@@ -179,11 +179,11 @@ export default function ChatVoiceScreen() {
 
       const eval_ = data.system_evaluation;
 
-      // STT 결과 (user_text 역할 → text_content에 포함될 수도 있으므로 백엔드 확인)
-      // 현재는 응답의 text_content가 AI 답변, audio_url로 STT 결과를 별도로 받는 구조 아님
-      // TODO: 백엔드에 STT 결과 필드 위치 확인
-      setCurrentUserText('');  // 백엔드 응답에 user_text 필드 확인 후 채우기
-      fadeIn(userTextOpacity);
+      // user_recognized_text: Swagger 신규 필드 — Azure STT가 인식한 유저 발화 텍스트
+      if (eval_.user_recognized_text) {
+        setCurrentUserText(eval_.user_recognized_text);
+        fadeIn(userTextOpacity);
+      }
 
       setCurrentAiText(data.text_content);
       setLastActionDescription(data.action_description ?? '');
