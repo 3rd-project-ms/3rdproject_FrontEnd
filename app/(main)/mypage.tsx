@@ -214,7 +214,11 @@ export default function MyPageScreen() {
                   <TouchableOpacity
                     key={lv.code}
                     style={[styles.levelCell, isSelected && styles.levelCellActive]}
-                    onPress={() => { setSelectedCode(lv.code); setShowLevelModal(false); }}
+                    onPress={() => {
+                    setSelectedCode(lv.code);
+                    setAuth({ selectedEnglishLevel: lv.code });
+                    setShowLevelModal(false);
+                  }}
                     activeOpacity={0.75}
                   >
                     <Text style={[styles.levelCellCode, isSelected && styles.levelCellCodeActive]}>

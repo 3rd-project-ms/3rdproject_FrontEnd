@@ -6,6 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const USER_ID_KEY    = 'auth.userId';
 const GENDER_KEY     = 'auth.gender';
+const LEVEL_KEY      = 'auth.level';
 
 type Gender = 'male' | 'female' | null;
 export type EnglishLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
@@ -42,19 +43,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (data.selectedGender != null) {
       SecureStore.setItemAsync(GENDER_KEY, data.selectedGender).catch(() => {});
     }
+    if (data.selectedEnglishLevel != null) {
+      SecureStore.setItemAsync(LEVEL_KEY, data.selectedEnglishLevel).catch(() => {});
+    }
     set((state) => ({ ...state, ...data }));
   },
   restoreSession: async () => {
     try {
-      const [storedId, storedGender] = await Promise.all([
+      const [storedId, storedGender, storedLevel] = await Promise.all([
         SecureStore.getItemAsync(USER_ID_KEY),
         SecureStore.getItemAsync(GENDER_KEY),
+        SecureStore.getItemAsync(LEVEL_KEY),
       ]);
       if (storedId) {
         set({
           userId: Number(storedId),
           isLoggedIn: true,
           selectedGender: (storedGender as Gender) ?? null,
+          selectedEnglishLevel: (storedLevel as EnglishLevel) ?? null,
         });
       }
     } catch {
@@ -70,6 +76,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     SecureStore.deleteItemAsync(USER_ID_KEY).catch(() => {});
     SecureStore.deleteItemAsync(GENDER_KEY).catch(() => {});
+    SecureStore.deleteItemAsync(LEVEL_KEY).catch(() => {});
     set({
       userId: null,
       isLoggedIn: false,
