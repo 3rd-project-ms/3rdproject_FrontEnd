@@ -244,7 +244,7 @@ export default function ChatVoiceScreen() {
       soundRef.current = sound;
       await sound.playAsync();
     } catch (e) {
-      console.error("오디오 재생 오류:", e);
+      console.warn("오디오 재생 오류:", e);
     }
   };
 
@@ -269,7 +269,7 @@ export default function ChatVoiceScreen() {
         userId:         storeUserId ?? Number(user_id) ?? 1,
         currentStageId: Number(stage_id) || 1,
         score,
-        isPassed,
+        passed: isPassed,
       });
     } catch {}
   };

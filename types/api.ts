@@ -125,12 +125,12 @@ export interface ProgressUpdateRequest {
   userId: number;
   currentStageId: number;
   score: number;
-  isPassed: boolean;
+  passed: boolean;
 }
 
 export interface ProgressUpdateData {
-  isCurrentStageCompleted: boolean;
-  isNextStageUnlocked: boolean;
+  currentStageCompleted: boolean;
+  nextStageUnlocked: boolean;
   nextStageId: number | null;
 }
 

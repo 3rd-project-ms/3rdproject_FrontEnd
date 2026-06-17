@@ -275,7 +275,7 @@ export default function ChatTextScreen() {
         userId:         storeUserId ?? Number(user_id) ?? 1,
         currentStageId: Number(stage_id) || 1,
         score,
-        isPassed,
+        passed: isPassed,
       });
     } catch {}
   };

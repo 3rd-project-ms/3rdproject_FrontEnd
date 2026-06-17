@@ -106,26 +106,32 @@ const st = StyleSheet.create({
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { userId, selectedGender } = useAuthStore();
-
-  // 성별 미설정(게스트 등)이면 전체 표시, 설정된 경우 해당 성별만
-  const filteredCharacters = selectedGender
-    ? CHARACTER_DATA.filter((c) =>
-        selectedGender === 'male' ? c.characterId.endsWith('_M') : c.characterId.endsWith('_F')
-      )
-    : CHARACTER_DATA;
+  const { userId, selectedGender, setAuth } = useAuthStore();
 
   const [idx, setIdx] = useState(0);
-  const [characters, setCharacters] = useState(filteredCharacters);
-  const char = characters[idx];
+  const [characters, setCharacters] = useState(CHARACTER_DATA);
 
   useEffect(() => {
     if (!userId) return;
     let isMounted = true;
+
+    // 프로필 조회 → preferred_partner_gender 동기화
+    api.get(`/api/auth/${userId}/profile`)
+      .then((res) => {
+        if (!isMounted) return;
+        const profile = res.data?.data;
+        if (!profile) return;
+        const gender = profile.preferred_partner_gender as string | undefined;
+        if (gender) setAuth({ selectedGender: gender as 'male' | 'female' });
+      })
+      .catch(() => {});
+
+    // 캐릭터 호감도 조회
     api.get(`/api/characters/status?userId=${userId}`)
       .then((res) => {
         if (!isMounted) return;
-        const list: { characterId: string; affinityScore: number }[] = res.data?.data ?? [];
+        const statusData = res.data?.data;
+        const list: { characterId: string; affinityScore: number }[] = statusData?.characters ?? [];
         if (!list.length) return;
         setCharacters((prev) =>
           prev.map((c) => {
@@ -135,15 +141,27 @@ export default function HomeScreen() {
         );
       })
       .catch(() => {});
+
     return () => { isMounted = false; };
   }, [userId]);
 
-  const prev = () => setIdx((p) => (p === 0 ? characters.length - 1 : p - 1));
-  const next = () => setIdx((p) => (p === characters.length - 1 ? 0 : p + 1));
+  // 성별 미설정이면 전체, 설정된 경우 해당 성별만
+  const visibleCharacters = selectedGender
+    ? characters.filter((c) =>
+        selectedGender === 'male' ? c.characterId.endsWith('_M') : c.characterId.endsWith('_F')
+      )
+    : characters;
+
+  const safeIdx = idx >= visibleCharacters.length ? 0 : idx;
+
+  const char = visibleCharacters[safeIdx];
+
+  const prev = () => setIdx((p) => (p === 0 ? visibleCharacters.length - 1 : p - 1));
+  const next = () => setIdx((p) => (p === visibleCharacters.length - 1 ? 0 : p + 1));
 
   const goStage = () => {
     if (userId) {
-      api.patch('/api/users/last-character', { userId, characterId: char.characterId }).catch(() => {});
+      api.patch(`/api/characters/last-character?userId=${userId}`, { characterId: char.characterId }).catch(() => {});
     }
     router.push({
       pathname: '/(main)/stage' as any,

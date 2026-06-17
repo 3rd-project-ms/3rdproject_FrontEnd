@@ -45,12 +45,8 @@ export interface ChatMessageRequest {
 
 // ── 활성 세션 조회 ──
 export interface ActiveSessionResponse {
-  sessionId: string;
-  stageId: number;
-  characterId: string;
-  turnCount: number;
-  currentAffinity: number;
-  isActive: boolean;
+  session_id: string;
+  is_completed: boolean;
 }
 
 // ── API 함수 ──
