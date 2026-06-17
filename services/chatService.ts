@@ -30,15 +30,17 @@ export interface SessionStartResponse {
 // ── 메시지 전송 ──
 export interface ChatMessageRequest {
   sessionId: string;
-  textContent: string;
+  text: string;
   inputType: 'text' | 'voice';
   characterId: string;
-  scenarioId: string;       // TODO: 백엔드에 어디서 받는지 확인 필요
+  scenarioId: string;
+  targetLanguage?: string;
   stageLevel: number;
   userLevel: string;
-  turnCount: number;        // TODO: 백엔드에 프론트가 카운트해서 올리는지 확인 필요
+  turnCount: number;
   currentAffinity: number;
-  history: any[];           // TODO: 백엔드에 배열 내부 형식 확인 필요
+  userAudioUrl?: string;
+  history: { role: string; text: string }[];
 }
 
 // ── 활성 세션 조회 ──
@@ -92,6 +94,7 @@ export const chatService = {
     const { data } = await api.post('/api/chat/message', {
       ...req,
       inputType: 'text',
+      targetLanguage: req.targetLanguage ?? 'English',
     });
     return data.data;
   },

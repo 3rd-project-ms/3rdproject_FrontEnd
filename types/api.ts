@@ -26,26 +26,26 @@ export interface Correction {
 }
 
 export interface SystemEvaluation {
-  grammar_feedback: string;
-  penalty: boolean;
-  penalty_reason?: string | null;
-  pronunciation_feedback: string | null;
-  corrections_json?: Correction[];
-  user_recognized_text?: string;
-  model_info?: string;
-  ipa_guides?: string;
+  grammar: {
+    grammar_feedback: string;
+  };
+  expression: {
+    corrections_json: Correction[];
+    detected_invalid_words: string[];
+  };
+  pronunciation: {
+    accuracy: number;
+    fluency: number;
+    word_details_json: Record<string, any>;
+  };
 }
 
 export interface ChatResponseData {
-  message_id: string;
-  turn_count: number;
-  role: 'assistant';
-  text_content: string;
+  text: string;
   action_description: string;
   audio_url: string | null;
   affinity_delta: number;
   current_total_affinity: number;
-  remaining_penalties: number;
   system_evaluation: SystemEvaluation;
 }
 

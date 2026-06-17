@@ -180,23 +180,18 @@ export default function ChatVoiceScreen() {
       const data = await chatService.sendVoice(audioUri, {
         sessionId:       sessionId,
         characterId:     character_id || 'CH_01_M',
-        scenarioId:      scenario_id  || '',   // TODO: 백엔드 확인
+        scenarioId:      scenario_id  || '',
         stageLevel:      Number(stage_id) || 1,
-        userLevel:       'A1',                 // TODO: 백엔드 확인
+        userLevel:       'A1',
         turnCount:       turnCount,
         currentAffinity: affinity,
-        history:         [],                   // TODO: 백엔드 형식 확인 후 채우기
+        history:         [],
       });
 
       const eval_ = data.system_evaluation;
+      const isPenalty = (eval_.expression?.detected_invalid_words?.length ?? 0) > 0;
 
-      // user_recognized_text: Swagger 신규 필드 — Azure STT가 인식한 유저 발화 텍스트
-      if (eval_.user_recognized_text) {
-        setCurrentUserText(eval_.user_recognized_text);
-        fadeIn(userTextOpacity);
-      }
-
-      setCurrentAiText(data.text_content);
+      setCurrentAiText(data.text);
       setLastActionDescription(data.action_description ?? '');
       fadeIn(aiCaptionOpacity);
 
@@ -206,19 +201,19 @@ export default function ChatVoiceScreen() {
       setAffinity(data.current_total_affinity);
       const delta = data.affinity_delta ?? 0;
       setAffinityDeltaTotal((prev) => prev + delta);
-      if (eval_.penalty) setLives((prev) => Math.max(0, prev - 1));
+      if (isPenalty) setLives((prev) => Math.max(0, prev - 1));
       setTurnCount((prev) => prev + 1);
 
       // ─── 미션 카운터 + 평가 ────────────────
-      if (!eval_.penalty) counters.current.perfectSentenceCount += 1;
+      if (!isPenalty) counters.current.perfectSentenceCount += 1;
       counters.current.totalAffinityGained += delta;
 
       setMissions((prev) => {
         const clearedIds = new Set(prev.filter((m) => m.cleared).map((m) => m.id));
         const newlyCleared = evaluateMissions(stageNum, clearedIds, {
           userText:           currentUserText,
-          isPenalty:          eval_.penalty ?? false,
-          pronunciationScore: 0,
+          isPenalty:          isPenalty,
+          pronunciationScore: eval_.pronunciation?.accuracy ?? 0,
           affinityDelta:      delta,
           counters:           counters.current,
         });
@@ -228,8 +223,8 @@ export default function ChatVoiceScreen() {
         );
       });
 
-      if (eval_.penalty && eval_.penalty_reason) {
-        popup.show(PENALTY_REASON_MAP[eval_.penalty_reason] ?? "off_topic", 1);
+      if (isPenalty) {
+        popup.show("off_topic", 1);
       } else if (data.current_total_affinity > prevAffinity) {
         const gain = data.current_total_affinity - prevAffinity;
         popup.show(gain >= 10 ? "affection_perfect" : "affection_good");

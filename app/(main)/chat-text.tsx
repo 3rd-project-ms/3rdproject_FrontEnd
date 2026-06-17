@@ -177,24 +177,25 @@ export default function ChatTextScreen() {
     try {
       const data = await chatService.sendText({
         sessionId:       sessionId,
-        textContent:     text,
+        text:            text,
         inputType:       'text',
         characterId:     character_id || 'CH_01_M',
-        scenarioId:      scenario_id  || '',   // TODO: 백엔드 확인
+        scenarioId:      scenario_id  || '',
         stageLevel:      Number(stage_id) || 1,
-        userLevel:       'A1',                 // TODO: 백엔드 확인
+        userLevel:       'A1',
         turnCount:       turnCount,
         currentAffinity: affinity,
-        history:         [],                   // TODO: 백엔드 형식 확인 후 채우기
+        history:         [],
       });
 
       const eval_ = data.system_evaluation;
+      const isPenalty = (eval_.expression?.detected_invalid_words?.length ?? 0) > 0;
 
       // 유저 말풍선에 grammar_feedback 붙이기
       setMessages((prev) =>
         prev.map((m) =>
           m.id === userMsgId
-            ? { ...m, grammar_feedback: eval_.grammar_feedback, is_penalty: eval_.penalty }
+            ? { ...m, grammar_feedback: eval_.grammar?.grammar_feedback, is_penalty: isPenalty }
             : m
         )
       );
@@ -203,7 +204,7 @@ export default function ChatTextScreen() {
       setMessages((prev) => [...prev, {
         id:     `ai_${Date.now()}`,
         sender: 'ai',
-        text:   data.text_content,
+        text:   data.text,
         time:   getTimeString(),
         action_description: data.action_description,
       }]);
@@ -212,22 +213,22 @@ export default function ChatTextScreen() {
       setAffinity(data.current_total_affinity);
       const delta = data.affinity_delta ?? 0;
       setAffinityDeltaTotal((prev) => prev + delta);
-      if (eval_.penalty) setLives((prev) => Math.max(0, prev - 1));
+      if (isPenalty) setLives((prev) => Math.max(0, prev - 1));
       setTurnCount((prev) => prev + 1);
 
       // ─── 미션 카운터 업데이트 ──────────────
-      if (!eval_.penalty) counters.current.perfectSentenceCount += 1;
+      if (!isPenalty) counters.current.perfectSentenceCount += 1;
       counters.current.totalAffinityGained += delta;
 
       // ─── 미션 클리어 평가 ──────────────────
       setMissions((prev) => {
         const clearedIds = new Set(prev.filter((m) => m.cleared).map((m) => m.id));
         const newlyCleared = evaluateMissions(stageNum, clearedIds, {
-          userText:          text,
-          isPenalty:         eval_.penalty ?? false,
-          pronunciationScore: 0,
-          affinityDelta:     delta,
-          counters:          counters.current,
+          userText:           text,
+          isPenalty:          isPenalty,
+          pronunciationScore: eval_.pronunciation?.accuracy ?? 0,
+          affinityDelta:      delta,
+          counters:           counters.current,
         });
         if (newlyCleared.length === 0) return prev;
         return prev.map((m) =>
@@ -235,8 +236,8 @@ export default function ChatTextScreen() {
         );
       });
 
-      if (eval_.penalty && eval_.penalty_reason) {
-        popup.show(PENALTY_REASON_MAP[eval_.penalty_reason] ?? 'off_topic', 1);
+      if (isPenalty) {
+        popup.show('off_topic', 1);
       } else if (data.current_total_affinity > prevAffinity) {
         const gain = data.current_total_affinity - prevAffinity;
         popup.show(gain >= 10 ? 'affection_perfect' : 'affection_good');
