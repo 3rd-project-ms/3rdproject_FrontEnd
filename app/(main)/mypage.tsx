@@ -8,12 +8,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/useAuthStore';
 import { api } from '@/services/api';
 
-// ─── 목업 데이터 (API 미제공 필드) ──────────
-const MOCK_STATS = {
-  totalConversations: 12,
-  avgPronunciation: 78,
-};
-
 // ─── 레벨 정의 ───────────────────────────
 const LEVELS = [
   { code: 'A1', label: '입문',   desc: '영어가 처음이에요' },
@@ -31,6 +25,9 @@ export default function MyPageScreen() {
   const router = useRouter();
   const { userId, nickname, selectedGender, selectedEnglishLevel, setAuth, logout } = useAuthStore();
 
+  const [totalConversations, setTotalConversations]       = useState<number | null>(null);
+  const [avgPronunciationScore, setAvgPronunciationScore] = useState<number | null>(null);
+
   const [showEditModal, setShowEditModal]         = useState(false);
   const [showLevelModal, setShowLevelModal]       = useState(false);
   const [showNicknameModal, setShowNicknameModal] = useState(false);
@@ -38,7 +35,7 @@ export default function MyPageScreen() {
   const [nicknameInput, setNicknameInput]         = useState('');
   const [isUpdating, setIsUpdating]               = useState(false);
 
-  // 마이페이지 진입 시 최신 프로필 로드
+  // 마이페이지 진입 시 최신 프로필 및 학습 현황 로드
   useEffect(() => {
     if (!userId) return;
     api.get(`/api/auth/${userId}/profile`)
@@ -46,6 +43,13 @@ export default function MyPageScreen() {
         const data = res.data?.data ?? res.data;
         if (data?.nickname) setAuth({ nickname: data.nickname });
         if (data?.preferred_partner_gender) setAuth({ selectedGender: data.preferred_partner_gender });
+      })
+      .catch(() => {});
+    api.get(`/api/characters/status?userId=${userId}`)
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        if (data?.totalConversations != null) setTotalConversations(data.totalConversations);
+        if (data?.avgPronunciationScore != null) setAvgPronunciationScore(data.avgPronunciationScore);
       })
       .catch(() => {});
   }, [userId]);
@@ -123,11 +127,11 @@ export default function MyPageScreen() {
           <Text style={styles.sectionTitle}>학습 현황</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{MOCK_STATS.totalConversations}회</Text>
+              <Text style={styles.statValue}>{totalConversations != null ? `${totalConversations}회` : '-'}</Text>
               <Text style={styles.statLabel}>총 대화 횟수</Text>
             </View>
             <View style={[styles.statItem, styles.statItemRight]}>
-              <Text style={styles.statValue}>{MOCK_STATS.avgPronunciation}점</Text>
+              <Text style={styles.statValue}>{avgPronunciationScore != null ? `${avgPronunciationScore}점` : '-'}</Text>
               <Text style={styles.statLabel}>평균 발음 점수</Text>
             </View>
           </View>
