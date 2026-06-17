@@ -1,6 +1,7 @@
 // 영어 레벨 테스트 화면
 
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -54,7 +55,6 @@ const tutorialOrder: TutorialStep[] = [
   'start',
 ];
 
-const mockVoiceAnswer = "I'm going to study here for a semester.";
 const instructorImage = require('../../assets/characters/level_test_instructor.png');
 
 export default function LevelTestScreen() {
@@ -67,6 +67,8 @@ export default function LevelTestScreen() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [inputMode, setInputMode] = useState<InputMode>('none');
   const [answer, setAnswer] = useState('');
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTutorialVisible, setIsTutorialVisible] = useState(true);
@@ -138,17 +140,33 @@ export default function LevelTestScreen() {
     }
   };
 
-  const handlePressMic = () => {
+  const handlePressMic = async () => {
     // 녹음 중이면 정지 → 곧바로 제출 후 다음 문항
     if (inputMode === 'recording') {
+      if (recording) {
+        await recording.stopAndUnloadAsync();
+        const uri = recording.getURI();
+        setRecordingUri(uri);
+        setRecording(null);
+      }
+      setInputMode('none');
       submitAndAdvance(answer, 'voice');
       return;
     }
 
-    // 녹음 시작 → STT 결과(목업)를 결과 카드에 표시
+    // 녹음 시작
+    const { status } = await Audio.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('알림', '마이크 권한이 필요합니다.');
+      return;
+    }
+
+    const { recording: newRecording } = await Audio.Recording.createAsync(
+      Audio.RecordingOptionsPresets.HIGH_QUALITY
+    );
     Keyboard.dismiss();
+    setRecording(newRecording);
     setInputMode('recording');
-    setAnswer(mockVoiceAnswer);
   };
 
   const handlePressKeyboard = () => {
