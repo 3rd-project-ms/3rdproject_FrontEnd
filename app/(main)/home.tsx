@@ -152,9 +152,11 @@ export default function HomeScreen() {
       )
     : characters;
 
-  const safeIdx = idx >= visibleCharacters.length ? 0 : idx;
+  const safeIdx = visibleCharacters.length > 0
+    ? (idx >= visibleCharacters.length ? 0 : idx)
+    : 0;
 
-  const char = visibleCharacters[safeIdx];
+  const char = visibleCharacters[safeIdx] ?? CHARACTER_DATA[0];
 
   const prev = () => setIdx((p) => (p === 0 ? visibleCharacters.length - 1 : p - 1));
   const next = () => setIdx((p) => (p === visibleCharacters.length - 1 ? 0 : p + 1));
