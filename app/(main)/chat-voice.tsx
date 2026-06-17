@@ -14,6 +14,7 @@ import { chatService } from "@/services/chatService";
 import { getStageMissions, evaluateMissions, MissionCounters } from "@/constants/missionData";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useChatStore } from "@/store/useChatStore";
+import { logEvent } from "@/services/analyticsService";
 
 // ─────────────────────────────────────────
 // penalty_reason → PopupType 매핑
@@ -77,12 +78,21 @@ export default function ChatVoiceScreen() {
 
   const recordingRef     = useRef<Audio.Recording | null>(null);
   const soundRef         = useRef<Audio.Sound | null>(null);
+  const hasRecordedRef   = useRef(false); // exit 이벤트에서 클로저 문제 없이 읽기 위해 ref 사용
   const aiCaptionOpacity = useRef(new Animated.Value(0)).current;
   const userTextOpacity  = useRef(new Animated.Value(0)).current;
 
   const popup = usePenaltyPopup();
   const { userId: storeUserId } = useAuthStore();
   const setPronounceContext = useChatStore((s) => s.setPronounceContext);
+
+  // ─── Analytics: enter ───────────────────
+  useEffect(() => {
+    logEvent('chat_voice_enter', { character_id: character_id ?? '' });
+    return () => {
+      logEvent('chat_voice_exit', { recorded: hasRecordedRef.current });
+    };
+  }, []);
 
   // ─── 세션 시작 ──────────────────────────
   useEffect(() => {
@@ -140,7 +150,7 @@ export default function ChatVoiceScreen() {
       recordingRef.current = recording;
       setMicState("recording");
     } catch (e) {
-      console.error("녹음 시작 오류:", e);
+      console.warn("녹음 시작 오류:", e);
       setMicState("idle");
     }
   };
@@ -156,9 +166,10 @@ export default function ChatVoiceScreen() {
       const uri = rec.getURI();
       if (!uri) { setMicState("idle"); return; }
       setLastAudioUri(uri);
+      hasRecordedRef.current = true;
       await sendVoiceMessage(uri);
     } catch (e) {
-      console.error("녹음 종료 오류:", e);
+      console.warn("녹음 종료 오류:", e);
       setMicState("idle");
     }
   };
@@ -223,8 +234,8 @@ export default function ChatVoiceScreen() {
         const gain = data.current_total_affinity - prevAffinity;
         popup.show(gain >= 10 ? "affection_perfect" : "affection_good");
       }
-    } catch (e) {
-      console.error("API 오류:", e);
+    } catch (e: any) {
+      console.warn('API 오류:', e?.message, '| status:', e?.response?.status);
     } finally {
       setMicState("idle");
     }
