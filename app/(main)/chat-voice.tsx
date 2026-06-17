@@ -347,9 +347,6 @@ export default function ChatVoiceScreen() {
                     size={14}
                     color={unlocked ? "#F6A3A6" : "#C8C8C8"}
                   />
-                  <Text style={[styles.affinityMarkerLabel, { color: unlocked ? "#F6A3A6" : "#C8C8C8" }]}>
-                    {point}%
-                  </Text>
                 </View>
               );
             })}

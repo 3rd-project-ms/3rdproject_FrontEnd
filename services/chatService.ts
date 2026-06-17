@@ -117,7 +117,7 @@ export const chatService = {
     formData.append('currentAffinity', String(req.currentAffinity));
 
     const { data } = await api.post('/api/chat/message', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
     });
     return data.data;
   },

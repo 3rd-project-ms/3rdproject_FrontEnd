@@ -15,6 +15,7 @@ import { chatService } from '@/services/chatService';
 import { getStageMissions, evaluateMissions, MissionCounters } from '@/constants/missionData';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useChatStore } from '@/store/useChatStore';
+import { logEvent } from '@/services/analyticsService';
 
 // ─────────────────────────────────────────
 // 타입
@@ -100,6 +101,18 @@ export default function ChatTextScreen() {
   const inputRef = useRef<RNTextInput>(null);
   const { userId: storeUserId } = useAuthStore();
   const setPronounceContext = useChatStore((s) => s.setPronounceContext);
+
+  // ─── Analytics: enter ───────────────────
+  useEffect(() => {
+    logEvent('chat_text_enter', { character_id: character_id ?? '' });
+    return () => {
+      logEvent('chat_text_exit', {
+        character_id: character_id ?? '',
+        message_count: messages.length,
+      });
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── 세션 시작 + 초기 AI 인사 ──────────
   useEffect(() => {
@@ -317,15 +330,32 @@ export default function ChatTextScreen() {
         </View>
 
         {/* ── 호감도 바 ── */}
-        <View style={styles.affinityWrapper}>
-          <Text style={styles.affinityPercent}>{affinity}%</Text>
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${affinity}%` }]} />
-            {[33, 66].map((point) => (
-              <View key={point} style={[styles.pointHeartWrapper, { left: `${point}%` }]}>
-                <Ionicons name="heart" size={14} color={affinity >= point ? '#F6A3A6' : '#FFFFFF'} />
-              </View>
-            ))}
+        <View style={styles.affinitySection}>
+          <View style={styles.affinityWrapper}>
+            <Text style={styles.affinityPercent}>{affinity}%</Text>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${affinity}%` }]} />
+              {[40, 80].map((point) => (
+                <View key={point} style={[styles.barDivider, { left: `${point}%` }]} />
+              ))}
+            </View>
+          </View>
+          <View style={styles.affinityMarkerRow}>
+            <View style={styles.affinityMarkerSpacer} />
+            <View style={styles.affinityMarkerTrack}>
+              {[40, 80].map((point) => {
+                const unlocked = affinity >= point;
+                return (
+                  <View key={point} style={[styles.affinityMarkerItem, { left: `${point}%` }]}>
+                    <Ionicons
+                      name={unlocked ? 'heart' : 'heart-outline'}
+                      size={14}
+                      color={unlocked ? '#F6A3A6' : '#C8C8C8'}
+                    />
+                  </View>
+                );
+              })}
+            </View>
           </View>
         </View>
 
@@ -453,14 +483,16 @@ const styles = StyleSheet.create({
   charName: { fontSize: 20, fontWeight: '700', color: '#0B0B12' },
   charRole: { fontSize: 15, fontWeight: '400', color: '#616161' },
 
-  affinityWrapper: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, marginVertical: 10, backgroundColor: '#FFFFFF',
-  },
-  affinityPercent: { fontSize: 14, fontWeight: '600', color: '#2C3A5F', marginRight: 10, width: 35 },
-  progressBarBg: { flex: 1, height: 10, backgroundColor: '#E0E0E0', borderRadius: 5, position: 'relative' },
-  progressBarFill: { height: '100%', backgroundColor: '#F6A3A6', borderRadius: 5 },
-  pointHeartWrapper: { position: 'absolute', top: 12, transform: [{ translateX: -7 }] },
+  affinitySection:      { paddingHorizontal: 16, marginVertical: 8, backgroundColor: '#FFFFFF' },
+  affinityWrapper:      { flexDirection: 'row', alignItems: 'center' },
+  affinityPercent:      { fontSize: 13, fontWeight: '600', color: '#888888', width: 36, marginRight: 8 },
+  progressBarBg:        { flex: 1, height: 8, backgroundColor: '#F0F0F0', borderRadius: 4, position: 'relative', overflow: 'hidden' },
+  progressBarFill:      { height: '100%', backgroundColor: '#F6A3A6', borderRadius: 4 },
+  barDivider:           { position: 'absolute', top: 0, bottom: 0, width: 1.5, backgroundColor: 'rgba(255,255,255,0.7)' },
+  affinityMarkerRow:    { flexDirection: 'row', marginTop: 4 },
+  affinityMarkerSpacer: { width: 44 },
+  affinityMarkerTrack:  { flex: 1, position: 'relative', height: 20 },
+  affinityMarkerItem:   { position: 'absolute', alignItems: 'center', transform: [{ translateX: -7 }] },
 
   chatScrollView: { flex: 1, paddingHorizontal: 20, backgroundColor: '#FFFFFF' },
   chatContentContainer: { paddingVertical: 10 },
