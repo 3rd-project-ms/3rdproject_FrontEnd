@@ -91,6 +91,7 @@ export default function SignupScreen() {
           email: '',
           nickname: nickname.trim() || res.nickname,
           selectedGender,
+          continuousDays: res.continuous_days ?? 0,
         });
         // 닉네임·성별 프로필 업데이트 (실패해도 로그인 자체는 진행)
         try {

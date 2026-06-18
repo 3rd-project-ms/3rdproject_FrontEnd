@@ -385,6 +385,7 @@ export default function StageScreen() {
                           character_id: characterId,
                           stage_id: String(activeStage?.id ?? ''),
                           affinity_score: String(affinity),
+                          scenario_id: String(activeStage?.scenarioId ?? ''),
                         },
                       });
                     }}
@@ -404,6 +405,7 @@ export default function StageScreen() {
                           character_id: characterId,
                           stage_id: String(activeStage?.id ?? ''),
                           affinity_score: String(affinity),
+                          scenario_id: String(activeStage?.scenarioId ?? ''),
                         },
                       });
                     }}

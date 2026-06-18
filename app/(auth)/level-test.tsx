@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -71,6 +71,7 @@ export default function LevelTestScreen() {
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isRecordingInProgress = useRef(false);
   const [isTutorialVisible, setIsTutorialVisible] = useState(true);
   const [tutorialStep, setTutorialStep] = useState<TutorialStep>('intro');
 
@@ -97,38 +98,60 @@ export default function LevelTestScreen() {
   }, []);
 
   // 답안을 백엔드에 제출하고 다음 문항으로 넘어간다. (제출 후 이전 문항 복귀 불가)
-  const submitAndAdvance = async (value: string, answerType: AnswerType) => {
+  const submitAndAdvance = async (value: string, answerType: AnswerType, recordingUri?: string) => {
     const trimmed = value.trim();
     if (!trimmed || isSubmitting) {
       return;
     }
 
     const question = questions[currentQuestionIndex];
+    if (!question) return;
     setIsSubmitting(true);
     try {
+      let effectiveAnswer = trimmed;
+      let isFinished = false;
+      let finalResult = null;
+
       // 서버 문항을 받은 경우에만 제출한다. fallback 문항은 DB에 없는
       // questionId라 제출하면 오류가 나므로 로컬 진행만 한다.
       if (userId != null && hasServerQuestions) {
-        await levelTestService.submitAnswer({
+        const res = await levelTestService.submitAnswer({
           userId,
           questionId: question.questionId,
           answerText: trimmed,
           answerType,
+          currentQuestionIndex,
+          accumulatedAnswers: [...Object.values(answers), trimmed],
+          isQuit: false,
+          recordingUri,
         });
+
+        if (res.user_recognized_text) {
+          effectiveAnswer = res.user_recognized_text;
+        }
+        isFinished = res.is_finished;
+        finalResult = res.final_result;
       }
 
-      setAnswers((prev) => ({ ...prev, [currentQuestionIndex]: trimmed }));
+      setAnswers((prev) => ({ ...prev, [currentQuestionIndex]: effectiveAnswer }));
       setAnswer('');
       setInputMode('none');
       Keyboard.dismiss();
 
-      if (currentQuestionIndex < totalQuestions - 1) {
-        setCurrentQuestionIndex((prev) => prev + 1);
+      if (isFinished) {
+        router.replace({
+          pathname: '/(auth)/level-test-result',
+          params: { finalResult: JSON.stringify(finalResult) },
+        });
         return;
       }
 
-      // 마지막 문항까지 제출 완료 → 결과 화면에서 status로 판정 레벨 조회
-      router.replace('/(auth)/level-test-result');
+      if (currentQuestionIndex >= totalQuestions - 1) {
+        router.replace('/(auth)/level-test-result');
+        return;
+      }
+
+      setCurrentQuestionIndex((prev) => prev + 1);
     } catch (error) {
       const message =
         error instanceof ApiError
@@ -141,32 +164,44 @@ export default function LevelTestScreen() {
   };
 
   const handlePressMic = async () => {
-    // 녹음 중이면 정지 → 곧바로 제출 후 다음 문항
-    if (inputMode === 'recording') {
+    if (isRecordingInProgress.current) return;
+    isRecordingInProgress.current = true;
+    try {
+      // 녹음 중이면 정지 → 곧바로 제출 후 다음 문항
+      if (inputMode === 'recording') {
+        let uri: string | null = null;
+        if (recording) {
+          await recording.stopAndUnloadAsync();
+          uri = recording.getURI();
+          setRecordingUri(uri);
+          setRecording(null);
+        }
+        setInputMode('none');
+        submitAndAdvance(answer, 'voice', uri ?? undefined);
+        return;
+      }
+
+      // 녹음 시작
       if (recording) {
-        await recording.stopAndUnloadAsync();
-        const uri = recording.getURI();
-        setRecordingUri(uri);
+        try { await recording.stopAndUnloadAsync(); } catch {}
         setRecording(null);
       }
-      setInputMode('none');
-      submitAndAdvance(answer, 'voice');
-      return;
-    }
 
-    // 녹음 시작
-    const { status } = await Audio.requestPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('알림', '마이크 권한이 필요합니다.');
-      return;
-    }
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('알림', '마이크 권한이 필요합니다.');
+        return;
+      }
 
-    const { recording: newRecording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.HIGH_QUALITY
-    );
-    Keyboard.dismiss();
-    setRecording(newRecording);
-    setInputMode('recording');
+      const { recording: newRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      Keyboard.dismiss();
+      setRecording(newRecording);
+      setInputMode('recording');
+    } finally {
+      isRecordingInProgress.current = false;
+    }
   };
 
   const handlePressKeyboard = () => {
@@ -219,7 +254,7 @@ export default function LevelTestScreen() {
             <LevelTestContent
               currentProgress={currentProgress}
               totalQuestions={totalQuestions}
-              currentQuestion={questions[currentQuestionIndex].questionText}
+              currentQuestion={(questions[currentQuestionIndex] ?? questions[questions.length - 1]).questionText}
               answer={answer}
               inputMode={inputMode}
               onBack={() => router.back()}
@@ -233,7 +268,7 @@ export default function LevelTestScreen() {
           <LevelTestContent
             currentProgress={currentProgress}
             totalQuestions={totalQuestions}
-            currentQuestion={questions[currentQuestionIndex].questionText}
+            currentQuestion={(questions[currentQuestionIndex] ?? questions[questions.length - 1]).questionText}
             answer={answer}
             inputMode={inputMode}
             onBack={() => router.back()}

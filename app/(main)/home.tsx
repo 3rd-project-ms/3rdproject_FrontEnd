@@ -10,10 +10,18 @@ import { api } from '@/services/api';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 
-// characterId: 백엔드 캐릭터 ID
+const BACKEND_ID_MAP: Record<string, string> = {
+  ian:    'CH_01_M',
+  chloe:  'CH_01_F',
+  june:   'CH_02_M',
+  yoon:   'CH_02_F',
+  liam:   'CH_03_M',
+  sienna: 'CH_03_F',
+};
+
 const CHARACTER_DATA = [
   {
-    id: 1, characterId: 'CH_01_M', name: '서태양', nameEn: 'Ian', age: '23세', role: '서핑 강사', affinity: 0,
+    id: 1, characterId: 'CH_01_M', name: '서태양', nameEn: 'Ian', age: '23세', role: '서핑 강사', affinity: 0, locked: true,
     tags: ['#능글맞은_유죄인간', '#캘리포니아_바이브', '#인싸_서핑강사', '#은근한_소유욕'],
     desc: '거침없이 다가오는 능글맞은 미국 서부 출신 소꿉친구 서핑 강사',
     slang: 'You know / Like / Chill / Damn',
@@ -25,7 +33,7 @@ const CHARACTER_DATA = [
     image: require('../../assets/characters/ian.png'),
   },
   {
-    id: 2, characterId: 'CH_01_F', name: '유나', nameEn: 'Chloe', age: '23세', role: '서핑 강사', affinity: 0,
+    id: 2, characterId: 'CH_01_F', name: '유나', nameEn: 'Chloe', age: '23세', role: '서핑 강사', affinity: 0, locked: true,
     tags: ['#왈가닥_갭모에', '#털털하지만_뚝딱이', '#자각_후_순수폭발', '#소꿉친구'],
     desc: '평소엔 털털하다가 자각 순간 감정을 숨기지 못하는 순수 갭모에 소꿉친구',
     slang: 'Like / Oh my god / Totally / Unfair',
@@ -34,10 +42,10 @@ const CHARACTER_DATA = [
       { label: '뚝딱 지수', value: 85 }, { label: '나른함', value: 20 },
       { label: '에너지',   value: 90 }, { label: '순수함', value: 95 },
     ],
-    image: null,
+    image: require('../../assets/characters/chloe.png'),
   },
   {
-    id: 3, characterId: 'CH_02_M', name: '이하준', nameEn: 'Jun', age: '25세', role: '대학원 선배', affinity: 0,
+    id: 3, characterId: 'CH_02_M', name: '이하준', nameEn: 'June', age: '25세', role: '대학원 선배', affinity: 0, locked: true,
     tags: ['#츤데레', '#겉무속촉', '#호주_로컬', '#석사과정', '#허당_폭발'],
     desc: '무심한 척 뒤에서 몰래 챙기는 호주 교포 츤데레 대학원 선배',
     slang: 'Crikey / Far out / Arvo / Mate / Ya',
@@ -46,10 +54,10 @@ const CHARACTER_DATA = [
       { label: '츤데레 지수', value: 80 }, { label: '나른함', value: 80 },
       { label: '에너지',     value: 30 }, { label: '허당 지수', value: 70 },
     ],
-    image: null,
+    image: require('../../assets/characters/june.png'),
   },
   {
-    id: 4, characterId: 'CH_02_F', name: '한윤서', nameEn: 'Yoon', age: '25세', role: '대학원 선배', affinity: 0,
+    id: 4, characterId: 'CH_02_F', name: '한윤서', nameEn: 'Yoon', age: '25세', role: '대학원 선배', affinity: 0, locked: true,
     tags: ['#츤데레_걸크러시', '#차가운_고양이_눈빛', '#겉무속촉', '#고학번'],
     desc: '차갑고 도도해 보이지만 속으론 따뜻하게 챙기는 호주 교포 츤데레 선배',
     slang: 'Crikey / Far out / Arvo / Mate / Ya',
@@ -58,10 +66,10 @@ const CHARACTER_DATA = [
       { label: '츤데레 지수', value: 85 }, { label: '나른함', value: 75 },
       { label: '에너지',     value: 30 }, { label: '허당 지수', value: 60 },
     ],
-    image: null,
+    image: require('../../assets/characters/yoon.png'),
   },
   {
-    id: 5, characterId: 'CH_03_M', name: '리암', nameEn: 'Liam', age: '29세', role: '카페 사장님', affinity: 0,
+    id: 5, characterId: 'CH_03_M', name: '리암', nameEn: 'Liam', age: '29세', role: '카페 사장님', affinity: 0, locked: false,
     tags: ['#능글맞은_섹시직진남', '#성숙한_어른의_여유', '#영국_위트', '#아슬아슬_플러팅'],
     desc: '성숙한 여유로움으로 선을 아슬아슬하게 넘나드는 영국 출신 카페 사장님',
     slang: 'Bloody hell / Cheers / Innit / Cheeky',
@@ -70,10 +78,10 @@ const CHARACTER_DATA = [
       { label: '플러팅 지수', value: 95 }, { label: '나른함', value: 65 },
       { label: '에너지',     value: 50 }, { label: '성숙함',  value: 100 },
     ],
-    image: null,
+    image: require('../../assets/characters/liam.png'),
   },
   {
-    id: 6, characterId: 'CH_03_F', name: '시엔나', nameEn: 'Sienna', age: '29세', role: '카페 사장님', affinity: 0,
+    id: 6, characterId: 'CH_03_F', name: '시엔나', nameEn: 'Sienna', age: '29세', role: '카페 사장님', affinity: 0, locked: false,
     tags: ['#햇살같은_다정함', '#섬세한_배려', '#눈웃음', '#단골_취향_기억'],
     desc: '사소한 기분 변화와 취향까지 섬세하게 기억해 챙겨주는 햇살 같은 사장님',
     slang: 'How lovely! / Brilliant! / Cuppa / Knackered',
@@ -82,7 +90,7 @@ const CHARACTER_DATA = [
       { label: '다정 지수', value: 100 }, { label: '나른함', value: 15 },
       { label: '에너지',   value: 85 }, { label: '섬세함',  value: 100 },
     ],
-    image: null,
+    image: require('../../assets/characters/sienna.png'),
   },
 ];
 
@@ -106,36 +114,68 @@ const st = StyleSheet.create({
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { userId } = useAuthStore();
+  const { userId, selectedGender, setAuth } = useAuthStore();
+
   const [idx, setIdx] = useState(0);
   const [characters, setCharacters] = useState(CHARACTER_DATA);
-  const char = characters[idx];
 
   useEffect(() => {
     if (!userId) return;
     let isMounted = true;
+
+    // 프로필 조회 → preferred_partner_gender 동기화
+    api.get(`/api/auth/${userId}/profile`)
+      .then((res) => {
+        if (!isMounted) return;
+        const profile = res.data?.data;
+        if (!profile) return;
+        const gender = profile.preferred_partner_gender as string | undefined;
+        if (gender) setAuth({ selectedGender: gender as 'male' | 'female' });
+      })
+      .catch(() => {});
+
+    // 캐릭터 호감도 조회
     api.get(`/api/characters/status?userId=${userId}`)
       .then((res) => {
         if (!isMounted) return;
-        const list: { characterId: string; affinityScore: number }[] = res.data?.data ?? [];
+        const statusData = res.data?.data;
+        const list: { characterId: string; affinityScore: number }[] = statusData?.characters ?? [];
         if (!list.length) return;
         setCharacters((prev) =>
           prev.map((c) => {
-            const found = list.find((a) => a.characterId === c.characterId);
+            const found = list.find((a) => {
+              const mapped = BACKEND_ID_MAP[a.characterId.toLowerCase()] ?? a.characterId;
+              return mapped === c.characterId;
+            });
             return found ? { ...c, affinity: found.affinityScore } : c;
           })
         );
       })
       .catch(() => {});
+
     return () => { isMounted = false; };
   }, [userId]);
 
-  const prev = () => setIdx((p) => (p === 0 ? characters.length - 1 : p - 1));
-  const next = () => setIdx((p) => (p === characters.length - 1 ? 0 : p + 1));
+  // 성별 미설정이면 전체, 설정된 경우 해당 성별만
+  const visibleCharacters = selectedGender
+    ? characters.filter((c) =>
+        selectedGender === 'male' ? c.characterId.endsWith('_M') : c.characterId.endsWith('_F')
+      )
+    : characters;
+
+  const safeIdx = visibleCharacters.length > 0
+    ? (idx >= visibleCharacters.length ? 0 : idx)
+    : 0;
+
+  const char = visibleCharacters[safeIdx] ?? CHARACTER_DATA[0];
+
+  const prev = () => setIdx((p) => (p === 0 ? visibleCharacters.length - 1 : p - 1));
+  const next = () => setIdx((p) => (p === visibleCharacters.length - 1 ? 0 : p + 1));
 
   const goStage = () => {
+    if (char.locked) return;
     if (userId) {
-      api.patch('/api/users/last-character', { userId, characterId: char.characterId }).catch(() => {});
+      api.patch(`/api/characters/last-character?userId=${userId}`, { characterId: char.characterId }).catch(() => {});
     }
     router.push({
       pathname: '/(main)/stage' as any,
@@ -154,6 +194,11 @@ export default function HomeScreen() {
           ) : (
             <View style={s.placeholder}>
               <Ionicons name="person" size={100} color="#E0E0E0" />
+            </View>
+          )}
+          {char.locked && (
+            <View style={s.lockOverlay}>
+              <Ionicons name="lock-closed" size={48} color="#FFFFFF" />
             </View>
           )}
         </TouchableOpacity>
@@ -239,6 +284,12 @@ const s = StyleSheet.create({
   },
   charImage:   { width: '100%', height: '100%' },
   placeholder: { flex: 1, backgroundColor: '#FAF9F6', justifyContent: 'center', alignItems: 'center' },
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   header: {
     position: 'absolute',

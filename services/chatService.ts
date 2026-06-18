@@ -30,19 +30,37 @@ export interface SessionStartResponse {
 // ── 메시지 전송 ──
 export interface ChatMessageRequest {
   sessionId: string;
-  textContent: string;
+  text: string;
   inputType: 'text' | 'voice';
   characterId: string;
-  scenarioId: string;       // TODO: 백엔드에 어디서 받는지 확인 필요
+  scenarioId: string;
+  targetLanguage?: string;
   stageLevel: number;
   userLevel: string;
-  turnCount: number;        // TODO: 백엔드에 프론트가 카운트해서 올리는지 확인 필요
+  turnCount: number;
   currentAffinity: number;
-  history: any[];           // TODO: 백엔드에 배열 내부 형식 확인 필요
+  userAudioUrl?: string;
+  history: { role: string; text: string }[];
+}
+
+// ── 활성 세션 조회 ──
+export interface ActiveSessionResponse {
+  session_id: string;
+  is_completed: boolean;
 }
 
 // ── API 함수 ──
 export const chatService = {
+
+  /** 활성 세션 조회 — 이어하기 플로우용 (없으면 null 반환) */
+  getActiveSession: async (userId: number, stageId: number): Promise<ActiveSessionResponse | null> => {
+    try {
+      const { data } = await api.get('/api/chat/sessions/active', { params: { userId, stageId } });
+      return data.data ?? null;
+    } catch {
+      return null;
+    }
+  },
 
   /** 세션 시작 — 화면 진입 시 호출 */
   startSession: async (req: SessionStartRequest): Promise<SessionStartResponse> => {
@@ -72,6 +90,7 @@ export const chatService = {
     const { data } = await api.post('/api/chat/message', {
       ...req,
       inputType: 'text',
+      targetLanguage: req.targetLanguage ?? 'English',
     });
     return data.data;
   },
@@ -97,7 +116,7 @@ export const chatService = {
     formData.append('currentAffinity', String(req.currentAffinity));
 
     const { data } = await api.post('/api/chat/message', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
     });
     return data.data;
   },

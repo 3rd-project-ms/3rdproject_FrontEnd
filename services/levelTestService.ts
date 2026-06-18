@@ -20,6 +20,12 @@ export interface SubmitAnswerRequest {
   questionId: number;
   answerText: string;
   answerType: AnswerType;
+  characterId?: string;
+  currentQuestionIndex?: number;
+  userAudioUrl?: string;
+  accumulatedAnswers?: string[];
+  isQuit?: boolean;
+  recordingUri?: string;
 }
 
 export interface SaveLevelTestRequest {
@@ -34,6 +40,31 @@ export interface LevelStatusResponse {
   currentLevel: CefrLevel;
 }
 
+export interface PronunciationEvaluations {
+  accuracy: number;
+  fluency: number;
+  completeness: number;
+  prosody: number;
+  word_details_json: string;
+}
+
+export interface FinalResult {
+  assigned_level: CefrLevel;
+  test_score: number;
+  fluency_score: number;
+  expression_score: number;
+  grammar_score: number;
+  task_completion_score: number;
+  vocabulary_score: number;
+}
+
+export interface AiLevelTestResponse {
+  user_recognized_text: string;
+  pronunciation_evaluations: PronunciationEvaluations;
+  is_finished: boolean;
+  final_result: FinalResult | null;
+}
+
 export const levelTestService = {
   /** 레벨 테스트 문항 목록 조회 */
   getQuestions: (): Promise<QuestionDto[]> =>
@@ -43,9 +74,27 @@ export const levelTestService = {
       )
     ).then((data) => data.questions),
 
-  /** 개별 문항 답변 제출 */
-  submitAnswer: (req: SubmitAnswerRequest): Promise<void> =>
-    unwrap(api.post<CommonResponse<void>>('/api/level-tests/answer', req)),
+  /** 개별 문항 답변 제출 — AI 평가 결과 반환 */
+  submitAnswer: async (req: SubmitAnswerRequest): Promise<AiLevelTestResponse> => {
+    const { recordingUri, ...rest } = req;
+
+    if (recordingUri) {
+      const formData = new FormData();
+      formData.append('audioFile', {
+        uri: recordingUri,
+        type: 'audio/m4a',
+        name: 'recording.m4a',
+      } as any);
+      formData.append('data', JSON.stringify(rest));
+      return unwrap(
+        api.post<CommonResponse<AiLevelTestResponse>>('/api/level-tests/answer', formData, {
+          headers: { 'Content-Type': undefined },
+        })
+      );
+    }
+
+    return unwrap(api.post<CommonResponse<AiLevelTestResponse>>('/api/level-tests/answer', rest));
+  },
 
   /** 레벨 테스트 결과(선택 또는 테스트) 저장 */
   saveResult: (req: SaveLevelTestRequest): Promise<void> =>

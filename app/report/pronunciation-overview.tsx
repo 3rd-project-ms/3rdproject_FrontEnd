@@ -112,7 +112,9 @@ export default function PronunciationOverviewScreen() {
               onContentSizeChange={handleContentSizeChange}
             >
               {vm.weakWords.length === 0 ? (
-                <Text style={styles.analysisEmpty}>모든 단어 발음이 양호합니다.</Text>
+                <Text style={styles.analysisEmpty}>
+                  {pronunciationResult || reportData?.data?.average_pronunciation != null ? '모든 단어 발음이 양호합니다.' : '분석 데이터가 없습니다.'}
+                </Text>
               ) : (
                 vm.weakWords.map((item, index) => (
                   <Text key={index} style={styles.analysisWarning}>

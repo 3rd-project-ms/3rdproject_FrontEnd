@@ -9,21 +9,12 @@ import { Audio } from "expo-av";
 
 import MicButton from "@/components/chat/MicButton";
 import MissionDrawer from "@/components/chat/MissionDrawer";
-import PenaltyPopup, { PopupType, usePenaltyPopup } from "@/components/chat/PenaltyPopup";
+import PenaltyPopup, { usePenaltyPopup } from "@/components/chat/PenaltyPopup";
 import { chatService } from "@/services/chatService";
 import { getStageMissions, evaluateMissions, MissionCounters } from "@/constants/missionData";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useChatStore } from "@/store/useChatStore";
-
-// ─────────────────────────────────────────
-// penalty_reason → PopupType 매핑
-// ─────────────────────────────────────────
-const PENALTY_REASON_MAP: Record<string, PopupType> = {
-  korean_used:       "off_topic",
-  duplicate_expr:    "repetitive_phrases",
-  context_deviation: "off_topic",
-  abusive_words:     "off_topic",
-};
+import { logEvent } from "@/services/analyticsService";
 
 const GIFT_MARKERS = [40, 80] as const;
 
@@ -75,14 +66,25 @@ export default function ChatVoiceScreen() {
     totalAffinityGained: 0,
   });
 
+  const historyRef = useRef<{ role: 'user' | 'assistant'; text: string }[]>([]);
+
   const recordingRef     = useRef<Audio.Recording | null>(null);
   const soundRef         = useRef<Audio.Sound | null>(null);
+  const hasRecordedRef   = useRef(false); // exit 이벤트에서 클로저 문제 없이 읽기 위해 ref 사용
   const aiCaptionOpacity = useRef(new Animated.Value(0)).current;
   const userTextOpacity  = useRef(new Animated.Value(0)).current;
 
   const popup = usePenaltyPopup();
-  const { userId: storeUserId } = useAuthStore();
+  const { userId: storeUserId, selectedEnglishLevel, continuousDays } = useAuthStore();
   const setPronounceContext = useChatStore((s) => s.setPronounceContext);
+
+  // ─── Analytics: enter ───────────────────
+  useEffect(() => {
+    logEvent('chat_voice_enter', { character_id: character_id ?? '' });
+    return () => {
+      logEvent('chat_voice_exit', { recorded: hasRecordedRef.current });
+    };
+  }, []);
 
   // ─── 세션 시작 ──────────────────────────
   useEffect(() => {
@@ -140,7 +142,7 @@ export default function ChatVoiceScreen() {
       recordingRef.current = recording;
       setMicState("recording");
     } catch (e) {
-      console.error("녹음 시작 오류:", e);
+      console.warn("녹음 시작 오류:", e);
       setMicState("idle");
     }
   };
@@ -156,9 +158,10 @@ export default function ChatVoiceScreen() {
       const uri = rec.getURI();
       if (!uri) { setMicState("idle"); return; }
       setLastAudioUri(uri);
+      hasRecordedRef.current = true;
       await sendVoiceMessage(uri);
     } catch (e) {
-      console.error("녹음 종료 오류:", e);
+      console.warn("녹음 종료 오류:", e);
       setMicState("idle");
     }
   };
@@ -169,25 +172,25 @@ export default function ChatVoiceScreen() {
       const data = await chatService.sendVoice(audioUri, {
         sessionId:       sessionId,
         characterId:     character_id || 'CH_01_M',
-        scenarioId:      scenario_id  || '',   // TODO: 백엔드 확인
+        scenarioId:      scenario_id  || '',
         stageLevel:      Number(stage_id) || 1,
-        userLevel:       'A1',                 // TODO: 백엔드 확인
+        userLevel:       selectedEnglishLevel ?? 'A1',
         turnCount:       turnCount,
         currentAffinity: affinity,
-        history:         [],                   // TODO: 백엔드 형식 확인 후 채우기
+        history:         historyRef.current,
       });
 
       const eval_ = data.system_evaluation;
+      const isPenalty = (eval_.expression?.detected_invalid_words?.length ?? 0) > 0;
 
-      // STT 결과 (user_text 역할 → text_content에 포함될 수도 있으므로 백엔드 확인)
-      // 현재는 응답의 text_content가 AI 답변, audio_url로 STT 결과를 별도로 받는 구조 아님
-      // TODO: 백엔드에 STT 결과 필드 위치 확인
-      setCurrentUserText('');  // 백엔드 응답에 user_text 필드 확인 후 채우기
-      fadeIn(userTextOpacity);
-
-      setCurrentAiText(data.text_content);
+      setCurrentAiText(data.text);
       setLastActionDescription(data.action_description ?? '');
+      historyRef.current = [...historyRef.current, { role: 'assistant', text: data.text }];
       fadeIn(aiCaptionOpacity);
+      if (data.user_recognized_text) {
+        setCurrentUserText(data.user_recognized_text);
+        fadeIn(userTextOpacity);
+      }
 
       if (data.audio_url) await playAudio(data.audio_url);
 
@@ -195,19 +198,19 @@ export default function ChatVoiceScreen() {
       setAffinity(data.current_total_affinity);
       const delta = data.affinity_delta ?? 0;
       setAffinityDeltaTotal((prev) => prev + delta);
-      if (eval_.penalty) setLives((prev) => Math.max(0, prev - 1));
+      if (isPenalty) setLives((prev) => Math.max(0, prev - 1));
       setTurnCount((prev) => prev + 1);
 
       // ─── 미션 카운터 + 평가 ────────────────
-      if (!eval_.penalty) counters.current.perfectSentenceCount += 1;
+      if (!isPenalty) counters.current.perfectSentenceCount += 1;
       counters.current.totalAffinityGained += delta;
 
       setMissions((prev) => {
         const clearedIds = new Set(prev.filter((m) => m.cleared).map((m) => m.id));
         const newlyCleared = evaluateMissions(stageNum, clearedIds, {
           userText:           currentUserText,
-          isPenalty:          eval_.penalty ?? false,
-          pronunciationScore: 0,
+          isPenalty:          isPenalty,
+          pronunciationScore: eval_.pronunciation?.accuracy ?? 0,
           affinityDelta:      delta,
           counters:           counters.current,
         });
@@ -217,14 +220,14 @@ export default function ChatVoiceScreen() {
         );
       });
 
-      if (eval_.penalty && eval_.penalty_reason) {
-        popup.show(PENALTY_REASON_MAP[eval_.penalty_reason] ?? "off_topic", 1);
+      if (isPenalty) {
+        popup.show("off_topic", 1);
       } else if (data.current_total_affinity > prevAffinity) {
         const gain = data.current_total_affinity - prevAffinity;
         popup.show(gain >= 10 ? "affection_perfect" : "affection_good");
       }
-    } catch (e) {
-      console.error("API 오류:", e);
+    } catch (e: any) {
+      console.warn('API 오류:', e?.message, '| status:', e?.response?.status);
     } finally {
       setMicState("idle");
     }
@@ -238,7 +241,7 @@ export default function ChatVoiceScreen() {
       soundRef.current = sound;
       await sound.playAsync();
     } catch (e) {
-      console.error("오디오 재생 오류:", e);
+      console.warn("오디오 재생 오류:", e);
     }
   };
 
@@ -263,7 +266,7 @@ export default function ChatVoiceScreen() {
         userId:         storeUserId ?? Number(user_id) ?? 1,
         currentStageId: Number(stage_id) || 1,
         score,
-        isPassed,
+        passed: isPassed,
       });
     } catch {}
   };
@@ -276,8 +279,8 @@ export default function ChatVoiceScreen() {
       params: {
         session_id:      sessionId,
         character_name:  name,
-        stage_name:      stage_id,
-        continuous_days: '',
+        stage_name:      stageName,
+        continuous_days: String(continuousDays),
         affinity_change: String(affinityDeltaTotal),
         affinity_score:  String(affinity),
       },
@@ -336,9 +339,6 @@ export default function ChatVoiceScreen() {
                     size={14}
                     color={unlocked ? "#F6A3A6" : "#C8C8C8"}
                   />
-                  <Text style={[styles.affinityMarkerLabel, { color: unlocked ? "#F6A3A6" : "#C8C8C8" }]}>
-                    {point}%
-                  </Text>
                 </View>
               );
             })}
@@ -355,7 +355,7 @@ export default function ChatVoiceScreen() {
       <View style={styles.textDisplayArea}>
         <View style={styles.speechRow}>
           <View style={styles.speakerBadgeAi}>
-            <Text style={styles.speakerBadgeTextAi}>Jamie</Text>
+            <Text style={styles.speakerBadgeTextAi}>{name || 'Jamie'}</Text>
           </View>
           <Animated.Text style={[styles.speechTextAi, { opacity: aiCaptionOpacity }]} numberOfLines={2}>
             {currentAiText || "—"}

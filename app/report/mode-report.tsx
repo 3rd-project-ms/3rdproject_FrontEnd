@@ -15,6 +15,22 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useChatStore } from '@/store/useChatStore';
 import { buildReportDisplayViewModel } from '@/utils/reportSelectors';
 
+const KO_NAME_MAP: Record<string, string> = {
+  ian:    '서태양',
+  chloe:  '유나',
+  june:   '이하준',
+  yoon:   '한윤서',
+  liam:   '리암',
+  sienna: '시엔나',
+};
+
+function formatCharacterName(name: string): string {
+  const key = name.toLowerCase();
+  const koName = KO_NAME_MAP[key];
+  const enName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  return koName ? `${koName} (${enName})` : enName;
+}
+
 interface SessionItem {
   session_id: string;
   day_number: number;
@@ -24,6 +40,7 @@ interface SessionItem {
 interface DayOption {
   day_number: number;
   session_id: string;
+  latest_day?: number;
 }
 
 export default function ModeReportScreen() {
@@ -73,6 +90,7 @@ export default function ModeReportScreen() {
         const opts: DayOption[] = (json.data ?? []).map((s) => ({
           day_number: s.day_number,
           session_id: s.session_id,
+          latest_day: s.latest_day,
         }));
         setDayOptions(opts);
         if (opts.length > 0) setCurrentDay(opts[0].day_number);
@@ -138,7 +156,7 @@ export default function ModeReportScreen() {
         >
           <Ionicons name="chevron-back" size={20} color={isFirstCharacter ? Colors.textMuted : Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.characterName}>{currentCharacter.name}</Text>
+        <Text style={styles.characterName}>{formatCharacterName(currentCharacter.name)}</Text>
         <TouchableOpacity
           onPress={() => setCurrentCharacterIndex((i) => i + 1)}
           disabled={isLastCharacter}
@@ -160,8 +178,10 @@ export default function ModeReportScreen() {
             : <Ionicons name="calendar-outline" size={22} color={hasSessions ? Colors.textPrimary : Colors.textMuted} />
           }
         </TouchableOpacity>
-        {!isDaysLoading && !hasSessions && (
-          <Text style={styles.noSessionText}>기록 없음</Text>
+        {!isDaysLoading && (
+          <Text style={styles.noSessionText}>
+            {hasSessions ? `총 ${dayOptions[0].latest_day}일 대화` : '기록 없음'}
+          </Text>
         )}
       </View>
 
@@ -171,11 +191,11 @@ export default function ModeReportScreen() {
         <ReportSummaryContent
           avgPronScore={vm?.avgPronScore ?? null}
           correctionCount={vm?.correctionCount ?? 0}
-          isPronNavigable={vm != null && vm.avgPronScore !== null}
+          isPronNavigable={true}
           onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
           affinityProgress={vm?.affinityProgress ?? 0}
           affinityValue={vm?.affinityValue ?? 0}
-          affinityLabel={`${currentCharacter.name} 호감도`}
+          affinityLabel={`${formatCharacterName(currentCharacter.name)} 호감도`}
           affinityChange={undefined}
           chatCorrections={vm?.corrections ?? []}
           voiceCorrections={vm?.corrections ?? []}
