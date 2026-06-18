@@ -5,3 +5,4 @@ node_modules/
 App.tsx
 .claude/
 CLAUDE.md
+.vscode/
