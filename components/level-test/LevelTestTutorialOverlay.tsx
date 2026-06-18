@@ -3,7 +3,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
   type StyleProp,
   type ViewStyle,
@@ -15,7 +14,6 @@ export type TutorialStep =
   | 'intro'
   | 'controls'
   | 'recording'
-  | 'keyboard'
   | 'start';
 
 interface LevelTestTutorialOverlayProps {
@@ -70,7 +68,7 @@ export default function LevelTestTutorialOverlay({
   // intro와 start(마지막)는 버튼으로만 진행, 그 사이 단계는 화면 터치로 진행.
   const advanceOnTap = step !== 'intro' && step !== 'start';
   const showSkip =
-    step === 'intro' || step === 'controls' || step === 'recording' || step === 'keyboard';
+    step === 'intro' || step === 'controls' || step === 'recording';
   const insets = useSafeAreaInsets();
 
   return (
@@ -128,16 +126,6 @@ export default function LevelTestTutorialOverlay({
             </View>
           </View>
 
-          {/* 키보드 설명 (위) → 버튼으로 연결 */}
-          <View style={[styles.descBox, styles.keyboardDescBox]}>
-            <Text style={styles.descText}>키보드 버튼을 눌러 키보드로 입력</Text>
-          </View>
-          <ConnDown style={styles.keyboardConn} lineHeight={19} />
-          <View style={styles.keyboardHighlight}>
-            <View style={styles.keyboardReplica}>
-              <Ionicons name="keypad" size={24} color={COLORS.gray0} />
-            </View>
-          </View>
         </>
       )}
 
@@ -189,42 +177,6 @@ export default function LevelTestTutorialOverlay({
           <ConnDown style={styles.stopConn} lineHeight={14} />
           <View style={styles.stopReplica}>
             <Ionicons name="square" size={26} color="#FF4F73" />
-          </View>
-        </>
-      )}
-
-      {step === 'keyboard' && (
-        <>
-          {/* 중앙 경고 배너 */}
-          <View style={styles.warningBanner}>
-            <Text style={styles.warningText}>{WARNING_TEXT}</Text>
-          </View>
-
-          {/* 입력 필드 설명 (위) → 입력필드로 연결 */}
-          <View style={[styles.descBox, styles.inputDescBox]}>
-            <Text style={styles.descText}>입력메세지 확인</Text>
-          </View>
-          <ConnDown style={styles.inputConn} lineHeight={13} />
-
-          {/* 전송 버튼 설명 (위) → 전송버튼으로 연결 */}
-          <View style={[styles.descBox, styles.sendDescBox]}>
-            <Text style={styles.descText}>해당 버튼을 누르면 제출</Text>
-          </View>
-          <ConnDown style={styles.sendConn} lineHeight={13} />
-
-          {/* 입력 행 복제본 */}
-          <View style={styles.inputRowReplica}>
-            <View style={styles.inputFieldReplica}>
-              <TextInput
-                editable={false}
-                placeholder="메세지를 입력하세요 ..."
-                placeholderTextColor={COLORS.gray0}
-                style={styles.inputFieldText}
-              />
-            </View>
-            <View style={styles.sendReplica}>
-              <Ionicons name="arrow-up" size={24} color={COLORS.white} />
-            </View>
           </View>
         </>
       )}
@@ -441,37 +393,6 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     backgroundColor: '#EFF1F0',
   },
-  keyboardDescBox: {
-    right: 12,
-    bottom: 122,
-    maxWidth: 165,
-  },
-  keyboardConn: {
-    right: 28,
-    width: 48,
-    bottom: 94,
-  },
-  keyboardHighlight: {
-    position: 'absolute',
-    right: 24,
-    bottom: 38,
-    padding: 4,
-    borderWidth: 2,
-    borderColor: POINT,
-    borderRadius: 8,
-    zIndex: 20,
-  },
-  keyboardReplica: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 24,
-    backgroundColor: COLORS.white,
-  },
-
   // --- recording 단계 ---
   progressBarReplica: {
     position: 'absolute',
@@ -578,61 +499,6 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     backgroundColor: '#FFE1E6',
     zIndex: 20,
-  },
-
-  // --- keyboard 단계 ---
-  inputRowReplica: {
-    position: 'absolute',
-    bottom: 150,
-    left: 18,
-    right: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    zIndex: 20,
-  },
-  inputFieldReplica: {
-    flex: 1,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: POINT,
-    backgroundColor: '#F1F3F5',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  inputFieldText: {
-    fontSize: 14,
-    color: COLORS.black,
-    padding: 0,
-  },
-  sendReplica: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    borderWidth: 2,
-    borderColor: POINT,
-  },
-  inputDescBox: {
-    bottom: 220,
-    left: 8,
-  },
-  inputConn: {
-    bottom: 198,
-    left: 42,
-    width: 48,
-  },
-  sendDescBox: {
-    bottom: 220,
-    right: 8,
-  },
-  sendConn: {
-    bottom: 198,
-    right: 18,
-    width: 48,
   },
 
 });

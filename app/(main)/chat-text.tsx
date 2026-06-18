@@ -42,6 +42,20 @@ const getTimeString = () => {
 };
 
 // ─────────────────────────────────────────
+// 캐릭터 ID → 이름 역매핑
+// ─────────────────────────────────────────
+const CHARACTER_NAME_MAP: Record<string, string> = {
+  CH_01_M: 'ian',
+  CH_01_F: 'chloe',
+  CH_02_M: 'june',
+  CH_02_F: 'yoon',
+  CH_03_M: 'liam',
+  CH_03_F: 'sienna',
+};
+
+const resolveCharacterName = (id: string) => CHARACTER_NAME_MAP[id] ?? id;
+
+// ─────────────────────────────────────────
 // 컴포넌트
 // ─────────────────────────────────────────
 export default function ChatTextScreen() {
@@ -112,7 +126,7 @@ export default function ChatTextScreen() {
         const res = await chatService.startSession({
           userId:      Number(user_id) || storeUserId || 1,
           stageId:     Number(stage_id) || 1,
-          characterId: character_id || 'CH_01_M',
+          characterId: resolveCharacterName(character_id || 'CH_01_M'),
         });
         if (!isMounted) return;
         setSessionId(res.sessionId);
@@ -169,7 +183,7 @@ export default function ChatTextScreen() {
         sessionId:       sessionId,
         text:            text,
         inputType:       'text',
-        characterId:     character_id || 'CH_01_M',
+        characterId:     resolveCharacterName(character_id || 'CH_01_M'),
         scenarioId:      scenario_id  || '',
         stageLevel:      Number(stage_id) || 1,
         userLevel:       selectedEnglishLevel ?? 'A1',
@@ -182,13 +196,13 @@ export default function ChatTextScreen() {
       });
 
       const eval_ = data.system_evaluation;
-      const isPenalty = (eval_.expression?.detected_invalid_words?.length ?? 0) > 0;
+      const isPenalty = (eval_?.expression?.detected_invalid_words?.length ?? 0) > 0;
 
       // 유저 말풍선에 grammar_feedback 붙이기
       setMessages((prev) =>
         prev.map((m) =>
           m.id === userMsgId
-            ? { ...m, grammar_feedback: eval_.grammar?.grammar_feedback, is_penalty: isPenalty }
+            ? { ...m, grammar_feedback: eval_?.grammar?.grammar_feedback, is_penalty: isPenalty }
             : m
         )
       );
@@ -219,7 +233,7 @@ export default function ChatTextScreen() {
         const newlyCleared = evaluateMissions(stageNum, clearedIds, {
           userText:           text,
           isPenalty:          isPenalty,
-          pronunciationScore: eval_.pronunciation?.accuracy ?? 0,
+          pronunciationScore: eval_?.pronunciation?.accuracy ?? 0,
           affinityDelta:      delta,
           counters:           counters.current,
         });
@@ -367,7 +381,7 @@ export default function ChatTextScreen() {
               sender={msg.sender}
               text={msg.text}
               time={msg.time}
-              character_id={character_id || 'CH_01_M'}
+              character_id={resolveCharacterName(character_id || 'CH_01_M')}
               action_description={msg.action_description}
               grammar_feedback={msg.grammar_feedback}
               is_penalty={msg.is_penalty}

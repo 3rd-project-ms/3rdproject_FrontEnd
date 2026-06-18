@@ -8,12 +8,11 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
-  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,7 +29,7 @@ import {
 } from '../../services/levelTestService';
 import { useAuthStore } from '../../store/useAuthStore';
 
-type InputMode = 'none' | 'recording' | 'keyboard';
+type InputMode = 'none' | 'recording';
 
 // 문항 로딩 실패 시 화면이 비지 않도록 쓰는 폴백 문항
 const FALLBACK_QUESTIONS: QuestionDto[] = [
@@ -51,7 +50,6 @@ const tutorialOrder: TutorialStep[] = [
   'intro',
   'controls',
   'recording',
-  'keyboard',
   'start',
 ];
 
@@ -72,6 +70,7 @@ export default function LevelTestScreen() {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isRecordingInProgress = useRef(false);
+  const soundRef = useRef<Audio.Sound | null>(null);
   const [isTutorialVisible, setIsTutorialVisible] = useState(true);
   const [tutorialStep, setTutorialStep] = useState<TutorialStep>('intro');
 
@@ -97,16 +96,41 @@ export default function LevelTestScreen() {
     };
   }, []);
 
+  // 튜토리얼 종료 시 첫 번째 문항 오디오 재생
+  useEffect(() => {
+    if (isTutorialVisible) return;
+    const playFirstQuestion = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync({
+          uri: 'https://simspeak-audio-amahc0gkatbdc3fv.a02.azurefd.net/audio-files/leveltestQ1.mp3',
+        });
+        soundRef.current = sound;
+        await sound.playAsync();
+      } catch {}
+    };
+    playFirstQuestion();
+  }, [isTutorialVisible]);
+
+  // 언마운트 시 오디오 정리
+  useEffect(() => {
+    return () => {
+      soundRef.current?.stopAsync().catch(() => {});
+      soundRef.current?.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    };
+  }, []);
+
   // 답안을 백엔드에 제출하고 다음 문항으로 넘어간다. (제출 후 이전 문항 복귀 불가)
   const submitAndAdvance = async (value: string, answerType: AnswerType, recordingUri?: string) => {
     const trimmed = value.trim();
-    if (!trimmed || isSubmitting) {
+    if (isSubmitting) {
       return;
     }
 
     const question = questions[currentQuestionIndex];
     if (!question) return;
     setIsSubmitting(true);
+    let playMockAudioPromise: Promise<void> = Promise.resolve();
     try {
       let effectiveAnswer = trimmed;
       let isFinished = false;
@@ -115,7 +139,31 @@ export default function LevelTestScreen() {
       // 서버 문항을 받은 경우에만 제출한다. fallback 문항은 DB에 없는
       // questionId라 제출하면 오류가 나므로 로컬 진행만 한다.
       if (userId != null && hasServerQuestions) {
-        const res = await levelTestService.submitAnswer({
+        const mockAudioUrl = answerType === 'voice'
+          ? `https://9aifinalteam4.blob.core.windows.net/audio-files/user_mock_answer_q${currentQuestionIndex + 1}.mp3`
+          : undefined;
+
+        playMockAudioPromise = mockAudioUrl
+          ? (async () => {
+              try {
+                await soundRef.current?.unloadAsync();
+                const { sound } = await Audio.Sound.createAsync({ uri: mockAudioUrl });
+                soundRef.current = sound;
+                await new Promise<void>((resolve) => {
+                  sound.setOnPlaybackStatusUpdate((status) => {
+                    if (status.isLoaded && status.didJustFinish) resolve();
+                  });
+                  sound.playAsync();
+                });
+                await sound.unloadAsync();
+                soundRef.current = null;
+              } catch {}
+            })()
+          : Promise.resolve();
+
+        const playMockAudio = playMockAudioPromise;
+
+        const submitPromise = levelTestService.submitAnswer({
           userId,
           questionId: question.questionId,
           answerText: trimmed,
@@ -123,20 +171,41 @@ export default function LevelTestScreen() {
           currentQuestionIndex,
           accumulatedAnswers: [...Object.values(answers), trimmed],
           isQuit: false,
-          recordingUri,
+          userAudioUrl: mockAudioUrl,
         });
 
+        const [, res] = await Promise.all([playMockAudio, submitPromise]);
         if (res.user_recognized_text) {
           effectiveAnswer = res.user_recognized_text;
         }
         isFinished = res.is_finished;
         finalResult = res.final_result;
+
+        if (res.next_question_text) {
+          const nextIdx = currentQuestionIndex + 1;
+          setQuestions((prev) =>
+            prev.map((q, i) =>
+              i === nextIdx ? { ...q, questionText: res.next_question_text! } : q
+            )
+          );
+        }
+        const nextAudioUrl = res.next_question_audio_url
+          ?? (currentQuestionIndex + 1 < totalQuestions
+            ? `https://simspeak-audio-amahc0gkatbdc3fv.a02.azurefd.net/audio-files/leveltestQ${currentQuestionIndex + 2}.mp3`
+            : null);
+        if (nextAudioUrl) {
+          try {
+            await soundRef.current?.unloadAsync();
+            const { sound } = await Audio.Sound.createAsync({ uri: nextAudioUrl });
+            soundRef.current = sound;
+            await sound.playAsync();
+          } catch {}
+        }
       }
 
       setAnswers((prev) => ({ ...prev, [currentQuestionIndex]: effectiveAnswer }));
       setAnswer('');
       setInputMode('none');
-      Keyboard.dismiss();
 
       if (isFinished) {
         router.replace({
@@ -153,11 +222,11 @@ export default function LevelTestScreen() {
 
       setCurrentQuestionIndex((prev) => prev + 1);
     } catch (error) {
-      const message =
-        error instanceof ApiError
-          ? error.message
-          : '답변 제출에 실패했습니다. 잠시 후 다시 시도해주세요.';
-      Alert.alert('알림', message);
+      if (currentQuestionIndex >= totalQuestions - 1) {
+        await playMockAudioPromise;
+        router.replace('/(auth)/level-test-result');
+        return;
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -177,11 +246,15 @@ export default function LevelTestScreen() {
           setRecording(null);
         }
         setInputMode('none');
-        submitAndAdvance(answer, 'voice', uri ?? undefined);
+        submitAndAdvance('voice_answer', 'voice', uri ?? undefined);
         return;
       }
 
       // 녹음 시작
+      if (soundRef.current) {
+        try { await soundRef.current.stopAsync(); await soundRef.current.unloadAsync(); } catch {}
+        soundRef.current = null;
+      }
       if (recording) {
         try { await recording.stopAndUnloadAsync(); } catch {}
         setRecording(null);
@@ -192,11 +265,11 @@ export default function LevelTestScreen() {
         Alert.alert('알림', '마이크 권한이 필요합니다.');
         return;
       }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
 
       const { recording: newRecording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
-      Keyboard.dismiss();
       setRecording(newRecording);
       setInputMode('recording');
     } finally {
@@ -204,28 +277,11 @@ export default function LevelTestScreen() {
     }
   };
 
-  const handlePressKeyboard = () => {
-    if (inputMode === 'keyboard') {
-      setInputMode('none');
-      setAnswer('');
-      Keyboard.dismiss();
-      return;
-    }
-
-    setInputMode('keyboard');
-    setAnswer('');
-  };
-
-  const handleSendKeyboard = () => {
-    submitAndAdvance(answer, 'text');
-  };
-
   const resetLevelTest = () => {
     setCurrentQuestionIndex(0);
     setInputMode('none');
     setAnswer('');
     setAnswers({});
-    Keyboard.dismiss();
   };
 
   const skipTutorial = () => {
@@ -258,10 +314,7 @@ export default function LevelTestScreen() {
               answer={answer}
               inputMode={inputMode}
               onBack={() => router.back()}
-              onChangeAnswer={setAnswer}
               onPressMic={handlePressMic}
-              onPressKeyboard={handlePressKeyboard}
-              onSendKeyboard={handleSendKeyboard}
             />
           </ContentWrapper>
         ) : (
@@ -272,10 +325,7 @@ export default function LevelTestScreen() {
             answer={answer}
             inputMode={inputMode}
             onBack={() => router.back()}
-            onChangeAnswer={setAnswer}
             onPressMic={handlePressMic}
-            onPressKeyboard={handlePressKeyboard}
-            onSendKeyboard={handleSendKeyboard}
           />
         )}
 
@@ -310,10 +360,7 @@ function LevelTestContent({
   answer,
   inputMode,
   onBack,
-  onChangeAnswer,
   onPressMic,
-  onPressKeyboard,
-  onSendKeyboard,
 }: {
   currentProgress: number;
   totalQuestions: number;
@@ -321,12 +368,8 @@ function LevelTestContent({
   answer: string;
   inputMode: InputMode;
   onBack: () => void;
-  onChangeAnswer: (text: string) => void;
   onPressMic: () => void;
-  onPressKeyboard: () => void;
-  onSendKeyboard: () => void;
 }) {
-  const isKeyboardMode = inputMode === 'keyboard';
   const isRecording = inputMode === 'recording';
   const insets = useSafeAreaInsets();
 
@@ -359,22 +402,11 @@ function LevelTestContent({
         />
       </View>
 
-      {isKeyboardMode ? (
-        <KeyboardInputRow
-          value={answer}
-          onChangeAnswer={onChangeAnswer}
-          onSend={onSendKeyboard}
-        />
-      ) : (
-        <>
-          <AnswerCard answer={answer} isRecording={isRecording} />
-          <VoiceInputControls
-            isRecording={isRecording}
-            onPressMic={onPressMic}
-            onPressKeyboard={onPressKeyboard}
-          />
-        </>
-      )}
+      <AnswerCard answer={answer} isRecording={isRecording} />
+      <VoiceInputControls
+        isRecording={isRecording}
+        onPressMic={onPressMic}
+      />
     </View>
   );
 }
@@ -420,7 +452,7 @@ function AnswerCard({
   return (
     <View style={[styles.answerBox, styles.cardShadow]}>
       <Text style={styles.answerText}>
-        {isRecording ? answer : '마이크 혹은 키보드로 답변해주세요.'}
+        {isRecording ? answer : '마이크로 답변해주세요.'}
       </Text>
     </View>
   );
@@ -429,59 +461,27 @@ function AnswerCard({
 function VoiceInputControls({
   isRecording,
   onPressMic,
-  onPressKeyboard,
 }: {
   isRecording: boolean;
   onPressMic: () => void;
-  onPressKeyboard: () => void;
 }) {
   return (
     <View style={styles.inputControlArea}>
-      <Pressable
+      <TouchableOpacity
         onPress={onPressMic}
         style={[styles.micButton, isRecording && styles.recordingMicButton]}
+        activeOpacity={0.7}
       >
         <Ionicons
           name={isRecording ? 'square' : 'mic'}
           size={isRecording ? 26 : 34}
           color={isRecording ? '#FF4F73' : COLORS.gray0}
         />
-      </Pressable>
-
-      <Pressable onPress={onPressKeyboard} style={styles.keyboardButton}>
-        <Ionicons name="keypad" size={24} color={COLORS.gray0} />
-      </Pressable>
+      </TouchableOpacity>
     </View>
   );
 }
 
-function KeyboardInputRow({
-  value,
-  onChangeAnswer,
-  onSend,
-}: {
-  value: string;
-  onChangeAnswer: (text: string) => void;
-  onSend: () => void;
-}) {
-  return (
-    <View style={styles.keyboardInputRow}>
-      <TextInput
-        value={value}
-        onChangeText={onChangeAnswer}
-        placeholder="메세지를 입력하세요 ..."
-        placeholderTextColor={COLORS.gray0}
-        autoFocus
-        returnKeyType="send"
-        onSubmitEditing={onSend}
-        style={styles.keyboardTextInput}
-      />
-      <Pressable onPress={onSend} style={styles.sendButton}>
-        <Ionicons name="arrow-up" size={24} color={COLORS.white} />
-      </Pressable>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -615,44 +615,5 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FF4F73',
     backgroundColor: '#FFE1E6',
-  },
-  keyboardButton: {
-    position: 'absolute',
-    right: 28,
-    top: '50%',
-    width: 48,
-    height: 48,
-    marginTop: -24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 24,
-    backgroundColor: COLORS.white,
-  },
-  keyboardInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-  },
-  keyboardTextInput: {
-    flex: 1,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F1F3F5',
-    paddingHorizontal: 18,
-    ...TYPOGRAPHY.regular14,
-    color: COLORS.black,
-  },
-  sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
   },
 });

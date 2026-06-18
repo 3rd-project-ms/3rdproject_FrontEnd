@@ -16,13 +16,14 @@ import { useAuthStore } from '@/store/useAuthStore';
 export default function ReportHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { session_id, character_name, stage_name, continuous_days, affinity_change } =
+  const { session_id, character_name, stage_name, continuous_days, affinity_change, affinity_score } =
     useLocalSearchParams<{
       session_id: string;
       character_name: string;
       stage_name: string;
       continuous_days: string;
       affinity_change: string;
+      affinity_score: string;
     }>();
 
   const [reportData, setReportData] = useState<ReportApiResponse | null>(null);
@@ -49,7 +50,9 @@ export default function ReportHomeScreen() {
           <Ionicons name="chevron-back" size={20} color={Colors.textPrimary} />
           <Text style={styles.title}>오늘의 대화 종료!</Text>
         </TouchableOpacity>
-        <Text style={styles.subtitle}>{character_name} · {stage_name} · {continuous_days}</Text>
+        <Text style={styles.subtitle}>
+          {character_name} · {stage_name}{Number(continuous_days) > 0 ? ` · ${continuous_days}일 연속 학습` : ''}
+        </Text>
       </View>
 
       <ReportSummaryContent
@@ -57,8 +60,8 @@ export default function ReportHomeScreen() {
         correctionCount={vm?.correctionCount ?? 0}
         isPronNavigable={true}
         onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
-        affinityProgress={vm?.affinityProgress ?? 0}
-        affinityValue={vm?.affinityValue ?? 0}
+        affinityProgress={Number(affinity_score) / 100}
+        affinityValue={Number(affinity_score)}
         affinityLabel={`${character_name} 호감도`}
         affinityChange={Number(affinity_change)}
         chatCorrections={vm?.corrections ?? []}

@@ -63,6 +63,8 @@ export interface AiLevelTestResponse {
   pronunciation_evaluations: PronunciationEvaluations;
   is_finished: boolean;
   final_result: FinalResult | null;
+  next_question_text?: string;
+  next_question_audio_url?: string;
 }
 
 export const levelTestService = {
