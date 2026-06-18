@@ -9,22 +9,12 @@ import { Audio } from "expo-av";
 
 import MicButton from "@/components/chat/MicButton";
 import MissionDrawer from "@/components/chat/MissionDrawer";
-import PenaltyPopup, { PopupType, usePenaltyPopup } from "@/components/chat/PenaltyPopup";
+import PenaltyPopup, { usePenaltyPopup } from "@/components/chat/PenaltyPopup";
 import { chatService } from "@/services/chatService";
 import { getStageMissions, evaluateMissions, MissionCounters } from "@/constants/missionData";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useChatStore } from "@/store/useChatStore";
 import { logEvent } from "@/services/analyticsService";
-
-// ─────────────────────────────────────────
-// penalty_reason → PopupType 매핑
-// ─────────────────────────────────────────
-const PENALTY_REASON_MAP: Record<string, PopupType> = {
-  korean_used:       "off_topic",
-  duplicate_expr:    "repetitive_phrases",
-  context_deviation: "off_topic",
-  abusive_words:     "off_topic",
-};
 
 const GIFT_MARKERS = [40, 80] as const;
 
@@ -76,6 +66,8 @@ export default function ChatVoiceScreen() {
     totalAffinityGained: 0,
   });
 
+  const historyRef = useRef<{ role: 'user' | 'assistant'; text: string }[]>([]);
+
   const recordingRef     = useRef<Audio.Recording | null>(null);
   const soundRef         = useRef<Audio.Sound | null>(null);
   const hasRecordedRef   = useRef(false); // exit 이벤트에서 클로저 문제 없이 읽기 위해 ref 사용
@@ -83,7 +75,7 @@ export default function ChatVoiceScreen() {
   const userTextOpacity  = useRef(new Animated.Value(0)).current;
 
   const popup = usePenaltyPopup();
-  const { userId: storeUserId } = useAuthStore();
+  const { userId: storeUserId, selectedEnglishLevel, continuousDays } = useAuthStore();
   const setPronounceContext = useChatStore((s) => s.setPronounceContext);
 
   // ─── Analytics: enter ───────────────────
@@ -182,10 +174,10 @@ export default function ChatVoiceScreen() {
         characterId:     character_id || 'CH_01_M',
         scenarioId:      scenario_id  || '',
         stageLevel:      Number(stage_id) || 1,
-        userLevel:       'A1',
+        userLevel:       selectedEnglishLevel ?? 'A1',
         turnCount:       turnCount,
         currentAffinity: affinity,
-        history:         [],
+        history:         historyRef.current,
       });
 
       const eval_ = data.system_evaluation;
@@ -193,7 +185,12 @@ export default function ChatVoiceScreen() {
 
       setCurrentAiText(data.text);
       setLastActionDescription(data.action_description ?? '');
+      historyRef.current = [...historyRef.current, { role: 'assistant', text: data.text }];
       fadeIn(aiCaptionOpacity);
+      if (data.user_recognized_text) {
+        setCurrentUserText(data.user_recognized_text);
+        fadeIn(userTextOpacity);
+      }
 
       if (data.audio_url) await playAudio(data.audio_url);
 
@@ -282,8 +279,8 @@ export default function ChatVoiceScreen() {
       params: {
         session_id:      sessionId,
         character_name:  name,
-        stage_name:      stage_id,
-        continuous_days: '',
+        stage_name:      stageName,
+        continuous_days: String(continuousDays),
         affinity_change: String(affinityDeltaTotal),
         affinity_score:  String(affinity),
       },
@@ -358,7 +355,7 @@ export default function ChatVoiceScreen() {
       <View style={styles.textDisplayArea}>
         <View style={styles.speechRow}>
           <View style={styles.speakerBadgeAi}>
-            <Text style={styles.speakerBadgeTextAi}>Jamie</Text>
+            <Text style={styles.speakerBadgeTextAi}>{name || 'Jamie'}</Text>
           </View>
           <Animated.Text style={[styles.speechTextAi, { opacity: aiCaptionOpacity }]} numberOfLines={2}>
             {currentAiText || "—"}

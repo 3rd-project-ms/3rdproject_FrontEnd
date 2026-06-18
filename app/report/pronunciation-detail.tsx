@@ -42,9 +42,10 @@ export default function PronunciationDetailScreen() {
     await sound.playAsync();
   };
 
-  const current = sentences[currentIndex];
-  const isFirst = currentIndex === 0;
-  const isLast = currentIndex === sentences.length - 1;
+  const isEmpty = sentences.length === 0;
+  const current = sentences[currentIndex] ?? { sentence: '', allWords: [], words: [] };
+  const isFirst = currentIndex === 0 || isEmpty;
+  const isLast = currentIndex === sentences.length - 1 || isEmpty;
 
   return (
     <View style={styles.container}>

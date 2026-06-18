@@ -18,6 +18,7 @@ interface AuthState {
   email: string;
   selectedGender: Gender;
   selectedEnglishLevel: EnglishLevel | null;
+  continuousDays: number;
   setAuth: (
     data: Partial<
       Omit<AuthState, 'setAuth' | 'logout' | 'resetOnboarding' | 'restoreSession'>
@@ -36,6 +37,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   email: '',
   selectedGender: null,
   selectedEnglishLevel: null,
+  continuousDays: 0,
   setAuth: (data) => {
     if (data.userId != null) {
       SecureStore.setItemAsync(USER_ID_KEY, String(data.userId)).catch(() => {});
@@ -84,6 +86,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       email: '',
       selectedGender: null,
       selectedEnglishLevel: null,
+      continuousDays: 0,
     });
   },
 }));

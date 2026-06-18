@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ChatBubble from '@/components/chat/ChatBubble';
 import InputBar from '@/components/chat/InputBar';
 import MissionDrawer from '@/components/chat/MissionDrawer';
-import PenaltyPopup, { PopupType, usePenaltyPopup } from '@/components/chat/PenaltyPopup';
+import PenaltyPopup, { usePenaltyPopup } from '@/components/chat/PenaltyPopup';
 import { chatService } from '@/services/chatService';
 import { getStageMissions, evaluateMissions, MissionCounters } from '@/constants/missionData';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -29,16 +29,6 @@ interface Message {
   grammar_feedback?: string;
   is_penalty?: boolean;
 }
-
-// ─────────────────────────────────────────
-// penalty_reason → PopupType 매핑
-// ─────────────────────────────────────────
-const PENALTY_REASON_MAP: Record<string, PopupType> = {
-  korean_used:       'off_topic',
-  duplicate_expr:    'repetitive_phrases',
-  context_deviation: 'off_topic',
-  abusive_words:     'off_topic',
-};
 
 // ─────────────────────────────────────────
 // 유틸
@@ -99,7 +89,7 @@ export default function ChatTextScreen() {
   const popup = usePenaltyPopup();
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<RNTextInput>(null);
-  const { userId: storeUserId } = useAuthStore();
+  const { userId: storeUserId, selectedEnglishLevel, continuousDays } = useAuthStore();
   const setPronounceContext = useChatStore((s) => s.setPronounceContext);
 
   // ─── Analytics: enter ───────────────────
@@ -182,10 +172,13 @@ export default function ChatTextScreen() {
         characterId:     character_id || 'CH_01_M',
         scenarioId:      scenario_id  || '',
         stageLevel:      Number(stage_id) || 1,
-        userLevel:       'A1',
+        userLevel:       selectedEnglishLevel ?? 'A1',
         turnCount:       turnCount,
         currentAffinity: affinity,
-        history:         [],
+        history:         messages.map((m) => ({
+          role: m.sender === 'user' ? 'user' as const : 'assistant' as const,
+          text: m.text,
+        })),
       });
 
       const eval_ = data.system_evaluation;
@@ -288,8 +281,8 @@ export default function ChatTextScreen() {
       params: {
         session_id:      sessionId,
         character_name:  name,
-        stage_name:      stage_id,
-        continuous_days: '',
+        stage_name:      stageName,
+        continuous_days: String(continuousDays),
         affinity_change: String(affinityDeltaTotal),
         affinity_score:  String(affinity),
       },

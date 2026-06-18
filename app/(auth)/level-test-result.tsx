@@ -1,6 +1,6 @@
 // 영어 레벨 테스트 결과 화면
 
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   StyleSheet,
@@ -12,16 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/common/Button';
 import RadarChart from '../../components/level-test/RadarChart';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../../constants/theme';
-import { CefrLevel, levelTestService } from '../../services/levelTestService';
+import { CefrLevel, FinalResult, levelTestService } from '../../services/levelTestService';
 import { EnglishLevel, useAuthStore } from '../../store/useAuthStore';
-
-const MOCK_RADAR_DATA = {
-  fluency: 0.7,
-  expression: 0.85,
-  grammar: 0.6,
-  task: 0.5,
-  vocabulary: 0.75,
-};
 
 // CEFR 등급 → 화면 표기 라벨
 const LEVEL_LABELS: Record<CefrLevel, string> = {
@@ -35,6 +27,7 @@ const LEVEL_LABELS: Record<CefrLevel, string> = {
 
 export default function LevelTestResultScreen() {
   const router = useRouter();
+  const { finalResult: finalResultParam } = useLocalSearchParams<{ finalResult: string }>();
   const { width } = useWindowDimensions();
   const userId = useAuthStore((state) => state.userId);
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -44,8 +37,30 @@ export default function LevelTestResultScreen() {
   // 160 = 화면패딩(24*2) + 카드패딩(24*2) + 라벨여백(32*2)
   const chartSize = Math.max(180, Math.min(260, width - 160));
 
-  // 답변 제출 후 백엔드가 판정한 레벨을 status로 조회한다.
+  const finalResult: FinalResult | null = finalResultParam
+    ? (JSON.parse(finalResultParam) as FinalResult)
+    : null;
+
+  const radarData = finalResult
+    ? {
+        fluency: finalResult.fluency_score / 100,
+        expression: finalResult.expression_score / 100,
+        grammar: finalResult.grammar_score / 100,
+        task: finalResult.task_completion_score / 100,
+        vocabulary: finalResult.vocabulary_score / 100,
+      }
+    : { fluency: 0, expression: 0, grammar: 0, task: 0, vocabulary: 0 };
+
   useEffect(() => {
+    // params로 finalResult를 받은 경우 getStatus API 호출 없이 바로 적용
+    if (finalResult) {
+      setLevel(finalResult.assigned_level);
+      setAuth({ selectedEnglishLevel: finalResult.assigned_level as EnglishLevel });
+      setIsLoading(false);
+      return;
+    }
+
+    // finalResult 없는 경우(폴백): status API로 판정 레벨 조회
     if (userId == null) {
       setIsLoading(false);
       return;
@@ -68,7 +83,7 @@ export default function LevelTestResultScreen() {
     return () => {
       active = false;
     };
-  }, [userId, setAuth]);
+  }, [finalResultParam, userId, setAuth]);
 
   const levelText = isLoading
     ? '판정 중...'
@@ -94,7 +109,7 @@ export default function LevelTestResultScreen() {
         </View>
 
         <View style={styles.chartCard}>
-          <RadarChart data={MOCK_RADAR_DATA} size={chartSize} />
+          <RadarChart data={radarData} size={chartSize} />
         </View>
 
         <View style={styles.buttonSection}>

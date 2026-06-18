@@ -28,6 +28,7 @@ export interface LoginRequest {
 export interface LoginResponse {
   user_id: number;
   nickname: string;
+  continuous_days?: number;
 }
 
 export interface GuestLoginResponse {

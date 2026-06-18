@@ -47,6 +47,7 @@ export interface ChatResponseData {
   affinity_delta: number;
   current_total_affinity: number;
   system_evaluation: SystemEvaluation;
+  user_recognized_text?: string;
 }
 
 export interface ChatApiResponse {
@@ -101,7 +102,7 @@ export interface CharacterStatusResponse {
   success: boolean;
   code: string;
   message: string;
-  data: CharacterStatusItem[];
+  data: { characters: CharacterStatusItem[] };
 }
 
 export interface StageItem {
@@ -112,6 +113,7 @@ export interface StageItem {
   isSpecial: boolean;
   unlockAt?: number;
   isLocked: boolean;
+  scenarioId?: string;
 }
 
 export interface StageListResponse {

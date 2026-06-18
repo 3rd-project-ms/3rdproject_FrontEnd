@@ -55,7 +55,7 @@ export default function ReportHomeScreen() {
       <ReportSummaryContent
         avgPronScore={vm?.avgPronScore ?? null}
         correctionCount={vm?.correctionCount ?? 0}
-        isPronNavigable={vm != null && vm.avgPronScore !== null}
+        isPronNavigable={true}
         onPronPress={() => router.push(ROUTES.PRON_OVERVIEW as any)}
         affinityProgress={vm?.affinityProgress ?? 0}
         affinityValue={vm?.affinityValue ?? 0}
