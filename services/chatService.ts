@@ -114,6 +114,8 @@ export const chatService = {
     formData.append('userLevel', req.userLevel);
     formData.append('turnCount', String(req.turnCount));
     formData.append('currentAffinity', String(req.currentAffinity));
+    formData.append('targetLanguage', req.targetLanguage ?? 'English');
+    formData.append('history', JSON.stringify(req.history));
 
     const { data } = await api.post('/api/chat/message', formData, {
       headers: { 'Content-Type': undefined },

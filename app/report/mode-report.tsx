@@ -53,6 +53,7 @@ export default function ModeReportScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [dayOptions, setDayOptions] = useState<DayOption[]>([]);
   const [isDaysLoading, setIsDaysLoading] = useState(false);
+  const [sessionFetchError, setSessionFetchError] = useState(false);
   const [reportData, setReportData] = useState<ReportApiResponse | null>(null);
   const [isReportLoading, setIsReportLoading] = useState(false);
   const userId = useAuthStore((state) => state.userId);
@@ -82,6 +83,7 @@ export default function ModeReportScreen() {
     setCurrentDay(null);
     setDayOptions([]);
     setReportData(null);
+    setSessionFetchError(false);
 
     fetch(`${BASE_URL}/api/characters/${characterId}/sessions?userId=${userId}`)
       .then((res) => res.json())
@@ -96,7 +98,7 @@ export default function ModeReportScreen() {
         if (opts.length > 0) setCurrentDay(opts[0].day_number);
       })
       .catch(() => {
-        if (active) setDayOptions([]);
+        if (active) { setDayOptions([]); setSessionFetchError(true); }
       })
       .finally(() => {
         if (active) setIsDaysLoading(false);
@@ -184,6 +186,12 @@ export default function ModeReportScreen() {
           </Text>
         )}
       </View>
+
+      {sessionFetchError && (
+        <Text style={[styles.noSessionText, { textAlign: 'center', marginTop: 24 }]}>
+          기록을 불러오지 못했습니다.
+        </Text>
+      )}
 
       {isReportLoading ? (
         <Loading />

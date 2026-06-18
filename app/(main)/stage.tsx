@@ -11,6 +11,13 @@ import { StageItem } from '@/types/api';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
+const CHARACTER_NAME_MAP: Record<string, string> = {
+  CH_01_M: 'ian', CH_01_F: 'chloe',
+  CH_02_M: 'june', CH_02_F: 'yoon',
+  CH_03_M: 'liam', CH_03_F: 'sienna',
+};
+const resolveCharacterName = (id: string) => CHARACTER_NAME_MAP[id] ?? id;
+
 // ─── 배경 이미지 매핑 ────────────────────────────────────────────────────
 const STAGE_BACKGROUNDS: Record<string, any> = {
   '서핑 강사': require('../../assets/stage/beach_stage.png'),
@@ -260,7 +267,7 @@ export default function StageScreen() {
   useEffect(() => {
     if (!characterId) return;
     let isMounted = true;
-    api.get(`/api/characters/${characterId}/stages`)
+    api.get(`/api/characters/${resolveCharacterName(characterId)}/stages`)
       .then((res) => {
         if (!isMounted) return;
         const apiStages: StageItem[] = res.data?.data ?? [];

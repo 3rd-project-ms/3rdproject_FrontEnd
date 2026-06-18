@@ -201,8 +201,9 @@ export default function ChatVoiceScreen() {
       setLastActionDescription(data.action_description ?? '');
       historyRef.current = [...historyRef.current, { role: 'assistant', text: data.text }];
       fadeIn(aiCaptionOpacity);
-      if (data.user_recognized_text) {
-        setCurrentUserText(data.user_recognized_text);
+      const recognizedText = data.user_recognized_text ?? '';
+      if (recognizedText) {
+        setCurrentUserText(recognizedText);
         fadeIn(userTextOpacity);
       }
 
@@ -222,7 +223,7 @@ export default function ChatVoiceScreen() {
       setMissions((prev) => {
         const clearedIds = new Set(prev.filter((m) => m.cleared).map((m) => m.id));
         const newlyCleared = evaluateMissions(stageNum, clearedIds, {
-          userText:           currentUserText,
+          userText:           recognizedText,
           isPenalty:          isPenalty,
           pronunciationScore: eval_?.pronunciation?.accuracy ?? 0,
           affinityDelta:      delta,
