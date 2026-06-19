@@ -101,24 +101,31 @@ export const chatService = {
     req: Omit<ChatMessageRequest, 'textContent' | 'inputType'>
   ): Promise<ChatResponseData> => {
     const formData = new FormData();
-    formData.append('audio', {
+    formData.append('audioFile', {
       uri: audioUri,
       type: 'audio/m4a',
       name: 'recording.m4a',
     } as any);
-    formData.append('inputType', 'voice');
-    formData.append('sessionId', req.sessionId);
-    formData.append('characterId', req.characterId);
-    formData.append('scenarioId', req.scenarioId);
-    formData.append('stageLevel', String(req.stageLevel));
-    formData.append('userLevel', req.userLevel);
-    formData.append('turnCount', String(req.turnCount));
-    formData.append('currentAffinity', String(req.currentAffinity));
-    formData.append('targetLanguage', req.targetLanguage ?? 'English');
-    formData.append('history', JSON.stringify(req.history));
+
+    const requestPayload = {
+      inputType: 'voice',
+      text: '',
+      sessionId: req.sessionId,
+      characterId: req.characterId,
+      scenarioId: req.scenarioId,
+      stageLevel: req.stageLevel,
+      userLevel: req.userLevel,
+      turnCount: req.turnCount,
+      currentAffinity: req.currentAffinity,
+      targetLanguage: req.targetLanguage ?? 'English',
+      history: req.history,
+    };
 
     const { data } = await api.post('/api/chat/message', formData, {
-      headers: { 'Content-Type': undefined },
+      params: { request: JSON.stringify(requestPayload) },
+      headers: { 'Content-Type': 'multipart/form-data' },
+      transformRequest: (d) => d,
+      timeout: 30000,
     });
     return data.data;
   },
