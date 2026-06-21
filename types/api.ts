@@ -106,14 +106,15 @@ export interface CharacterStatusResponse {
 }
 
 export interface StageItem {
-  id: number;
-  stageLabel: string;
+  stageId: number;
+  stageNumber: number;
+  stageType: 'regular' | 'date_hidden';
   title: string;
-  hint: string;
-  isSpecial: boolean;
-  unlockAt?: number;
-  isLocked: boolean;
   scenarioId?: string;
+  unlockAffinityRatio?: number;
+  bestScore?: number | null;
+  completed?: boolean;
+  unlocked?: boolean;
 }
 
 export interface StageListResponse {

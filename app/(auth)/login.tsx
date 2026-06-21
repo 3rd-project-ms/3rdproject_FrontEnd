@@ -56,7 +56,7 @@ export default function LoginScreen() {
         userId: res.user_id,
         nickname: res.nickname,
         email: normalizedId,
-        continuousDays: res.continuous_days ?? 0,
+        continuousDays: 0,
       });
       router.replace('/(main)/home');
     } catch (error) {

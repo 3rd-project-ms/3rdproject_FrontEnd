@@ -8,6 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
 import { StageItem } from '@/types/api';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -50,19 +51,29 @@ const SPECIAL_STAGES = [
 type AnyStage = (typeof MAIN_STAGES[0] | typeof SPECIAL_STAGES[0]) & {
   isLocked: boolean;
   affinityRequired?: number;
+  stageNumber?: number;
 };
 
 function mergeApiStages(apiStages: StageItem[], affinity: number): AnyStage[] {
-  const main = apiStages.filter((s) => !s.isSpecial).map((s, i) => ({
+  const main = apiStages.filter((s) => s.stageType !== 'date_hidden').map((s, i) => ({
     ...s,
-    stageLabel: s.stageLabel || `Stage ${i + 1}`,
-    isLocked: s.isLocked ?? affinity < i * AFFINITY_PER_STAGE,
+    id: s.stageId,
+    stageLabel: `Stage ${s.stageNumber ?? i + 1}`,
+    title: s.title,
+    hint: '',
+    isSpecial: false,
+    isLocked: s.unlocked != null ? !s.unlocked : affinity < i * AFFINITY_PER_STAGE,
   }));
-  const special = apiStages.filter((s) => s.isSpecial).map((s) => ({
+  const special = apiStages.filter((s) => s.stageType === 'date_hidden').map((s) => ({
     ...s,
-    stageLabel: s.stageLabel || `Special`,
-    isLocked: s.isLocked ?? (s.unlockAt != null ? affinity < s.unlockAt : true),
-    affinityRequired: s.unlockAt,
+    id: s.stageId,
+    stageLabel: `Special`,
+    title: s.title,
+    hint: '',
+    isSpecial: true,
+    isLocked: s.unlocked != null ? !s.unlocked : (s.unlockAffinityRatio != null ? affinity < s.unlockAffinityRatio : true),
+    affinityRequired: s.unlockAffinityRatio,
+    unlockAt: s.unlockAffinityRatio,
   }));
   return [...main, ...special];
 }
@@ -260,24 +271,28 @@ export default function StageScreen() {
 
   const bgImage = STAGE_BACKGROUNDS[charRole] ?? STAGE_BACKGROUNDS['서핑 강사'];
 
-  const [affinity, setAffinity]       = useState<number>(Number(params.affinity) || 0);
-  const [activeStage, setActiveStage] = useState<AnyStage | null>(null);
-  const [stageList, setStageList]     = useState<AnyStage[]>(() => buildStageList(Number(params.affinity) || 0));
+  const { userId: storeUserId } = useAuthStore();
+
+  const [affinity, setAffinity]           = useState<number>(Number(params.affinity) || 0);
+  const [activeStage, setActiveStage]     = useState<AnyStage | null>(null);
+  const [stageList, setStageList]         = useState<AnyStage[]>(() => buildStageList(Number(params.affinity) || 0));
+  const [isStagesLoaded, setIsStagesLoaded] = useState(false);
 
   useEffect(() => {
-    if (!characterId) return;
+    if (!characterId || !storeUserId) return;
     let isMounted = true;
-    api.get(`/api/characters/${resolveCharacterName(characterId)}/stages`)
+    api.get(`/api/characters/${resolveCharacterName(characterId)}/stages`, { params: { userId: storeUserId } })
       .then((res) => {
         if (!isMounted) return;
-        const apiStages: StageItem[] = res.data?.data ?? [];
+        const apiStages: StageItem[] = res.data?.data?.stages ?? [];
         if (apiStages.length) {
           setStageList(mergeApiStages(apiStages, affinity));
+          setIsStagesLoaded(true);
         }
       })
       .catch(() => {});
     return () => { isMounted = false; };
-  }, [characterId]);
+  }, [characterId, storeUserId]);
 
   const mainNodes    = stageList.slice(0, 8);
   const specialNodes = stageList.slice(8);
@@ -381,7 +396,9 @@ export default function StageScreen() {
               ) : (
                 <View style={styles.modalBtnRow}>
                   <TouchableOpacity
-                    style={[styles.modalBtn, styles.modalBtnChat]}
+                    style={[styles.modalBtn, styles.modalBtnChat,
+                      (!isStagesLoaded || !activeStage?.scenarioId) && { opacity: 0.4 }]}
+                    disabled={!isStagesLoaded || !activeStage?.scenarioId}
                     onPress={() => {
                       setActiveStage(null);
                       router.push({
@@ -391,8 +408,10 @@ export default function StageScreen() {
                           role: charRole,
                           character_id: characterId,
                           stage_id: String(activeStage?.id ?? ''),
+                          stage_number: String(activeStage?.stageNumber ?? activeStage?.id ?? ''),
                           affinity_score: String(affinity),
                           scenario_id: String(activeStage?.scenarioId ?? ''),
+                          user_id: String(storeUserId ?? ''),
                         },
                       });
                     }}
@@ -401,7 +420,9 @@ export default function StageScreen() {
                     <Text style={styles.modalBtnChatTxt}>채팅하기</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modalBtn, styles.modalBtnVoice]}
+                    style={[styles.modalBtn, styles.modalBtnVoice,
+                      (!isStagesLoaded || !activeStage?.scenarioId) && { opacity: 0.4 }]}
+                    disabled={!isStagesLoaded || !activeStage?.scenarioId}
                     onPress={() => {
                       setActiveStage(null);
                       router.push({
@@ -411,8 +432,10 @@ export default function StageScreen() {
                           role: charRole,
                           character_id: characterId,
                           stage_id: String(activeStage?.id ?? ''),
+                          stage_number: String(activeStage?.stageNumber ?? activeStage?.id ?? ''),
                           affinity_score: String(affinity),
                           scenario_id: String(activeStage?.scenarioId ?? ''),
+                          user_id: String(storeUserId ?? ''),
                         },
                       });
                     }}

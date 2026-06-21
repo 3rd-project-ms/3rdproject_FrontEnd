@@ -60,7 +60,7 @@ const resolveCharacterName = (id: string) => CHARACTER_NAME_MAP[id] ?? id;
 // ─────────────────────────────────────────
 export default function ChatTextScreen() {
   const router = useRouter();
-  const { name, role, character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
+  const { name, role, character_id, session_id, scenario_id, stage_id, stage_number, user_id, affinity_score } =
     useLocalSearchParams<{
       name: string;
       role: string;
@@ -68,13 +68,14 @@ export default function ChatTextScreen() {
       session_id: string;
       scenario_id: string;
       stage_id: string;
+      stage_number: string;
       user_id: string;
       affinity_score: string;
     }>();
 
   // ─── 미션 데이터 ─────────────────────────
-  const stageNum = Number(stage_id) || 1;
-  const { stageName, missions: missionDefs } = getStageMissions(stageNum);
+  const stageNum = Number(stage_number) || 1;
+  const { stageName, missions: missionDefs, hint } = getStageMissions(stageNum, 'text');
 
   // ─── 상태 ───────────────────────────────
   const [sessionId, setSessionId]             = useState<string>(session_id ?? '');
@@ -236,18 +237,22 @@ export default function ChatTextScreen() {
           pronunciationScore: eval_?.pronunciation?.accuracy ?? 0,
           affinityDelta:      delta,
           counters:           counters.current,
-        });
+        }, 'text');
         if (newlyCleared.length === 0) return prev;
         return prev.map((m) =>
           newlyCleared.includes(m.id) ? { ...m, cleared: true } : m
         );
       });
 
-      if (isPenalty) {
-        popup.show('off_topic', 1);
-      } else if (data.current_total_affinity > prevAffinity) {
-        const gain = data.current_total_affinity - prevAffinity;
-        popup.show(gain >= 10 ? 'affection_perfect' : 'affection_good');
+      if (delta <= -3) {
+        popup.show('korean_mixed');
+      } else if (delta < 0) {
+        popup.show('grammar_error');
+      } else if (delta >= 3) {
+        popup.show('affection_perfect', delta);
+      } else if (delta >= 1 && counters.current.totalAffinityGained >= 5) {
+        popup.show('affection_good', counters.current.totalAffinityGained);
+        counters.current.totalAffinityGained = 0;
       }
 
     } catch (e: any) {
@@ -317,12 +322,11 @@ export default function ChatTextScreen() {
   // 렌더
   // ─────────────────────────────────────────
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: '#FFFFFF' }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 30}
-      >
         {/* ── 헤더 ── */}
         <View style={styles.header}>
           <View style={styles.headerTitleRow}>
@@ -333,7 +337,16 @@ export default function ChatTextScreen() {
             {role ? <Text style={styles.charRole}> · {role}</Text> : null}
           </View>
           <TouchableOpacity onPress={() => setShowMission(true)} hitSlop={12}>
-            <Ionicons name="menu" size={26} color="#0B0B12" />
+            <View style={styles.menuBtnWrapper}>
+              <Ionicons name="menu" size={26} color="#0B0B12" />
+              {missions.filter((m) => !m.cleared).length > 0 && (
+                <View style={styles.missionBadge}>
+                  <Text style={styles.missionBadgeText}>
+                    {missions.filter((m) => !m.cleared).length}
+                  </Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -412,8 +425,8 @@ export default function ChatTextScreen() {
             </TouchableOpacity>
             {showHint && (
               <View style={styles.hintContent}>
-                <Text style={styles.hintEnglish}>Could you recommend a signature coffee here?</Text>
-                <Text style={styles.hintKorean}>여기 시그니처 커피 추천해 주실 수 있나요?</Text>
+                <Text style={styles.hintEnglish}>{hint.english}</Text>
+                <Text style={styles.hintKorean}>{hint.korean}</Text>
               </View>
             )}
           </View>
@@ -426,8 +439,6 @@ export default function ChatTextScreen() {
             disabled={isLoading || lives === 0}
           />
         </View>
-
-      </KeyboardAvoidingView>
 
       {/* ── 종료 확인 팝업 ── */}
       {showEndModal && (
@@ -472,6 +483,7 @@ export default function ChatTextScreen() {
         missions={missions}
       />
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -488,6 +500,14 @@ const styles = StyleSheet.create({
   },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
   backBtn: { marginRight: 6, padding: 2 },
+  menuBtnWrapper: { position: 'relative' },
+  missionBadge: {
+    position: 'absolute', top: -4, right: -6,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: '#F6A3A6',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  missionBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
   charName: { fontSize: 20, fontWeight: '700', color: '#0B0B12' },
   charRole: { fontSize: 15, fontWeight: '400', color: '#616161' },
 

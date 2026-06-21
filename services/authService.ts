@@ -28,14 +28,13 @@ export interface LoginRequest {
 export interface LoginResponse {
   user_id: number;
   nickname: string;
-  continuous_days?: number;
 }
 
 export interface GuestLoginResponse {
   user_id: number;
   nickname: string;
   current_level: string;
-  continuous_days: number;
+  continuous_days?: number;
   is_new_user: boolean;
 }
 

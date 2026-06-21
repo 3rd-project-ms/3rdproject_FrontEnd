@@ -3,6 +3,8 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   Animated, Dimensions,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -10,6 +12,8 @@ export type PopupType =
   | 'pronunciation_error'
   | 'repetitive_phrases'
   | 'off_topic'
+  | 'korean_mixed'
+  | 'grammar_error'
   | 'affection_good'
   | 'affection_perfect';
 
@@ -18,7 +22,6 @@ interface PopupConfig {
   description: string;
   footer: string;
   type: 'penalty' | 'affection';
-  points?: string;
 }
 
 const POPUP_CONFIGS: Record<PopupType, PopupConfig> = {
@@ -40,19 +43,29 @@ const POPUP_CONFIGS: Record<PopupType, PopupConfig> = {
     footer: '대화 집중도 페널티 부여',
     type: 'penalty',
   },
+  korean_mixed: {
+    title: '🇰🇷 한국어는 잠깐 넣어둘까요?',
+    description: '영어로만 대화를 이어가면 실력이 더 빠르게 늘어요!\n다음 답변은 영어로만 도전해 보세요.',
+    footer: '대화 집중도 페널티 부여',
+    type: 'penalty',
+  },
+  grammar_error: {
+    title: '✏️ 문장을 다시 살펴봐요!',
+    description: '문법이 조금 어긋났어요.\n올바른 문장으로 다시 한번 시도해 볼까요?',
+    footer: '문법 점수 감점',
+    type: 'penalty',
+  },
   affection_good: {
     title: '❤️ 호감도 상승!',
     description: '센스 있는 답변으로 상대방의 기분이 좋아졌습니다.\n대화가 아주 매끄럽게 이어지고 있어요!',
     footer: '',
     type: 'affection',
-    points: '+5 pts',
   },
   affection_perfect: {
     title: '✨ 완벽한 티키타카!',
     description: '자연스러운 발음과 답변으로 호감을 얻었습니다.\n지금 페이스를 유지하세요!',
     footer: '',
     type: 'affection',
-    points: '+10 pts',
   },
 };
 
@@ -108,20 +121,24 @@ export default function PenaltyPopup({
       <Animated.View
         style={[
           styles.card,
-          isPenalty ? styles.cardPenalty : styles.cardAffection,
           { transform: [{ scale: scaleAnim }], opacity: opacityAnim },
         ]}
       >
-        <View style={[styles.topBar, isPenalty ? styles.topBarPenalty : styles.topBarAffection]} />
-
         <View style={styles.content}>
+          <View style={[styles.iconBadge, isPenalty ? styles.iconBadgePenalty : styles.iconBadgeAffection]}>
+            <Ionicons
+              name={isPenalty ? 'alert-circle' : 'heart'}
+              size={20}
+              color={isPenalty ? 'rgba(255,77,90,0.9)' : 'rgba(246,163,166,0.9)'}
+            />
+          </View>
           <View style={styles.titleRow}>
             <Text style={[styles.title, isPenalty ? styles.titlePenalty : styles.titleAffection]}>
               {config.title}
             </Text>
-            {config.points && (
+            {!isPenalty && penaltyPoints !== undefined && (
               <View style={styles.pointsBadge}>
-                <Text style={styles.pointsText}>{config.points}</Text>
+                <Text style={styles.pointsText}>+{penaltyPoints} pts</Text>
               </View>
             )}
             {isPenalty && penaltyPoints !== undefined && (
@@ -195,27 +212,25 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 12,
   },
-  cardPenalty:  { borderWidth: 1, borderColor: '#FFE0E6' },
-  cardAffection: { borderWidth: 1, borderColor: '#D4F5D4' },
-  topBar: { height: 6, width: '100%' },
-  topBarPenalty:  { backgroundColor: '#FF6B8A' },
-  topBarAffection: { backgroundColor: '#4CD97B' },
-  content: { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 12, gap: 10 },
+  content: { paddingHorizontal: 22, paddingTop: 24, paddingBottom: 12, gap: 10 },
+  iconBadge: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  iconBadgePenalty:   { backgroundColor: 'rgba(255,77,90,0.12)' },
+  iconBadgeAffection: { backgroundColor: 'rgba(246,163,166,0.15)' },
   titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   title: { fontSize: 17, fontWeight: '700', flexShrink: 1 },
-  titlePenalty:  { color: '#D63060' },
-  titleAffection: { color: '#1DAA55' },
-  pointsBadge: { backgroundColor: '#E8F9EE', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  pointsBadgePenalty: { backgroundColor: '#FFF0F3' },
-  pointsText: { fontSize: 13, fontWeight: '700', color: '#1DAA55' },
-  pointsTextPenalty: { color: '#D63060' },
+  titlePenalty:   { color: COLORS.error },
+  titleAffection: { color: COLORS.subColor3 },
+  pointsBadge: { backgroundColor: 'rgba(246,163,166,0.15)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
+  pointsBadgePenalty: { backgroundColor: 'rgba(255,77,90,0.1)' },
+  pointsText: { fontSize: 13, fontWeight: '700', color: COLORS.subColor3 },
+  pointsTextPenalty: { color: COLORS.error },
   description: { fontSize: 14, color: '#444', lineHeight: 21 },
   divider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 4 },
   footer: { fontSize: 12, fontWeight: '600' },
-  footerPenalty:  { color: '#FF6B8A' },
-  footerAffection: { color: '#1DAA55' },
+  footerPenalty:   { color: COLORS.error },
+  footerAffection: { color: COLORS.primary },
   closeBtn: { marginHorizontal: 22, marginBottom: 18, marginTop: 6, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  closeBtnPenalty:  { backgroundColor: '#FF6B8A' },
-  closeBtnAffection: { backgroundColor: '#4CD97B' },
+  closeBtnPenalty:   { backgroundColor: COLORS.error },
+  closeBtnAffection: { backgroundColor: COLORS.primary },
   closeBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

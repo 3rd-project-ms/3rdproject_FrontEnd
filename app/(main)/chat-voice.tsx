@@ -37,7 +37,7 @@ const resolveCharacterName = (id: string) => CHARACTER_NAME_MAP[id] ?? id;
 // ─────────────────────────────────────────
 export default function ChatVoiceScreen() {
   const router = useRouter();
-  const { name, role, character_id, session_id, scenario_id, stage_id, user_id, affinity_score } =
+  const { name, role, character_id, session_id, scenario_id, stage_id, stage_number, user_id, affinity_score } =
     useLocalSearchParams<{
       name: string;
       role: string;
@@ -45,13 +45,14 @@ export default function ChatVoiceScreen() {
       session_id: string;
       scenario_id: string;
       stage_id: string;
+      stage_number: string;
       user_id: string;
       affinity_score: string;
     }>();
 
   // ─── 미션 데이터 ─────────────────────────
-  const stageNum = Number(stage_id) || 1;
-  const { stageName, missions: missionDefs } = getStageMissions(stageNum);
+  const stageNum = Number(stage_number) || 1;
+  const { stageName, missions: missionDefs, hint } = getStageMissions(stageNum, 'voice');
 
   // ─── 상태 ───────────────────────────────
   const [sessionId, setSessionId]             = useState<string>(session_id ?? '');
@@ -67,7 +68,6 @@ export default function ChatVoiceScreen() {
   const [showHintModal, setShowHintModal] = useState(false);
   const [showEndModal, setShowEndModal]   = useState(false);
   const [showMission, setShowMission]     = useState(false);
-  const [hintText, setHintText]           = useState({ english: '', korean: '' });
   const [missions, setMissions] = useState(
     missionDefs.map((m) => ({ ...m, cleared: false }))
   );
@@ -228,21 +228,29 @@ export default function ChatVoiceScreen() {
           pronunciationScore: eval_?.pronunciation?.accuracy ?? 0,
           affinityDelta:      delta,
           counters:           counters.current,
-        });
+        }, 'voice');
         if (newlyCleared.length === 0) return prev;
         return prev.map((m) =>
           newlyCleared.includes(m.id) ? { ...m, cleared: true } : m
         );
       });
 
-      if (isPenalty) {
-        popup.show("off_topic", 1);
-      } else if (data.current_total_affinity > prevAffinity) {
-        const gain = data.current_total_affinity - prevAffinity;
-        popup.show(gain >= 10 ? "affection_perfect" : "affection_good");
+      if (delta <= -3) {
+        popup.show("korean_mixed");
+      } else if (delta < 0) {
+        popup.show("grammar_error");
+      } else if (delta >= 3) {
+        popup.show("affection_perfect", delta);
+      } else if (delta >= 1 && counters.current.totalAffinityGained >= 5) {
+        popup.show("affection_good", counters.current.totalAffinityGained);
+        counters.current.totalAffinityGained = 0;
       }
     } catch (e: any) {
       console.warn('API 오류:', e?.message, '| status:', e?.response?.status);
+      const code = e?.response?.data?.code;
+      if (code === 'ERR_NO_LIVES_REMAINING' || code === 'ERR_ABUSIVE_WORDS') {
+        popup.show('off_topic');
+      }
     } finally {
       setMicState("idle");
     }
@@ -415,8 +423,8 @@ export default function ChatVoiceScreen() {
               <Ionicons name="bulb" size={20} color="#F6A3A6" />
               <Text style={styles.modalTitleText}>힌트</Text>
             </View>
-            <Text style={styles.hintEnglish}>{hintText.english || '—'}</Text>
-            <Text style={styles.hintKorean}>{hintText.korean || '—'}</Text>
+            <Text style={styles.hintEnglish}>{hint.english || '—'}</Text>
+            <Text style={styles.hintKorean}>{hint.korean || '—'}</Text>
             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowHintModal(false)}>
               <Text style={styles.modalCloseButtonText}>확인</Text>
             </TouchableOpacity>

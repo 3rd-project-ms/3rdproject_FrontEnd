@@ -80,17 +80,35 @@ export const chatService = {
   },
 
   /** 세션 히스토리 조회 (이어하기용) */
-  getSessionLogs: async (sessionId: string): Promise<any[]> => {
-    const { data } = await api.get(`/api/chat/sessions/${sessionId}/logs`);
+  getSessionLogs: async (sessionId: string, userId: number): Promise<any[]> => {
+    const { data } = await api.get(`/api/chat/sessions/${sessionId}/logs`, { params: { userId } });
     return data.data ?? [];
   },
 
   /** 텍스트 메시지 전송 */
   sendText: async (req: ChatMessageRequest): Promise<ChatResponseData> => {
-    const { data } = await api.post('/api/chat/message', {
-      ...req,
+    const requestPayload = {
       inputType: 'text',
+      text: req.text,
+      sessionId: req.sessionId,
+      characterId: req.characterId,
+      scenarioId: req.scenarioId,
+      stageLevel: req.stageLevel,
+      userLevel: req.userLevel,
+      turnCount: req.turnCount,
+      currentAffinity: req.currentAffinity,
       targetLanguage: req.targetLanguage ?? 'English',
+      history: req.history,
+    };
+
+    const formData = new FormData();
+    formData.append('inputType', 'text');
+
+    const { data } = await api.post('/api/chat/message', formData, {
+      params: { request: JSON.stringify(requestPayload) },
+      headers: { 'Content-Type': 'multipart/form-data' },
+      transformRequest: (d) => d,
+      timeout: 15000,
     });
     return data.data;
   },

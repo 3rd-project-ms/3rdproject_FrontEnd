@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../../constants/theme';
 
 // ─────────────────────────────────────────
 // 캐릭터 프로필 설정
@@ -190,10 +191,10 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   aiBubble: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: COLORS.subColor1,
   },
   userBubble: {
-    backgroundColor: '#2C2C2E',
+    backgroundColor: COLORS.primary,
   },
   penaltyBubble: {
     borderWidth: 1.5,
