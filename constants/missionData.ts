@@ -225,8 +225,8 @@ const STAGE_MISSIONS: Record<number, StageDefInternal> = {
       },
       {
         id: 3,
-        label: '완벽한 문장 5회 달성',
-        check: ({ counters }) => counters.perfectSentenceCount >= 5,
+        label: '완벽한 문장 6회 달성',
+        check: ({ counters }) => counters.perfectSentenceCount >= 6,
       },
     ],
   },
@@ -275,8 +275,8 @@ const STAGE_MISSIONS: Record<number, StageDefInternal> = {
       },
       {
         id: 2,
-        label: '완벽한 문장 3회 달성',
-        check: ({ counters }) => counters.perfectSentenceCount >= 3,
+        label: '완벽한 문장 7회 달성',
+        check: ({ counters }) => counters.perfectSentenceCount >= 7,
       },
       {
         id: 3,
