@@ -169,8 +169,8 @@ export default function LevelTestScreen() {
           answerText: trimmed,
           answerType,
           currentQuestionIndex,
-          accumulatedAnswers: [...Object.values(answers), trimmed],
-          isQuit: false,
+          accumulatedAnswers: [...Object.values(answers), trimmed].slice(0, 8),
+          isQuit: currentQuestionIndex === totalQuestions - 1,
           userAudioUrl: mockAudioUrl,
         });
 
