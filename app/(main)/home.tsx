@@ -92,6 +92,17 @@ const CHARACTER_DATA = [
     ],
     image: require('../../assets/characters/sienna.png'),
   },
+  {
+    id: 99,
+    characterId: 'CH_03_F',
+    name: '시엔나 (시연)',
+    nameEn: 'Sienna Demo',
+    role: '카페 사장님',
+    affinity: 0,
+    locked: false,
+    isDemo: true,
+    image: require('../../assets/characters/sienna.png'),
+  },
 ];
 
 function StatBar({ label, value }: { label: string; value: number }) {
@@ -177,6 +188,10 @@ export default function HomeScreen() {
     if (userId) {
       api.patch(`/api/characters/last-character?userId=${userId}`, { characterId: char.characterId }).catch(() => {});
     }
+    if ((char as any).isDemo) {
+      router.push({ pathname: '/(main)/chat-demo' as any });
+      return;
+    }
     router.push({
       pathname: '/(main)/stage' as any,
       params: { name: char.name, role: char.role, affinity: char.affinity, character_id: char.characterId },
@@ -230,7 +245,7 @@ export default function HomeScreen() {
                 {char.name} <Text style={s.charNameEn}>({char.nameEn})</Text>
               </Text>
               <View style={s.accentBadge}>
-                <Text style={s.accentTxt}>{char.accent.split(' ')[0]}</Text>
+                <Text style={s.accentTxt}>{char.accent?.split(' ')[0] ?? ''}</Text>
               </View>
             </View>
 
@@ -244,7 +259,7 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={s.tagsRow}
             >
-              {char.tags.map((tag) => (
+              {(char.tags ?? []).map((tag) => (
                 <View key={tag} style={s.tagChip}>
                   <Text style={s.tagTxt}>{tag}</Text>
                 </View>
@@ -253,7 +268,7 @@ export default function HomeScreen() {
 
             <View style={s.divider} />
 
-            {char.stats.map((item) => (
+            {(char.stats ?? []).map((item) => (
               <StatBar key={item.label} label={item.label} value={item.value} />
             ))}
           </View>

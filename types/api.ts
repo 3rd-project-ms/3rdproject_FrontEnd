@@ -47,6 +47,11 @@ export interface ChatResponseData {
   affinity_delta: number;
   current_total_affinity: number;
   system_evaluation: SystemEvaluation;
+  /**
+   * STT 인식 결과 — BE FrontendResponse에 포함됨
+   * 음성 모드에서 유저가 말한 내용을 텍스트로 표시할 때 사용
+   * 텍스트 모드에서는 null 가능
+   */
   user_recognized_text?: string;
 }
 

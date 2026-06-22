@@ -394,7 +394,7 @@ export default function ChatTextScreen() {
               sender={msg.sender}
               text={msg.text}
               time={msg.time}
-              character_id={resolveCharacterName(character_id || 'CH_01_M')}
+              character_id={character_id}
               action_description={msg.action_description}
               grammar_feedback={msg.grammar_feedback}
               is_penalty={msg.is_penalty}

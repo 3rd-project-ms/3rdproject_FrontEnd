@@ -6,6 +6,15 @@ import { COLORS } from '../../constants/theme';
 // ─────────────────────────────────────────
 // 캐릭터 프로필 설정
 // ─────────────────────────────────────────
+const CHARACTER_IMAGES: Record<string, any> = {
+  CH_01_M: require('../../assets/characters/ian.png'),
+  CH_01_F: require('../../assets/characters/chloe.png'),
+  CH_02_M: require('../../assets/characters/june.png'),
+  CH_02_F: require('../../assets/characters/yoon.png'),
+  CH_03_M: require('../../assets/characters/liam.png'),
+  CH_03_F: require('../../assets/characters/sienna.png'),
+};
+
 const CHARACTER_CONFIG: Record<string, {
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
@@ -87,7 +96,17 @@ export default function ChatBubble({
     >
       {/* AI 프로필 — 아이콘 없이 색상 원만 표시 */}
       {isAi && (
-        <View style={[styles.profileImagePlaceholder, { backgroundColor: charConfig.color }]} />
+        <View style={[styles.profileImagePlaceholder, { backgroundColor: charConfig.color }]}>
+          {character_id && CHARACTER_IMAGES[character_id] ? (
+            <Image
+              source={CHARACTER_IMAGES[character_id]}
+              style={styles.characterImage}
+              onError={(e) => console.log('image error:', e.nativeEvent.error)}
+            />
+          ) : (
+            <Text>X</Text>
+          )}
+        </View>
       )}
 
       {/* 말풍선 영역 */}
@@ -153,11 +172,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 8,
     marginTop: 2,
+    overflow: 'hidden',
   },
   profileImage: {
     width: 32,
     height: 32,
     borderRadius: 16,
+  },
+  characterImage: {
+    width: 70,
+    height: 70,
+    position: 'absolute',
+    top: 2,
+    left: -19,
   },
 
   // 말풍선 컬럼 (말풍선 + 피드백 세로 배치)

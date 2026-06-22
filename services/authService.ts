@@ -35,6 +35,11 @@ export interface GuestLoginResponse {
   nickname: string;
   current_level: string;
   continuous_days?: number;
+  /**
+   * TODO: 신규 게스트 유저 온보딩 분기 미구현
+   * BE에서 반환되나 현재 signup.tsx에서 참조하지 않음.
+   * is_new_user === true 시 튜토리얼 또는 레벨테스트 화면으로 연결 필요.
+   */
   is_new_user: boolean;
 }
 
