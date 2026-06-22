@@ -16,7 +16,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 export default function ReportHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { session_id, character_name, stage_name, continuous_days, affinity_change, affinity_score } =
+  const { session_id, character_name, stage_name, continuous_days, affinity_change, affinity_score, initialMode } =
     useLocalSearchParams<{
       session_id: string;
       character_name: string;
@@ -24,6 +24,7 @@ export default function ReportHomeScreen() {
       continuous_days: string;
       affinity_change: string;
       affinity_score: string;
+      initialMode: string;
     }>();
 
   const [reportData, setReportData] = useState<ReportApiResponse | null>(null);
@@ -67,6 +68,7 @@ export default function ReportHomeScreen() {
         chatCorrections={vm?.corrections ?? []}
         voiceCorrections={vm?.corrections ?? []}
         grammarFeedback={vm?.grammarFeedback ?? null}
+        initialMode={(initialMode as '채팅' | '통화') ?? '채팅'}
         onReviewPress={() => router.push({ pathname: ROUTES.REVIEW as any, params: { session_id } })}
         onPrimaryPress={() => router.replace(ROUTES.CHAR_HOME as any)}
         primaryLabel="메인으로 돌아가기"

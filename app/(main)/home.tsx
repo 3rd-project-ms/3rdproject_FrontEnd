@@ -188,10 +188,6 @@ export default function HomeScreen() {
     if (userId) {
       api.patch(`/api/characters/last-character?userId=${userId}`, { characterId: char.characterId }).catch(() => {});
     }
-    if ((char as any).isDemo) {
-      router.push({ pathname: '/(main)/chat-demo' as any });
-      return;
-    }
     router.push({
       pathname: '/(main)/stage' as any,
       params: { name: char.name, role: char.role, affinity: char.affinity, character_id: char.characterId },
@@ -236,54 +232,73 @@ export default function HomeScreen() {
 
         {/* 하단 카드 스택 */}
         <View style={s.bottomStack}>
-
-          {/* 캐릭터 설명 카드 */}
-          <View style={s.card}>
-            {/* 이름 + 악센트 뱃지 */}
-            <View style={s.nameRow}>
-              <Text style={s.charName}>
-                {char.name} <Text style={s.charNameEn}>({char.nameEn})</Text>
-              </Text>
-              <View style={s.accentBadge}>
-                <Text style={s.accentTxt}>{char.accent?.split(' ')[0] ?? ''}</Text>
-              </View>
-            </View>
-
-            <Text style={s.charDesc}>{char.desc}</Text>
-
-            {/* 슬랭 한 줄 */}
-            <Text style={s.slangTxt}>💬 {char.slang}</Text>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.tagsRow}
-            >
-              {(char.tags ?? []).map((tag) => (
-                <View key={tag} style={s.tagChip}>
-                  <Text style={s.tagTxt}>{tag}</Text>
+          {(char as any).isDemo ? (
+            <>
+              <TouchableOpacity
+                style={[s.card, { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }]}
+                onPress={() => router.push({ pathname: '/(main)/chat-demo' as any, params: { stage: 'stage1' } })}
+              >
+                <Text style={[s.charName, { textAlign: 'center' }]}>Stage 1</Text>
+                <Text style={[s.charDesc, { textAlign: 'center' }]}>카페에서의 첫 만남</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.card, { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }]}
+                onPress={() => router.push({ pathname: '/(main)/chat-demo' as any, params: { stage: 'hidden' } })}
+              >
+                <Text style={[s.charName, { textAlign: 'center' }]}>Hidden Stage</Text>
+                <Text style={[s.charDesc, { textAlign: 'center' }]}>강변 야경 산책</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {/* 캐릭터 설명 카드 */}
+              <View style={s.card}>
+                {/* 이름 + 악센트 뱃지 */}
+                <View style={s.nameRow}>
+                  <Text style={s.charName}>
+                    {char.name} <Text style={s.charNameEn}>({char.nameEn})</Text>
+                  </Text>
+                  <View style={s.accentBadge}>
+                    <Text style={s.accentTxt}>{char.accent?.split(' ')[0] ?? ''}</Text>
+                  </View>
                 </View>
-              ))}
-            </ScrollView>
 
-            <View style={s.divider} />
+                <Text style={s.charDesc}>{char.desc}</Text>
 
-            {(char.stats ?? []).map((item) => (
-              <StatBar key={item.label} label={item.label} value={item.value} />
-            ))}
-          </View>
+                {/* 슬랭 한 줄 */}
+                <Text style={s.slangTxt}>💬 {char.slang}</Text>
 
-          {/* 호감도 카드 */}
-          <View style={s.card}>
-            <View style={s.affinityRow}>
-              <Text style={s.affinityLabel}>나와의 호감도</Text>
-              <Text style={s.affinityPct}>{char.affinity}%</Text>
-            </View>
-            <View style={s.affinityTrack}>
-              <View style={[s.affinityFill, { width: `${char.affinity}%` }]} />
-            </View>
-          </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.tagsRow}
+                >
+                  {(char.tags ?? []).map((tag) => (
+                    <View key={tag} style={s.tagChip}>
+                      <Text style={s.tagTxt}>{tag}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
 
+                <View style={s.divider} />
+
+                {(char.stats ?? []).map((item) => (
+                  <StatBar key={item.label} label={item.label} value={item.value} />
+                ))}
+              </View>
+
+              {/* 호감도 카드 */}
+              <View style={s.card}>
+                <View style={s.affinityRow}>
+                  <Text style={s.affinityLabel}>나와의 호감도</Text>
+                  <Text style={s.affinityPct}>{char.affinity}%</Text>
+                </View>
+                <View style={s.affinityTrack}>
+                  <View style={[s.affinityFill, { width: `${char.affinity}%` }]} />
+                </View>
+              </View>
+            </>
+          )}
         </View>
       </View>
     </SafeAreaView>

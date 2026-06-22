@@ -3,24 +3,61 @@ import {
   StyleSheet, Text, View, TouchableOpacity,
   SafeAreaView, Platform, Animated,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import MissionDrawer from '@/components/chat/MissionDrawer';
+import MicButton from '@/components/chat/MicButton';
+import { getStageMissions } from '@/constants/missionData';
 
-const DEMO_SCRIPT = [
-  { time: 0.5,  sender: 'ai',   text: "Hello! Welcome to my cafe! I haven't seen you around before. What can I get for you today?" },
-  { time: 6.0,  sender: 'user', text: 'Hi! Can I get an iced Americano, please?' },
-  { time: 9.5,  sender: 'ai',   text: 'One iced Americano, coming right up! You look new to this area. Did you just move to this neighborhood?' },
-  { time: 15.0, sender: 'user', text: 'Yes, I moved here a few days ago. The neighborhood is very nice!' },
-  { time: 19.5, sender: 'ai',   text: "That's lovely! I'm Sienna, the owner here. How are you liking the area so far?" },
-  { time: 24.0, sender: 'user', text: "It's quiet and peaceful. And your cafe is really pretty!" },
-  { time: 27.5, sender: 'ai',   text: "Aw, thank you so much! I decorated it myself. As a welcome gift, would you like a free chocolate chip cookie with your coffee?" },
-  { time: 33.0, sender: 'user', text: "Wow, thank you! I'd love that." },
+const STAGE1_SCRIPT = [
+  { time: 0.0,   duration: 5.5,  sender: 'ai',   instant: true, text: "Hello! Welcome to my cafe! I haven't seen you around before. What can I get for you today?" },
+  { time: 8.0,   duration: 3.0,  sender: 'user', text: 'Hi! Can I get an iced Americano, please?', clearMissionIds: [1, 2], userStart: 6.0,  userEnd: 11.0 },
+  { time: 10.56, duration: 7.44, sender: 'ai',   text: 'One iced Americano, coming right up! You look new to this area. Did you just move to this neighborhood?' },
+  { time: 18.0,  duration: 4.36, sender: 'user', text: 'yes 며칠 전에 이사왔어요. the neighborhood is very nice', userStart: 18.0, userEnd: 22.0 },
+  { time: 22.36, duration: 6.06, sender: 'ai',   text: "That's lovely! I'm Sienna, the owner here. How are you liking the area so far?" },
+  { time: 28.42, duration: 5.0,  sender: 'user', text: "It's quiet and peaceful. And your cafe is really pretty!", clearMissionIds: [3], userStart: 28.42, userEnd: 32.8 },
+];
+
+const HIDDEN_SCRIPT = [
+  { time: 0.0,  duration: 6.0,  sender: 'ai',   instant: true, text: "The night breeze is so nice, isn't it? Thank you for taking a walk with me. I really wanted to see you today." },
+  { time: 7.0,  duration: 4.0,  sender: 'user', text: 'Me too. The night view of the river is so beautiful today.', clearMissionIds: [1], userStart: 7.0,  userEnd: 11.0 },
+  { time: 11.0, duration: 7.0,  sender: 'ai',   text: "It really is... but honestly, I haven't been looking at the view at all. Can you guess what I've been looking at?" },
+  { time: 18.0, duration: 4.0,  sender: 'user', text: "Me? You're making me blush. Since when did you look at me like that?", clearMissionIds: [2], userStart: 18.0, userEnd: 22.0 },
+  { time: 22.0, duration: 8.0,  sender: 'ai',   text: "Probably since the very first day you walked into my cafe. I've been making up excuses just to talk to you longer. Did you really not notice?" },
 ];
 
 export default function ChatDemoScreen() {
   const router = useRouter();
-  const videoRef = useRef<Video>(null);
+  const { stage } = useLocalSearchParams<{ stage: string }>();
+
+  const videoSource = stage === 'hidden'
+    ? require('../../assets/demo/hidden2_시연영상.mp4')
+    : require('../../assets/demo/stage1_시연영상.mp4');
+
+  const DEMO_SCRIPT = stage === 'hidden' ? HIDDEN_SCRIPT : STAGE1_SCRIPT;
+
+  const stageNum = stage === 'hidden' ? 10 : 1;
+  const { stageName, missions: missionDefs, hint } = getStageMissions(stageNum, 'voice');
+  const [missions, setMissions] = useState(missionDefs.map((m) => ({ ...m, cleared: false })));
+  const [showMission, setShowMission] = useState(false);
+
+  useEffect(() => {
+    if (stage !== 'stage1') return;
+    if (missions.length > 0 && missions.every((m) => m.cleared)) {
+      const timer = setTimeout(() => {
+        router.push({ pathname: '/report/demo-report' });
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [missions]);
+  const [micState, setMicState] = useState<'idle' | 'recording' | 'disabled'>('idle');
+  const [showHintModal, setShowHintModal] = useState(false);
+
+  const player = useVideoPlayer(videoSource, (p) => {
+    p.loop = false;
+    p.play();
+  });
   const [currentAiText, setCurrentAiText]   = useState('');
   const [currentUserText, setCurrentUserText] = useState('');
   const [showEndModal, setShowEndModal]       = useState(false);
@@ -33,25 +70,76 @@ export default function ChatDemoScreen() {
     Animated.timing(animVal, { toValue: 1, duration: 350, useNativeDriver: true }).start();
   };
 
-  const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (!status.isLoaded) return;
-    const currentTime = status.positionMillis / 1000;
-
-    while (
-      shownIndexRef.current < DEMO_SCRIPT.length &&
-      currentTime >= DEMO_SCRIPT[shownIndexRef.current].time
-    ) {
-      const item = DEMO_SCRIPT[shownIndexRef.current];
-      if (item.sender === 'ai') {
-        setCurrentAiText(item.text);
-        fadeIn(aiCaptionOpacity);
-      } else {
-        setCurrentUserText(item.text);
-        fadeIn(userTextOpacity);
+  const typeText = (text: string, setter: (t: string) => void, animVal: Animated.Value, duration: number, onComplete?: () => void) => {
+    setter('');
+    animVal.setValue(1);
+    let i = 0;
+    const delay = (duration * 1000) / text.length;
+    const interval = setInterval(() => {
+      i += 1;
+      setter(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(interval);
+        onComplete?.();
       }
-      shownIndexRef.current += 1;
-    }
+    }, delay);
   };
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const status = player.status;
+      if (!status || status.isBuffering) return;
+      const currentTime = player.currentTime;
+      const duration = player.duration;
+      const isUserTalking = DEMO_SCRIPT.some(
+        (item) => (item as any).userStart &&
+        currentTime >= (item as any).userStart &&
+        currentTime < (item as any).userEnd
+      );
+      setMicState(isUserTalking ? 'recording' : 'idle');
+
+      if (duration > 0 && currentTime >= duration - 0.5) {
+        player.pause();
+        setMicState('idle');
+        clearInterval(interval);
+      }
+
+      while (
+        shownIndexRef.current < DEMO_SCRIPT.length &&
+        currentTime >= DEMO_SCRIPT[shownIndexRef.current].time
+      ) {
+        const item = DEMO_SCRIPT[shownIndexRef.current];
+        if (item.instant) {
+          setTimeout(() => {
+            if (item.sender === 'ai') {
+              setCurrentAiText(item.text);
+              fadeIn(aiCaptionOpacity);
+            } else {
+              setCurrentUserText(item.text);
+              fadeIn(userTextOpacity);
+            }
+          }, 1500);
+        } else {
+          const clearMissions = item.clearMissionIds?.length
+            ? () => setMissions((prev) =>
+                prev.map((m) =>
+                  item.clearMissionIds!.includes(m.id) ? { ...m, cleared: true } : m
+                )
+              )
+            : undefined;
+
+          if (item.sender === 'ai') {
+            typeText(item.text, setCurrentAiText, aiCaptionOpacity, item.duration, clearMissions);
+          } else {
+            typeText(item.text, setCurrentUserText, userTextOpacity, item.duration, clearMissions);
+          }
+        }
+        shownIndexRef.current += 1;
+      }
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, [player]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -63,18 +151,27 @@ export default function ChatDemoScreen() {
         <Text style={styles.charName}>
           시엔나<Text style={styles.charRole}> · 카페 사장님</Text>
         </Text>
-        <View style={{ width: 34 }} />
+        <TouchableOpacity onPress={() => setShowMission(true)} hitSlop={12}>
+          <View style={styles.menuBtnWrapper}>
+            <Ionicons name="menu" size={26} color="#0B0B12" />
+            {missions.filter((m) => !m.cleared).length > 0 && (
+              <View style={styles.missionBadge}>
+                <Text style={styles.missionBadgeText}>
+                  {missions.filter((m) => !m.cleared).length}
+                </Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* 영상 영역 */}
       <View style={styles.videoArea}>
-        <Video
-          ref={videoRef}
-          source={require('../../assets/demo/stage1_시연영상.mp4')}
+        <VideoView
+          player={player}
           style={styles.video}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+          contentFit="cover"
+          nativeControls={false}
         />
       </View>
 
@@ -84,7 +181,7 @@ export default function ChatDemoScreen() {
           <View style={styles.speakerBadgeAi}>
             <Text style={styles.speakerBadgeTextAi}>시엔나</Text>
           </View>
-          <Animated.Text style={[styles.speechTextAi, { opacity: aiCaptionOpacity }]} numberOfLines={2}>
+          <Animated.Text style={[styles.speechTextAi, { opacity: aiCaptionOpacity }]}>
             {currentAiText || '—'}
           </Animated.Text>
         </View>
@@ -93,7 +190,7 @@ export default function ChatDemoScreen() {
           <View style={styles.speakerBadgeUser}>
             <Text style={styles.speakerBadgeTextUser}>나</Text>
           </View>
-          <Animated.Text style={[styles.speechTextUser, { opacity: userTextOpacity }]} numberOfLines={2}>
+          <Animated.Text style={[styles.speechTextUser, { opacity: userTextOpacity }]}>
             {currentUserText || '말하는 중...'}
           </Animated.Text>
         </View>
@@ -101,6 +198,13 @@ export default function ChatDemoScreen() {
 
       {/* 하단 컨트롤 */}
       <View style={styles.controlBar}>
+        <TouchableOpacity style={styles.subButton} onPress={() => setShowHintModal(true)}>
+          <View style={styles.iconCircleSub}>
+            <Ionicons name="bulb-outline" size={22} color="#888" />
+          </View>
+          <Text style={styles.buttonLabel}>힌트</Text>
+        </TouchableOpacity>
+        <MicButton state={micState} onPressIn={() => {}} onPressOut={() => {}} size={54} />
         <TouchableOpacity style={styles.subButton} onPress={() => setShowEndModal(true)}>
           <View style={[styles.iconCircleSub, { backgroundColor: '#FFE0E0' }]}>
             <MaterialCommunityIcons name="phone-hangup" size={22} color="#F6A3A6" />
@@ -126,6 +230,34 @@ export default function ChatDemoScreen() {
           </View>
         </View>
       )}
+
+      {showHintModal && (
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowHintModal(false)} activeOpacity={1} />
+          <View style={styles.modalCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="bulb" size={20} color="#F6A3A6" />
+              <Text style={{ fontSize: 17, fontWeight: '700', color: '#0B0B12' }}>힌트</Text>
+            </View>
+            <Text style={{ fontSize: 15, color: '#E87C7C', fontWeight: '600', textAlign: 'center' }}>{hint.english}</Text>
+            <Text style={{ fontSize: 13, color: '#888888', textAlign: 'center' }}>{hint.korean}</Text>
+            <TouchableOpacity
+              style={{ width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: '#F6A3A6', alignItems: 'center', marginTop: 4 }}
+              onPress={() => setShowHintModal(false)}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      <MissionDrawer
+        visible={showMission}
+        onClose={() => setShowMission(false)}
+        onGoReport={() => setShowMission(false)}
+        stageName={stageName}
+        missions={missions}
+      />
     </SafeAreaView>
   );
 }
@@ -150,6 +282,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F8F8', borderRadius: 16,
     paddingHorizontal: 14, paddingVertical: 12,
     borderWidth: 1, borderColor: '#EFEFEF', gap: 8,
+    height: 150,
   },
   speechRow:            { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   speakerBadgeAi:       { backgroundColor: '#F6A3A6', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, marginTop: 2 },
@@ -160,7 +293,7 @@ const styles = StyleSheet.create({
   speechTextUser:       { flex: 1, fontSize: 14, color: '#555555', lineHeight: 20 },
   divider:              { height: 1, backgroundColor: '#EBEBEB', marginVertical: 2 },
 
-  controlBar:    { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingBottom: 36, paddingHorizontal: 20 },
+  controlBar:    { flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center', paddingBottom: 36, paddingHorizontal: 20 },
   subButton:     { alignItems: 'center', width: 72 },
   iconCircleSub: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
   buttonLabel:   { fontSize: 12, color: '#888', fontWeight: '500' },
@@ -181,4 +314,13 @@ const styles = StyleSheet.create({
   modalCancelButtonText:  { fontSize: 15, fontWeight: '600', color: '#555555' },
   modalConfirmButton:     { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F6A3A6', alignItems: 'center' },
   modalConfirmButtonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+
+  menuBtnWrapper: { position: 'relative' },
+  missionBadge: {
+    position: 'absolute', top: -4, right: -6,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: '#F6A3A6',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  missionBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
 });

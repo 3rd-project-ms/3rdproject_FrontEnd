@@ -30,6 +30,7 @@ const CHARACTER_NAME_MAP: Record<string, string> = {
   CH_03_F: 'sienna',
 };
 
+
 const resolveCharacterName = (id: string) => CHARACTER_NAME_MAP[id] ?? id;
 
 // ─────────────────────────────────────────
@@ -306,6 +307,7 @@ export default function ChatVoiceScreen() {
         continuous_days: String(continuousDays),
         affinity_change: String(affinityDeltaTotal),
         affinity_score:  String(affinity),
+        initialMode:     '통화',
       },
     });
   };
@@ -334,7 +336,16 @@ export default function ChatVoiceScreen() {
           {name || 'Jamie'}{role ? <Text style={styles.charRole}> · {role}</Text> : null}
         </Text>
         <TouchableOpacity onPress={() => setShowMission(true)} hitSlop={12}>
-          <Ionicons name="menu" size={26} color="#0B0B12" />
+          <View style={styles.menuBtnWrapper}>
+            <Ionicons name="menu" size={26} color="#0B0B12" />
+            {missions.filter((m) => !m.cleared).length > 0 && (
+              <View style={styles.missionBadge}>
+                <Text style={styles.missionBadgeText}>
+                  {missions.filter((m) => !m.cleared).length}
+                </Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -501,6 +512,14 @@ const styles = StyleSheet.create({
 
   characterArea:            { flex: 1, marginHorizontal: 16, marginVertical: 8 },
   characterImagePlaceholder:{ flex: 1, borderRadius: 20, backgroundColor: "#F9F9F9" },
+  menuBtnWrapper: { position: 'relative' },
+  missionBadge: {
+    position: 'absolute', top: -4, right: -6,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: '#F6A3A6',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  missionBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
 
   textDisplayArea: {
     marginHorizontal: 16, marginBottom: 10,

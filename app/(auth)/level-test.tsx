@@ -1,10 +1,11 @@
 // 영어 레벨 테스트 화면
 
-import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
-import { BlurView } from 'expo-blur';
-import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { Audio, AVPlaybackStatus } from "expo-av";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { BlurView } from "expo-blur";
+import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -14,46 +15,46 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { ReactNode } from 'react';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { ReactNode } from "react";
 import LevelTestTutorialOverlay, {
   TutorialStep,
-} from '../../components/level-test/LevelTestTutorialOverlay';
-import { COLORS, TYPOGRAPHY } from '../../constants/theme';
-import { ApiError } from '../../services/api';
+} from "../../components/level-test/LevelTestTutorialOverlay";
+import { COLORS, TYPOGRAPHY } from "../../constants/theme";
+import { ApiError } from "../../services/api";
 import {
   AnswerType,
   levelTestService,
   QuestionDto,
-} from '../../services/levelTestService';
-import { useAuthStore } from '../../store/useAuthStore';
+} from "../../services/levelTestService";
+import { useAuthStore } from "../../store/useAuthStore";
 
-type InputMode = 'none' | 'recording';
+type InputMode = "none" | "recording";
 
 // 문항 로딩 실패 시 화면이 비지 않도록 쓰는 폴백 문항
 const FALLBACK_QUESTIONS: QuestionDto[] = [
-  'Oh, you just arrived?\nWhere did you come from?\nHow long are you planning to stay?',
-  'What is your name and where are you from?',
-  'What do you usually do on weekends?',
-  'Can you describe your hometown?',
-  'What is your favorite movie and why?',
-  'Tell me about a memorable experience you had recently.',
+  "Oh, you just arrived?\nWhere did you come from?\nHow long are you planning to stay?",
+  "What is your name and where are you from?",
+  "What do you usually do on weekends?",
+  "Can you describe your hometown?",
+  "What is your favorite movie and why?",
+  "Tell me about a memorable experience you had recently.",
 ].map((text, index) => ({
   questionId: index + 1,
   questionText: text,
-  difficultyLevel: '',
-  category: '',
+  difficultyLevel: "",
+  category: "",
 }));
 
 const tutorialOrder: TutorialStep[] = [
-  'intro',
-  'controls',
-  'recording',
-  'start',
+  "intro",
+  "controls",
+  "recording",
+  "start",
 ];
 
-const instructorImage = require('../../assets/characters/level_test_instructor.png');
+const instructorImage = require("../../assets/characters/level_test_instructor.png");
 
 export default function LevelTestScreen() {
   const router = useRouter();
@@ -63,16 +64,34 @@ export default function LevelTestScreen() {
   // DB에 없는 questionId로 답변을 제출하지 않는다.
   const [hasServerQuestions, setHasServerQuestions] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [inputMode, setInputMode] = useState<InputMode>('none');
-  const [answer, setAnswer] = useState('');
+  const [inputMode, setInputMode] = useState<InputMode>("none");
+  const [answer, setAnswer] = useState("");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isQuestionPlaying, setIsQuestionPlaying] = useState(false);
   const isRecordingInProgress = useRef(false);
+
+  const player = useVideoPlayer(
+    require('../../assets/demo/test_시연영상.mp4'),
+    (p) => {
+      p.loop = true;
+      p.audioMixingMode = 'mixWithOthers';
+    }
+  );
+
+  useEffect(() => {
+    if (isQuestionPlaying) {
+      player.play();
+    } else {
+      player.pause();
+      player.currentTime = 0;
+    }
+  }, [isQuestionPlaying]);
   const soundRef = useRef<Audio.Sound | null>(null);
   const [isTutorialVisible, setIsTutorialVisible] = useState(true);
-  const [tutorialStep, setTutorialStep] = useState<TutorialStep>('intro');
+  const [tutorialStep, setTutorialStep] = useState<TutorialStep>("intro");
 
   const totalQuestions = questions.length;
   const currentProgress = currentQuestionIndex + 1;
@@ -102,9 +121,13 @@ export default function LevelTestScreen() {
     const playFirstQuestion = async () => {
       try {
         const { sound } = await Audio.Sound.createAsync({
-          uri: 'https://simspeak-audio-amahc0gkatbdc3fv.a02.azurefd.net/audio-files/leveltestQ1.mp3',
+          uri: "https://simspeak-audio-amahc0gkatbdc3fv.a02.azurefd.net/audio-files/leveltestQ1.mp3",
         });
         soundRef.current = sound;
+        setIsQuestionPlaying(true);
+        sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
+          if (status.isLoaded && status.didJustFinish) setIsQuestionPlaying(false);
+        });
         await sound.playAsync();
       } catch {}
     };
@@ -121,7 +144,11 @@ export default function LevelTestScreen() {
   }, []);
 
   // 답안을 백엔드에 제출하고 다음 문항으로 넘어간다. (제출 후 이전 문항 복귀 불가)
-  const submitAndAdvance = async (value: string, answerType: AnswerType, recordingUri?: string) => {
+  const submitAndAdvance = async (
+    value: string,
+    answerType: AnswerType,
+    recordingUri?: string,
+  ) => {
     const trimmed = value.trim();
     if (isSubmitting) {
       return;
@@ -139,15 +166,18 @@ export default function LevelTestScreen() {
       // 서버 문항을 받은 경우에만 제출한다. fallback 문항은 DB에 없는
       // questionId라 제출하면 오류가 나므로 로컬 진행만 한다.
       if (userId != null && hasServerQuestions) {
-        const mockAudioUrl = answerType === 'voice'
-          ? `https://9aifinalteam4.blob.core.windows.net/audio-files/user_mock_answer_q${currentQuestionIndex + 1}.mp3`
-          : undefined;
+        const mockAudioUrl =
+          answerType === "voice"
+            ? `https://9aifinalteam4.blob.core.windows.net/audio-files/user_mock_answer_q${currentQuestionIndex + 1}.mp3`
+            : undefined;
 
         playMockAudioPromise = mockAudioUrl
           ? (async () => {
               try {
                 await soundRef.current?.unloadAsync();
-                const { sound } = await Audio.Sound.createAsync({ uri: mockAudioUrl });
+                const { sound } = await Audio.Sound.createAsync({
+                  uri: mockAudioUrl,
+                });
                 soundRef.current = sound;
                 await new Promise<void>((resolve) => {
                   sound.setOnPlaybackStatusUpdate((status) => {
@@ -185,38 +215,50 @@ export default function LevelTestScreen() {
           const nextIdx = currentQuestionIndex + 1;
           setQuestions((prev) =>
             prev.map((q, i) =>
-              i === nextIdx ? { ...q, questionText: res.next_question_text! } : q
-            )
+              i === nextIdx
+                ? { ...q, questionText: res.next_question_text! }
+                : q,
+            ),
           );
         }
-        const nextAudioUrl = res.next_question_audio_url
-          ?? (currentQuestionIndex + 1 < totalQuestions
+        const nextAudioUrl =
+          res.next_question_audio_url ??
+          (currentQuestionIndex + 1 < totalQuestions
             ? `https://simspeak-audio-amahc0gkatbdc3fv.a02.azurefd.net/audio-files/leveltestQ${currentQuestionIndex + 2}.mp3`
             : null);
         if (nextAudioUrl) {
           try {
             await soundRef.current?.unloadAsync();
-            const { sound } = await Audio.Sound.createAsync({ uri: nextAudioUrl });
+            const { sound } = await Audio.Sound.createAsync({
+              uri: nextAudioUrl,
+            });
             soundRef.current = sound;
+            setIsQuestionPlaying(true);
+            sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
+              if (status.isLoaded && status.didJustFinish) setIsQuestionPlaying(false);
+            });
             await sound.playAsync();
           } catch {}
         }
       }
 
-      setAnswers((prev) => ({ ...prev, [currentQuestionIndex]: effectiveAnswer }));
-      setAnswer('');
-      setInputMode('none');
+      setAnswers((prev) => ({
+        ...prev,
+        [currentQuestionIndex]: effectiveAnswer,
+      }));
+      setAnswer("");
+      setInputMode("none");
 
       if (isFinished) {
         router.replace({
-          pathname: '/(auth)/level-test-result',
+          pathname: "/(auth)/level-test-result",
           params: { finalResult: JSON.stringify(finalResult) },
         });
         return;
       }
 
       if (currentQuestionIndex >= totalQuestions - 1) {
-        router.replace('/(auth)/level-test-result');
+        router.replace("/(auth)/level-test-result");
         return;
       }
 
@@ -224,7 +266,7 @@ export default function LevelTestScreen() {
     } catch (error) {
       if (currentQuestionIndex >= totalQuestions - 1) {
         await playMockAudioPromise;
-        router.replace('/(auth)/level-test-result');
+        router.replace("/(auth)/level-test-result");
         return;
       }
     } finally {
@@ -237,7 +279,7 @@ export default function LevelTestScreen() {
     isRecordingInProgress.current = true;
     try {
       // 녹음 중이면 정지 → 곧바로 제출 후 다음 문항
-      if (inputMode === 'recording') {
+      if (inputMode === "recording") {
         let uri: string | null = null;
         if (recording) {
           await recording.stopAndUnloadAsync();
@@ -245,33 +287,41 @@ export default function LevelTestScreen() {
           setRecordingUri(uri);
           setRecording(null);
         }
-        setInputMode('none');
-        submitAndAdvance('voice_answer', 'voice', uri ?? undefined);
+        setInputMode("none");
+        submitAndAdvance("voice_answer", "voice", uri ?? undefined);
         return;
       }
 
       // 녹음 시작
       if (soundRef.current) {
-        try { await soundRef.current.stopAsync(); await soundRef.current.unloadAsync(); } catch {}
+        try {
+          await soundRef.current.stopAsync();
+          await soundRef.current.unloadAsync();
+        } catch {}
         soundRef.current = null;
       }
       if (recording) {
-        try { await recording.stopAndUnloadAsync(); } catch {}
+        try {
+          await recording.stopAndUnloadAsync();
+        } catch {}
         setRecording(null);
       }
 
       const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('알림', '마이크 권한이 필요합니다.');
+      if (status !== "granted") {
+        Alert.alert("알림", "마이크 권한이 필요합니다.");
         return;
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
 
       const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
       );
       setRecording(newRecording);
-      setInputMode('recording');
+      setInputMode("recording");
     } finally {
       isRecordingInProgress.current = false;
     }
@@ -279,8 +329,8 @@ export default function LevelTestScreen() {
 
   const resetLevelTest = () => {
     setCurrentQuestionIndex(0);
-    setInputMode('none');
-    setAnswer('');
+    setInputMode("none");
+    setAnswer("");
     setAnswers({});
   };
 
@@ -290,7 +340,7 @@ export default function LevelTestScreen() {
   };
 
   const goNextTutorialStep = () => {
-    if (tutorialStep === 'start') {
+    if (tutorialStep === "start") {
       setIsTutorialVisible(false);
       resetLevelTest();
       return;
@@ -298,7 +348,7 @@ export default function LevelTestScreen() {
 
     const currentIndex = tutorialOrder.indexOf(tutorialStep);
     setTutorialStep(
-      tutorialOrder[Math.min(currentIndex + 1, tutorialOrder.length - 1)]
+      tutorialOrder[Math.min(currentIndex + 1, tutorialOrder.length - 1)],
     );
   };
 
@@ -310,22 +360,36 @@ export default function LevelTestScreen() {
             <LevelTestContent
               currentProgress={currentProgress}
               totalQuestions={totalQuestions}
-              currentQuestion={(questions[currentQuestionIndex] ?? questions[questions.length - 1]).questionText}
+              currentQuestion={
+                (
+                  questions[currentQuestionIndex] ??
+                  questions[questions.length - 1]
+                ).questionText
+              }
               answer={answer}
               inputMode={inputMode}
               onBack={() => router.back()}
               onPressMic={handlePressMic}
+              isQuestionPlaying={isQuestionPlaying}
+              player={player}
             />
           </ContentWrapper>
         ) : (
           <LevelTestContent
             currentProgress={currentProgress}
             totalQuestions={totalQuestions}
-            currentQuestion={(questions[currentQuestionIndex] ?? questions[questions.length - 1]).questionText}
+            currentQuestion={
+              (
+                questions[currentQuestionIndex] ??
+                questions[questions.length - 1]
+              ).questionText
+            }
             answer={answer}
             inputMode={inputMode}
             onBack={() => router.back()}
             onPressMic={handlePressMic}
+            isQuestionPlaying={isQuestionPlaying}
+            player={player}
           />
         )}
 
@@ -342,7 +406,7 @@ export default function LevelTestScreen() {
 }
 
 function ContentWrapper({ children }: { children: ReactNode }) {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === "web") {
     return <View style={styles.webBlurWrapper}>{children}</View>;
   }
 
@@ -361,6 +425,8 @@ function LevelTestContent({
   inputMode,
   onBack,
   onPressMic,
+  isQuestionPlaying,
+  player,
 }: {
   currentProgress: number;
   totalQuestions: number;
@@ -369,8 +435,10 @@ function LevelTestContent({
   inputMode: InputMode;
   onBack: () => void;
   onPressMic: () => void;
+  isQuestionPlaying: boolean;
+  player: ReturnType<typeof useVideoPlayer>;
 }) {
-  const isRecording = inputMode === 'recording';
+  const isRecording = inputMode === "recording";
   const insets = useSafeAreaInsets();
 
   return (
@@ -390,23 +458,24 @@ function LevelTestContent({
         </Text>
       </View>
 
-      <LevelProgressBar total={totalQuestions} currentIndex={currentProgress - 1} />
+      <LevelProgressBar
+        total={totalQuestions}
+        currentIndex={currentProgress - 1}
+      />
 
       <QuestionCard question={currentQuestion} />
 
       <View style={styles.characterImageWrapper}>
-        <Image
-          source={instructorImage}
-          resizeMode="cover"
+        <VideoView
+          player={player}
           style={styles.characterImage}
+          contentFit="cover"
+          nativeControls={false}
         />
       </View>
 
       <AnswerCard answer={answer} isRecording={isRecording} />
-      <VoiceInputControls
-        isRecording={isRecording}
-        onPressMic={onPressMic}
-      />
+      <VoiceInputControls isRecording={isRecording} onPressMic={onPressMic} />
     </View>
   );
 }
@@ -452,7 +521,7 @@ function AnswerCard({
   return (
     <View style={[styles.answerBox, styles.cardShadow]}>
       <Text style={styles.answerText}>
-        {isRecording ? answer : '마이크로 답변해주세요.'}
+        {isRecording ? answer : "마이크로 답변해주세요."}
       </Text>
     </View>
   );
@@ -473,15 +542,14 @@ function VoiceInputControls({
         activeOpacity={0.7}
       >
         <Ionicons
-          name={isRecording ? 'square' : 'mic'}
+          name={isRecording ? "square" : "mic"}
           size={isRecording ? 26 : 34}
-          color={isRecording ? '#FF4F73' : COLORS.gray0}
+          color={isRecording ? "#FF4F73" : COLORS.gray0}
         />
       </TouchableOpacity>
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -490,7 +558,7 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
-    position: 'relative',
+    position: "relative",
     backgroundColor: COLORS.white,
   },
   contentBlur: {
@@ -498,7 +566,7 @@ const styles = StyleSheet.create({
   },
   webBlurWrapper: {
     flex: 1,
-    filter: 'blur(4px)',
+    filter: "blur(4px)",
   },
   content: {
     flex: 1,
@@ -508,7 +576,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
   cardShadow: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
@@ -516,14 +584,14 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   backButton: {
     width: 30,
     height: 56,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
+    alignItems: "flex-start",
+    justifyContent: "center",
   },
   backText: {
     fontSize: 34,
@@ -534,7 +602,7 @@ const styles = StyleSheet.create({
     marginLeft: 2,
     flex: 1,
     ...TYPOGRAPHY.semibold20,
-    color: '#222222',
+    color: "#222222",
   },
   headerProgress: {
     ...TYPOGRAPHY.regular14,
@@ -542,78 +610,78 @@ const styles = StyleSheet.create({
   },
   progressRow: {
     height: 6,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 6,
   },
   progressSegment: {
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: "#E5E7EB",
   },
   progressSegmentActive: {
-    backgroundColor: '#FB7185',
+    backgroundColor: "#FB7185",
   },
   questionCard: {
     height: 106,
     paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 16,
     backgroundColor: COLORS.white,
   },
   questionText: {
     ...TYPOGRAPHY.semibold16,
     lineHeight: 22,
-    textAlign: 'center',
-    color: '#000000',
+    textAlign: "center",
+    color: "#000000",
   },
   characterImageWrapper: {
     flex: 1,
     minHeight: 230,
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
     backgroundColor: COLORS.white,
   },
   characterImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   answerBox: {
     padding: 16,
     minHeight: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 16,
     backgroundColor: COLORS.white,
   },
   answerText: {
     ...TYPOGRAPHY.semibold16,
     lineHeight: 22,
-    textAlign: 'center',
+    textAlign: "center",
     color: COLORS.black,
   },
   inputControlArea: {
     height: 124,
-    justifyContent: 'center',
-    position: 'relative',
+    justifyContent: "center",
+    position: "relative",
   },
   micButton: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
+    position: "absolute",
+    left: "50%",
+    top: "50%",
     width: 72,
     height: 72,
     marginLeft: -36,
     marginTop: -36,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 36,
-    backgroundColor: '#EFF1F0',
+    backgroundColor: "#EFF1F0",
   },
   recordingMicButton: {
     borderWidth: 2,
-    borderColor: '#FF4F73',
-    backgroundColor: '#FFE1E6',
+    borderColor: "#FF4F73",
+    backgroundColor: "#FFE1E6",
   },
 });

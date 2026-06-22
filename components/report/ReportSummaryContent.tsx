@@ -8,6 +8,7 @@ import ReportScoreRow from '@/components/report/ReportScoreRow';
 
 import { Correction } from '@/types/api';
 import { Spacing } from '@/constants/tokens';
+import { ChatMode } from '@/components/report/ReportChatTabs';
 
 export interface ReportSummaryContentProps {
   avgPronScore: number | null;
@@ -21,6 +22,7 @@ export interface ReportSummaryContentProps {
   grammarFeedback: string | null;
   affinityLabel: string;
   affinityChange?: number;
+  initialMode?: ChatMode;
   onReviewPress: () => void;
   onPrimaryPress: () => void;
   primaryLabel: string;
@@ -39,6 +41,7 @@ export default function ReportSummaryContent({
   grammarFeedback,
   affinityLabel,
   affinityChange,
+  initialMode,
   onReviewPress,
   onPrimaryPress,
   primaryLabel,
@@ -63,6 +66,7 @@ export default function ReportSummaryContent({
           chatCorrections={chatCorrections}
           voiceCorrections={voiceCorrections}
           grammarFeedback={grammarFeedback}
+          initialMode={initialMode}
         />
       </View>
       <ReportActionButtons

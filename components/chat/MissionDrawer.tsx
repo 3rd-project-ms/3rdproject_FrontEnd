@@ -101,7 +101,7 @@ export default function MissionDrawer({ visible, onClose, onGoReport, stageName,
           disabled={!onGoReport}
         >
           <Text style={[styles.footerText, onGoReport && styles.footerTextTappable]}>
-            미션 3개를 모두 완료하면{'\n'}자동으로 리포트로 이동해요 ✨
+            미션 3개를 모두 완료하면{'\n'}자동으로 리포트로 이동해요
           </Text>
           {onGoReport && (
             <Text style={styles.footerTapHint}>탭하여 지금 이동 →</Text>

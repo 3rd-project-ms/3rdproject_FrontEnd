@@ -304,6 +304,7 @@ export default function ChatTextScreen() {
         continuous_days: String(continuousDays),
         affinity_change: String(affinityDeltaTotal),
         affinity_score:  String(affinity),
+        initialMode:     '채팅',
       },
     });
   };

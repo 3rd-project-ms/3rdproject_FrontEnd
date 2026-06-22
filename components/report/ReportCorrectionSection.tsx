@@ -13,6 +13,7 @@ export interface ReportCorrectionSectionProps {
   chatCorrections: Correction[];
   voiceCorrections: Correction[];
   grammarFeedback: string | null;
+  initialMode?: ChatMode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -20,9 +21,10 @@ export default function ReportCorrectionSection({
   chatCorrections,
   voiceCorrections,
   grammarFeedback,
+  initialMode = '채팅',
   style,
 }: ReportCorrectionSectionProps) {
-  const [activeMode, setActiveMode] = useState<ChatMode>('채팅');
+  const [activeMode, setActiveMode] = useState<ChatMode>(initialMode);
   const { scrollRef, showScrollDown, handleScroll, handleContentSizeChange, handleLayout, scrollToEnd } =
     useScrollVisibility();
 

@@ -12,38 +12,6 @@ interface MicButtonProps {
   size?: number;
 }
 
-// 웨이브 바 1개
-function WaveBar({ delay, isActive }: { delay: number; isActive: boolean }) {
-  const height = useRef(new Animated.Value(4)).current;
-  const anim = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    if (isActive) {
-      anim.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(height, { toValue: 4 + Math.random() * 16 + 8, duration: 300 + delay, useNativeDriver: false }),
-          Animated.timing(height, { toValue: 4, duration: 300 + delay, useNativeDriver: false }),
-        ])
-      );
-      anim.current.start();
-    } else {
-      anim.current?.stop();
-      Animated.timing(height, { toValue: 4, duration: 200, useNativeDriver: false }).start();
-    }
-  }, [isActive]);
-
-  return (
-    <Animated.View
-      style={{
-        width: 3,
-        height,
-        borderRadius: 2,
-        backgroundColor: isActive ? colors.primary : '#D0D0D0',
-        marginHorizontal: 2,
-      }}
-    />
-  );
-}
 
 export default function MicButton({
   state,
@@ -56,18 +24,8 @@ export default function MicButton({
 
   const bgColor = isDisabled ? '#E0E0E0' : isRecording ? '#E8355A' : colors.primary;
 
-  // 웨이브 바 8개 — 각각 다른 딜레이
-  const BAR_DELAYS = [80, 120, 60, 180, 100, 140, 70, 160];
-
   return (
     <View style={styles.wrapper}>
-
-      {/* 웨이브 바 — 녹음 중에만 표시 */}
-      <View style={[styles.waveContainer, !isRecording && styles.waveHidden]}>
-        {BAR_DELAYS.map((delay, i) => (
-          <WaveBar key={i} delay={delay} isActive={isRecording} />
-        ))}
-      </View>
 
       {/* 마이크 버튼 */}
       <TouchableOpacity
