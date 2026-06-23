@@ -12,11 +12,11 @@ import { getStageMissions } from '@/constants/missionData';
 
 const STAGE1_SCRIPT = [
   { time: 0.0,   duration: 5.5,  sender: 'ai',   instant: true, text: "Hello! Welcome to my cafe! I haven't seen you around before. What can I get for you today?" },
-  { time: 8.0,   duration: 3.0,  sender: 'user', text: 'Hi! Can I get an iced Americano, please?', clearMissionIds: [1, 2], userStart: 6.0,  userEnd: 11.0 },
+  { time: 8.0,   duration: 3.0,  sender: 'user', text: 'Hi! Can I get an iced Americano, please?', clearMissionIds: [1, 2], userStart: 6.0,  userEnd: 11.0, affinityDelta: 30 },
   { time: 10.56, duration: 7.44, sender: 'ai',   text: 'One iced Americano, coming right up! You look new to this area. Did you just move to this neighborhood?' },
-  { time: 18.0,  duration: 4.36, sender: 'user', text: 'yes 며칠 전에 이사왔어요. the neighborhood is very nice', userStart: 18.0, userEnd: 22.0 },
+  { time: 18.0,  duration: 4.36, sender: 'user', text: 'yes 며칠 전에 이사왔어요. the neighborhood is very nice', userStart: 18.0, userEnd: 22.0, affinityDelta: -3 },
   { time: 22.36, duration: 6.06, sender: 'ai',   text: "That's lovely! I'm Sienna, the owner here. How are you liking the area so far?" },
-  { time: 28.42, duration: 5.0,  sender: 'user', text: "It's quiet and peaceful. And your cafe is really pretty!", clearMissionIds: [3], userStart: 28.42, userEnd: 32.8 },
+  { time: 28.42, duration: 5.0,  sender: 'user', text: "It's quiet and peaceful. And your cafe is really pretty!", clearMissionIds: [3], userStart: 28.42, userEnd: 32.8, affinityDelta: 1 },
 ];
 
 const HIDDEN_SCRIPT = [
@@ -41,6 +41,7 @@ export default function ChatDemoScreen() {
   const { stageName, missions: missionDefs, hint } = getStageMissions(stageNum, 'voice');
   const [missions, setMissions] = useState(missionDefs.map((m) => ({ ...m, cleared: false })));
   const [showMission, setShowMission] = useState(false);
+  const [affinity, setAffinity] = useState(stage === 'hidden' ? 80 : 0);
 
   useEffect(() => {
     if (stage !== 'stage1') return;
@@ -120,18 +121,26 @@ export default function ChatDemoScreen() {
             }
           }, 1500);
         } else {
-          const clearMissions = item.clearMissionIds?.length
-            ? () => setMissions((prev) =>
-                prev.map((m) =>
-                  item.clearMissionIds!.includes(m.id) ? { ...m, cleared: true } : m
-                )
-              )
+          const onComplete = (item.clearMissionIds?.length || (item as any).affinityDelta != null)
+            ? () => {
+                if (item.clearMissionIds?.length) {
+                  setMissions((prev) =>
+                    prev.map((m) =>
+                      item.clearMissionIds!.includes(m.id) ? { ...m, cleared: true } : m
+                    )
+                  );
+                }
+                const delta = (item as any).affinityDelta;
+                if (delta != null) {
+                  setAffinity((prev) => Math.min(100, Math.max(0, prev + delta)));
+                }
+              }
             : undefined;
 
           if (item.sender === 'ai') {
-            typeText(item.text, setCurrentAiText, aiCaptionOpacity, item.duration, clearMissions);
+            typeText(item.text, setCurrentAiText, aiCaptionOpacity, item.duration, onComplete);
           } else {
-            typeText(item.text, setCurrentUserText, userTextOpacity, item.duration, clearMissions);
+            typeText(item.text, setCurrentUserText, userTextOpacity, item.duration, onComplete);
           }
         }
         shownIndexRef.current += 1;
@@ -163,6 +172,33 @@ export default function ChatDemoScreen() {
             )}
           </View>
         </TouchableOpacity>
+      </View>
+
+      {/* 호감도 바 */}
+      <View style={styles.affinitySection}>
+        <View style={styles.affinityRow}>
+          <Text style={styles.affinityPercent}>{affinity}%</Text>
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, { width: `${affinity}%` }]} />
+            {[40, 80].map((point) => (
+              <View key={point} style={[styles.barDivider, { left: `${point}%` }]} />
+            ))}
+          </View>
+        </View>
+        <View style={styles.affinityMarkerRow}>
+          <View style={styles.affinityMarkerSpacer} />
+          <View style={styles.affinityMarkerTrack}>
+            {[40, 80].map((point) => (
+              <View key={point} style={[styles.affinityMarkerItem, { left: `${point}%` }]}>
+                <Ionicons
+                  name={affinity >= point ? 'heart' : 'heart-outline'}
+                  size={14}
+                  color={affinity >= point ? '#F6A3A6' : '#C8C8C8'}
+                />
+              </View>
+            ))}
+          </View>
+        </View>
       </View>
 
       {/* 영상 영역 */}
@@ -323,4 +359,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   missionBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
+  affinitySection: { paddingHorizontal: 16, marginBottom: 4 },
+  affinityRow: { flexDirection: 'row', alignItems: 'center' },
+  affinityPercent: { fontSize: 13, fontWeight: '600', color: '#888888', width: 36, marginRight: 8 },
+  progressBarBg: { flex: 1, height: 8, backgroundColor: '#F0F0F0', borderRadius: 4, position: 'relative', overflow: 'hidden' },
+  progressBarFill: { height: '100%', backgroundColor: '#F6A3A6', borderRadius: 4 },
+  barDivider: { position: 'absolute', top: 0, bottom: 0, width: 1.5, backgroundColor: 'rgba(255,255,255,0.7)' },
+  affinityMarkerRow: { flexDirection: 'row', marginTop: 6 },
+  affinityMarkerSpacer: { width: 44 },
+  affinityMarkerTrack: { flex: 1, position: 'relative', height: 28 },
+  affinityMarkerItem: { position: 'absolute', alignItems: 'center', transform: [{ translateX: -10 }] },
 });

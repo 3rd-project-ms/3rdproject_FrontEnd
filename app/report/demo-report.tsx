@@ -35,12 +35,12 @@ export default function DemoReportScreen() {
       <ReportSummaryContent
         avgPronScore={80}
         correctionCount={1}
-        isPronNavigable={false}
-        onPronPress={() => {}}
-        affinityProgress={0.31}
-        affinityValue={31}
+        isPronNavigable={true}
+        onPronPress={() => router.push('/report/demo-pronunciation' as any)}
+        affinityProgress={0.28}
+        affinityValue={28}
         affinityLabel="시엔나 호감도"
-        affinityChange={1}
+        affinityChange={-2}
         chatCorrections={[]}
         voiceCorrections={DEMO_CORRECTIONS}
         grammarFeedback="전반적으로 자연스러운 영어 표현을 사용했어요. 한국어 혼용을 줄이면 더 좋아요."

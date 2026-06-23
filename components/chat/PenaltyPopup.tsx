@@ -26,43 +26,43 @@ interface PopupConfig {
 
 const POPUP_CONFIGS: Record<PopupType, PopupConfig> = {
   pronunciation_error: {
-    title: '⚠️ 발음 주의!',
+    title: '발음 주의!',
     description: '방금 부분은 발음이 조금 뭉개졌어요.\n단어를 조금 더 명확하게 끊어서 말해볼까요?',
     footer: '시스템 페널티 적용 (다시 말하기를 시도해보세요!)',
     type: 'penalty',
   },
   repetitive_phrases: {
-    title: '⚠️ 표현이 중복되었어요!',
+    title: '표현이 중복되었어요!',
     description: '짧은 시간 동안 같은 표현를 자주 사용하셨어요.\n조금 더 다양한 표현을 섞어 대화해 보세요!',
     footer: '어휘 다양성 점수 감점',
     type: 'penalty',
   },
   off_topic: {
-    title: '⚠️ 어라, 질문과 다른 대답이에요!',
+    title: '어라, 질문과 다른 대답이에요!',
     description: '상대방의 질문 흐름과 맞지 않는 답변이에요.\n대화 맥락을 다시 한번 확인해 볼까요?',
     footer: '대화 집중도 페널티 부여',
     type: 'penalty',
   },
   korean_mixed: {
-    title: '🇰🇷 한국어는 잠깐 넣어둘까요?',
+    title: '한국어는 잠깐 넣어둘까요?',
     description: '영어로만 대화를 이어가면 실력이 더 빠르게 늘어요!\n다음 답변은 영어로만 도전해 보세요.',
     footer: '대화 집중도 페널티 부여',
     type: 'penalty',
   },
   grammar_error: {
-    title: '✏️ 문장을 다시 살펴봐요!',
+    title: '문장을 다시 살펴봐요!',
     description: '문법이 조금 어긋났어요.\n올바른 문장으로 다시 한번 시도해 볼까요?',
     footer: '문법 점수 감점',
     type: 'penalty',
   },
   affection_good: {
-    title: '❤️ 호감도 상승!',
+    title: '호감도 상승!',
     description: '센스 있는 답변으로 상대방의 기분이 좋아졌습니다.\n대화가 아주 매끄럽게 이어지고 있어요!',
     footer: '',
     type: 'affection',
   },
   affection_perfect: {
-    title: '✨ 완벽한 티키타카!',
+    title: '완벽한 티키타카!',
     description: '자연스러운 발음과 답변으로 호감을 얻었습니다.\n지금 페이스를 유지하세요!',
     footer: '',
     type: 'affection',
@@ -125,29 +125,31 @@ export default function PenaltyPopup({
         ]}
       >
         <View style={styles.content}>
-          <View style={[styles.iconBadge, isPenalty ? styles.iconBadgePenalty : styles.iconBadgeAffection]}>
-            <Ionicons
-              name={isPenalty ? 'alert-circle' : 'heart'}
-              size={20}
-              color={isPenalty ? 'rgba(255,77,90,0.9)' : 'rgba(246,163,166,0.9)'}
-            />
-          </View>
-          <View style={styles.titleRow}>
-            <Text style={[styles.title, isPenalty ? styles.titlePenalty : styles.titleAffection]}>
-              {config.title}
-            </Text>
-            {!isPenalty && penaltyPoints !== undefined && (
-              <View style={styles.pointsBadge}>
-                <Text style={styles.pointsText}>+{penaltyPoints} pts</Text>
-              </View>
-            )}
-            {isPenalty && penaltyPoints !== undefined && (
-              <View style={[styles.pointsBadge, styles.pointsBadgePenalty]}>
-                <Text style={[styles.pointsText, styles.pointsTextPenalty]}>
-                  -{penaltyPoints} pts
-                </Text>
-              </View>
-            )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={[styles.iconBadge, isPenalty ? styles.iconBadgePenalty : styles.iconBadgeAffection]}>
+              <Ionicons
+                name={isPenalty ? 'alert-circle' : 'heart'}
+                size={20}
+                color={isPenalty ? 'rgba(255,77,90,0.9)' : 'rgba(246,163,166,0.9)'}
+              />
+            </View>
+            <View style={styles.titleRow}>
+              <Text style={[styles.title, isPenalty ? styles.titlePenalty : styles.titleAffection]}>
+                {config.title}
+              </Text>
+              {!isPenalty && penaltyPoints !== undefined && (
+                <View style={styles.pointsBadge}>
+                  <Text style={styles.pointsText}>+{penaltyPoints} pts</Text>
+                </View>
+              )}
+              {isPenalty && penaltyPoints !== undefined && (
+                <View style={[styles.pointsBadge, styles.pointsBadgePenalty]}>
+                  <Text style={[styles.pointsText, styles.pointsTextPenalty]}>
+                    -{penaltyPoints} pts
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
           <Text style={styles.description}>{config.description}</Text>
@@ -216,7 +218,7 @@ const styles = StyleSheet.create({
   iconBadge: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   iconBadgePenalty:   { backgroundColor: 'rgba(255,77,90,0.12)' },
   iconBadgeAffection: { backgroundColor: 'rgba(246,163,166,0.15)' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap', gap: 8 },
   title: { fontSize: 17, fontWeight: '700', flexShrink: 1 },
   titlePenalty:   { color: COLORS.error },
   titleAffection: { color: COLORS.subColor3 },

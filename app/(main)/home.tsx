@@ -248,6 +248,20 @@ export default function HomeScreen() {
                 <Text style={[s.charName, { textAlign: 'center' }]}>Hidden Stage</Text>
                 <Text style={[s.charDesc, { textAlign: 'center' }]}>강변 야경 산책</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.card, { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }]}
+                onPress={() => router.push({ pathname: '/(main)/chat-text-demo' })}
+              >
+                <Text style={[s.charName, { textAlign: 'center' }]}>텍스트 채팅 (시연)</Text>
+                <Text style={[s.charDesc, { textAlign: 'center' }]}>카페에서의 첫 만남</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.card, { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }]}
+                onPress={() => router.push('/(main)/demo-mypage' as any)}
+              >
+                <Text style={[s.charName, { textAlign: 'center' }]}>마이페이지</Text>
+                <Text style={[s.charDesc, { textAlign: 'center' }]}>학습 기록 확인</Text>
+              </TouchableOpacity>
             </>
           ) : (
             <>

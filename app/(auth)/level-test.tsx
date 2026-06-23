@@ -74,11 +74,11 @@ export default function LevelTestScreen() {
   const isRecordingInProgress = useRef(false);
 
   const player = useVideoPlayer(
-    require('../../assets/demo/test_시연영상.mp4'),
+    require("../../assets/demo/test_시연영상.mp4"),
     (p) => {
       p.loop = true;
-      p.audioMixingMode = 'mixWithOthers';
-    }
+      p.audioMixingMode = "mixWithOthers";
+    },
   );
 
   useEffect(() => {
@@ -120,8 +120,15 @@ export default function LevelTestScreen() {
     if (isTutorialVisible) return;
     const playFirstQuestion = async () => {
       try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+          staysActiveInBackground: false,
+        });
         const { sound } = await Audio.Sound.createAsync({
-          uri: "https://simspeak-audio-amahc0gkatbdc3fv.a02.azurefd.net/audio-files/leveltestQ1.mp3",
+          uri: 'https://simspeak-audio-amahc0gkatbdc3fv.a02.azurefd.net/audio-files/leveltestQ1.mp3',
         });
         soundRef.current = sound;
         setIsQuestionPlaying(true);
@@ -129,7 +136,9 @@ export default function LevelTestScreen() {
           if (status.isLoaded && status.didJustFinish) setIsQuestionPlaying(false);
         });
         await sound.playAsync();
-      } catch {}
+      } catch (e) {
+        console.warn('오디오 재생 오류:', e);
+      }
     };
     playFirstQuestion();
   }, [isTutorialVisible]);
@@ -187,7 +196,7 @@ export default function LevelTestScreen() {
                 });
                 await sound.unloadAsync();
                 soundRef.current = null;
-              } catch {}
+              } catch (e) { console.warn('오디오 재생 오류:', e); }
             })()
           : Promise.resolve();
 
@@ -235,10 +244,11 @@ export default function LevelTestScreen() {
             soundRef.current = sound;
             setIsQuestionPlaying(true);
             sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
-              if (status.isLoaded && status.didJustFinish) setIsQuestionPlaying(false);
+              if (status.isLoaded && status.didJustFinish)
+                setIsQuestionPlaying(false);
             });
             await sound.playAsync();
-          } catch {}
+          } catch (e) { console.warn('오디오 재생 오류:', e); }
         }
       }
 
@@ -297,13 +307,13 @@ export default function LevelTestScreen() {
         try {
           await soundRef.current.stopAsync();
           await soundRef.current.unloadAsync();
-        } catch {}
+        } catch (e) { console.warn('오디오 재생 오류:', e); }
         soundRef.current = null;
       }
       if (recording) {
         try {
           await recording.stopAndUnloadAsync();
-        } catch {}
+        } catch (e) { console.warn('오디오 재생 오류:', e); }
         setRecording(null);
       }
 
