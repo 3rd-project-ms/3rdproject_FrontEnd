@@ -115,63 +115,39 @@ export default function PenaltyPopup({
   if (!visible) return null;
 
   return (
-    // Modal 대신 absolute View로 화면 전체 덮기
     <View style={styles.overlay}>
       <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-      <Animated.View
-        style={[
-          styles.card,
-          { transform: [{ scale: scaleAnim }], opacity: opacityAnim },
-        ]}
-      >
-        <View style={styles.content}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <TouchableOpacity activeOpacity={0.95} onPress={onClose}>
+        <Animated.View
+          style={[
+            styles.card,
+            { transform: [{ scale: scaleAnim }], opacity: opacityAnim },
+          ]}
+        >
+          <Text style={[styles.title, isPenalty ? styles.titlePenalty : styles.titleAffection]}>
+            {config.title}
+          </Text>
+
+          <View style={styles.badgeRow}>
             <View style={[styles.iconBadge, isPenalty ? styles.iconBadgePenalty : styles.iconBadgeAffection]}>
               <Ionicons
-                name={isPenalty ? 'alert-circle' : 'heart'}
-                size={20}
-                color={isPenalty ? 'rgba(255,77,90,0.9)' : 'rgba(246,163,166,0.9)'}
+                name={isPenalty ? 'heart-dislike' : 'heart'}
+                size={18}
+                color={isPenalty ? '#AAAAAA' : '#F6A3A6'}
               />
             </View>
-            <View style={styles.titleRow}>
-              <Text style={[styles.title, isPenalty ? styles.titlePenalty : styles.titleAffection]}>
-                {config.title}
-              </Text>
-              {!isPenalty && penaltyPoints !== undefined && (
-                <View style={styles.pointsBadge}>
-                  <Text style={styles.pointsText}>+{penaltyPoints} pts</Text>
-                </View>
-              )}
-              {isPenalty && penaltyPoints !== undefined && (
-                <View style={[styles.pointsBadge, styles.pointsBadgePenalty]}>
-                  <Text style={[styles.pointsText, styles.pointsTextPenalty]}>
-                    -{penaltyPoints} pts
-                  </Text>
-                </View>
-              )}
-            </View>
+            {penaltyPoints !== undefined && (
+              <View style={[styles.pointsBadge, isPenalty ? styles.pointsBadgePenalty : null]}>
+                <Text style={[styles.pointsText, isPenalty ? styles.pointsTextPenalty : null]}>
+                  {isPenalty ? `-${penaltyPoints}` : `+${penaltyPoints}`} pts
+                </Text>
+              </View>
+            )}
           </View>
 
           <Text style={styles.description}>{config.description}</Text>
-
-          {config.footer ? (
-            <>
-              <View style={styles.divider} />
-              <Text style={[styles.footer, isPenalty ? styles.footerPenalty : styles.footerAffection]}>
-                {config.footer}
-              </Text>
-            </>
-          ) : null}
-        </View>
-
-        <TouchableOpacity
-          style={[styles.closeBtn, isPenalty ? styles.closeBtnPenalty : styles.closeBtnAffection]}
-          onPress={onClose}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.closeBtnText}>확인</Text>
-        </TouchableOpacity>
-      </Animated.View>
+        </Animated.View>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -197,42 +173,40 @@ export function usePenaltyPopup() {
 const styles = StyleSheet.create({
   // Modal 대신 absolute overlay
   overlay: {
-    ...StyleSheet.absoluteFillObject,  // 부모(SafeAreaView) 전체를 덮음
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
+    paddingBottom: 120,
     zIndex: 999,
   },
   card: {
-    width: SCREEN_WIDTH * 0.84,
-    borderRadius: 20,
-    overflow: 'hidden',
+    width: '85%',
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 12,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#F6A3A6',
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 20,
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#F6A3A6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  content: { paddingHorizontal: 22, paddingTop: 24, paddingBottom: 12, gap: 10 },
-  iconBadge: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  iconBadgePenalty:   { backgroundColor: 'rgba(255,77,90,0.12)' },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBadge: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  iconBadgePenalty:   { backgroundColor: 'rgba(97,97,97,0.12)' },
   iconBadgeAffection: { backgroundColor: 'rgba(246,163,166,0.15)' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap', gap: 8 },
-  title: { fontSize: 17, fontWeight: '700', flexShrink: 1 },
-  titlePenalty:   { color: COLORS.error },
-  titleAffection: { color: COLORS.subColor3 },
+  title: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  titlePenalty:   { color: '#0B0B12' },
+  titleAffection: { color: '#0B0B12' },
   pointsBadge: { backgroundColor: 'rgba(246,163,166,0.15)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  pointsBadgePenalty: { backgroundColor: 'rgba(255,77,90,0.1)' },
+  pointsBadgePenalty: { backgroundColor: 'rgba(97,97,97,0.1)' },
   pointsText: { fontSize: 13, fontWeight: '700', color: COLORS.subColor3 },
-  pointsTextPenalty: { color: COLORS.error },
-  description: { fontSize: 14, color: '#444', lineHeight: 21 },
-  divider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 4 },
-  footer: { fontSize: 12, fontWeight: '600' },
-  footerPenalty:   { color: COLORS.error },
-  footerAffection: { color: COLORS.primary },
-  closeBtn: { marginHorizontal: 22, marginBottom: 18, marginTop: 6, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  closeBtnPenalty:   { backgroundColor: COLORS.error },
-  closeBtnAffection: { backgroundColor: COLORS.primary },
-  closeBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  pointsTextPenalty: { color: '#616161' },
+  description: { fontSize: 14, textAlign: 'center', color: '#616161', lineHeight: 20 },
 });

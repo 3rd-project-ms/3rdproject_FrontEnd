@@ -145,7 +145,7 @@ export default function DemoMyPageScreen() {
               <Text style={styles.modalItemText}>닉네임 변경</Text>
             </TouchableOpacity>
             <View style={styles.modalDivider} />
-            <TouchableOpacity style={styles.modalItem}>
+            <TouchableOpacity style={styles.modalItem} onPress={() => { setShowEditModal(false); router.push('/(main)/demo-outro' as any); }}>
               <Ionicons name="log-out-outline" size={18} color="#FF453A" />
               <Text style={[styles.modalItemText, { color: '#FF453A' }]}>로그아웃</Text>
             </TouchableOpacity>

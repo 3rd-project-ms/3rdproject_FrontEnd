@@ -216,7 +216,11 @@ export default function HomeScreen() {
 
         {/* 헤더 바 */}
         <View style={s.header}>
-          <Text style={s.logo}>LOGO</Text>
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={{ height: 40, width: 120 }}
+            resizeMode="contain"
+          />
           <TouchableOpacity onPress={() => router.push('/(main)/mypage' as any)} style={s.iconPad}>
             <Ionicons name="settings-outline" size={24} color="#0B0B12" />
           </TouchableOpacity>
@@ -261,6 +265,20 @@ export default function HomeScreen() {
               >
                 <Text style={[s.charName, { textAlign: 'center' }]}>마이페이지</Text>
                 <Text style={[s.charDesc, { textAlign: 'center' }]}>학습 기록 확인</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.card, { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }]}
+                onPress={() => router.push({ pathname: '/(main)/demo-stage' as any })}
+              >
+                <Text style={[s.charName, { textAlign: 'center' }]}>스테이지 (시연)</Text>
+                <Text style={[s.charDesc, { textAlign: 'center' }]}>호감도 80% 달성 상태</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.card, { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }]}
+                onPress={() => router.push('/(auth)/demo-level-test' as any)}
+              >
+                <Text style={[s.charName, { textAlign: 'center' }]}>레벨 테스트 (시연)</Text>
+                <Text style={[s.charDesc, { textAlign: 'center' }]}>1턴 체험</Text>
               </TouchableOpacity>
             </>
           ) : (

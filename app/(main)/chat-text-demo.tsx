@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
-  SafeAreaView, FlatList, Platform, KeyboardAvoidingView,
+  SafeAreaView, FlatList, Platform, KeyboardAvoidingView, Animated, Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -94,6 +94,8 @@ export default function ChatTextDemoScreen() {
   const { stageName, missions: missionDefs, hint } = getStageMissions(stageNum, 'text');
   const [messages, setMessages] = useState<typeof DEMO_MESSAGES>([]);
   const [affinity, setAffinity] = useState(0);
+  const [affinityDelta, setAffinityDelta] = useState<number | null>(null);
+  const deltaAnim = useRef(new Animated.Value(0)).current;
   const [missions, setMissions] = useState(missionDefs.map((m) => ({ ...m, cleared: false })));
   const [showMission, setShowMission] = useState(false);
   const [showHintModal, setShowHintModal] = useState(false);
@@ -118,6 +120,16 @@ export default function ChatTextDemoScreen() {
     };
   }, []);
 
+  const showDelta = (delta: number) => {
+    setAffinityDelta(delta);
+    deltaAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(deltaAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(1000),
+      Animated.timing(deltaAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start(() => setAffinityDelta(null));
+  };
+
   const typeInInput = (text: string, onComplete: () => void) => {
     inputRef.current?.focus();
     let i = 0;
@@ -141,11 +153,12 @@ export default function ChatTextDemoScreen() {
           typeInInput(msg.text, () => {
             setInputText('');
             setMessages((prev) => [...prev, msg]);
-            if (msg.id === '2') { setAffinity(30); }
-            if (msg.id === '4') { popup.show('korean_mixed'); setAffinity((prev) => Math.max(0, prev - 3)); setTimeout(() => popup.hide(), 2500); }
+            if (msg.id === '2') { setAffinity(30); showDelta(30); }
+            if (msg.id === '4') { Keyboard.dismiss(); popup.show('korean_mixed'); setAffinity((prev) => Math.max(0, prev - 3)); showDelta(-3); setTimeout(() => popup.hide(), 2500); }
             if (msg.id === '6') {
               setAffinity((prev) => Math.min(100, prev + 1));
-              setTimeout(() => { popup.show('affection_good', 1); setTimeout(() => popup.hide(), 2500); }, 1000);
+              showDelta(1);
+              setTimeout(() => { Keyboard.dismiss(); popup.show('affection_good', 1); setTimeout(() => popup.hide(), 2500); }, 1000);
             }
             if (msg.clearMissionIds?.length) {
               setMissions((prev) =>
@@ -222,6 +235,23 @@ export default function ChatTextDemoScreen() {
         </View>
       </View>
 
+      {/* 호감도 델타 */}
+      {affinityDelta !== null && (
+        <Animated.Text style={[
+          styles.affinityDeltaText,
+          {
+            opacity: deltaAnim,
+            color: affinityDelta > 0 ? '#F6A3A6' : '#AAAAAA',
+            transform: [{ translateY: deltaAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, -30],
+            })}],
+          }
+        ]}>
+          {affinityDelta > 0 ? `+${affinityDelta}` : `${affinityDelta}`}
+        </Animated.Text>
+      )}
+
       {/* 말풍선 + 입력창 */}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <FlatList
@@ -268,7 +298,7 @@ export default function ChatTextDemoScreen() {
         visible={popup.visible}
         popupType={popup.currentType}
         penaltyPoints={popup.penaltyPoints}
-        onClose={popup.hide}
+        onClose={() => { popup.hide(); setTimeout(() => inputRef.current?.focus(), 300); }}
       />
 
       {showHintModal && (
@@ -306,6 +336,14 @@ const styles = StyleSheet.create({
   charName: { flex: 1, fontSize: 22, fontWeight: '700', color: '#0B0B12' },
   charRole: { fontSize: 18, fontWeight: '400', color: '#888888' },
   affinitySection: { paddingHorizontal: 16, marginBottom: 4 },
+  affinityDeltaText: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '45%',
+    fontSize: 48,
+    fontWeight: '900',
+    zIndex: 999,
+  },
   affinityRow: { flexDirection: 'row', alignItems: 'center' },
   affinityPercent: { fontSize: 13, fontWeight: '600', color: '#888888', width: 36, marginRight: 8 },
   progressBarBg: { flex: 1, height: 8, backgroundColor: '#F0F0F0', borderRadius: 4, overflow: 'hidden' },
